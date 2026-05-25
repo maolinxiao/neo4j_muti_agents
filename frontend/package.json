@@ -1,0 +1,30 @@
+{
+  "name": "food-homology-qa-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "remotion:studio": "remotion studio remotion/src/index.jsx",
+    "render:login-bg": "remotion render remotion/src/index.jsx LoginBackground public/login-bg.mp4 --codec=h264 --overwrite",
+    "render:login-still": "remotion still remotion/src/index.jsx LoginBackground public/login-bg-still.png --frame=45 --overwrite"
+  },
+  "dependencies": {
+    "@antv/g6": "^5.0.49",
+    "axios": "^1.11.0",
+    "element-plus": "^2.10.7",
+    "pinia": "^3.0.3",
+    "vue": "^3.5.19",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@remotion/cli": "^4.0.465",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.465",
+    "vite": "^5.4.19"
+  }
+}

@@ -1,0 +1,29 @@
+# Python virtual environment
+.venv/
+
+# Node.js
+.npm-cache/
+node_modules/
+
+# Log files
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Vendor dependencies
+_vendor/
+**/_vendor/
+
+# Environment
+.env
+.env.local
+
+# Local raw datasets (too large for GitHub)
+origin_data/

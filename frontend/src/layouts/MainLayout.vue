@@ -16,31 +16,35 @@
           :unique-opened="false"
           :collapse-transition="false"
         >
-          <el-menu-item index="/">
+          <el-menu-item index="/app">
             <el-icon><House /></el-icon>
             <template #title>工作台首页</template>
           </el-menu-item>
-          <el-menu-item index="/chat">
+          <el-menu-item index="/app/chat">
             <el-icon><ChatDotRound /></el-icon>
             <template #title>知识问答</template>
           </el-menu-item>
-          <el-menu-item index="/rnd">
+          <el-menu-item index="/app/constitution">
+            <el-icon><List /></el-icon>
+            <template #title>体质辨识</template>
+          </el-menu-item>
+          <el-menu-item index="/app/rnd">
             <el-icon><Cpu /></el-icon>
             <template #title>研发协同</template>
           </el-menu-item>
-          <el-menu-item index="/history">
+          <el-menu-item index="/app/history">
             <el-icon><Document /></el-icon>
             <template #title>历史记录</template>
           </el-menu-item>
-          <el-sub-menu index="/admin">
+          <el-sub-menu index="/app/admin">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>管理后台</span>
             </template>
-            <el-menu-item index="/admin/overview">数据概览</el-menu-item>
-            <el-menu-item index="/admin/logs">运行日志</el-menu-item>
-            <el-menu-item index="/admin/prompts">Prompt 管理</el-menu-item>
-            <el-menu-item index="/admin/templates">Cypher 模板</el-menu-item>
+            <el-menu-item index="/app/admin/overview">数据概览</el-menu-item>
+            <el-menu-item index="/app/admin/logs">运行日志</el-menu-item>
+            <el-menu-item index="/app/admin/prompts">Prompt 管理</el-menu-item>
+            <el-menu-item index="/app/admin/templates">Cypher 模板</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-scrollbar>
@@ -49,7 +53,7 @@
       <el-header class="topbar" height="50px">
         <div class="topbar-left">
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/app' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentRouteName }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -82,6 +86,7 @@ import { useRoute, useRouter } from "vue-router";
 import {
   House,
   ChatDotRound,
+  List,
   Cpu,
   Document,
   Setting,
@@ -95,17 +100,25 @@ const auth = useAuthStore();
 const activePath = computed(() => route.path);
 
 const routeNameMap = {
-  '/': '工作台首页',
-  '/chat': '知识问答',
-  '/rnd': '研发协同',
-  '/history': '历史记录',
-  '/admin/overview': '数据概览',
-  '/admin/logs': '运行日志',
-  '/admin/prompts': 'Prompt 管理',
-  '/admin/templates': 'Cypher 模板'
+  "/app": "工作台首页",
+  "/app/chat": "知识问答",
+  "/app/constitution": "体质辨识",
+  "/app/rnd": "研发协同",
+  "/app/history": "历史记录",
+  "/app/admin/overview": "数据概览",
+  "/app/admin/logs": "运行日志",
+  "/app/admin/prompts": "Prompt 管理",
+  "/app/admin/templates": "Cypher 模板",
 };
 
-const currentRouteName = computed(() => routeNameMap[route.path] || '');
+const currentRouteName = computed(() => {
+  const path = route.path;
+  if (routeNameMap[path]) return routeNameMap[path];
+  if (path.startsWith("/app/chat")) return "知识问答";
+  if (path.startsWith("/app/rnd")) return "研发协同";
+  if (path.startsWith("/app/admin")) return "管理后台";
+  return "";
+});
 
 const handleLogout = async () => {
   await auth.logout();

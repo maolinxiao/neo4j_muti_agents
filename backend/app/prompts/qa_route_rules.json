@@ -1,0 +1,484 @@
+{
+  "version": 3,
+  "default_route": "entity_explanation",
+  "flow_metadata": {
+    "reasoning_phases": [
+      {"key": "task_routing", "label": "任务分流", "order": 1},
+      {"key": "core_info_check", "label": "核心信息检查", "order": 2},
+      {"key": "kb_routing", "label": "KB 路由", "order": 3},
+      {"key": "risk_compliance", "label": "风险/合规边界", "order": 4},
+      {"key": "answer_followup", "label": "回答与追问", "order": 5}
+    ],
+    "personal_route_keys": [
+      "constitution_assessment",
+      "personalized_food_recommendation",
+      "personal_product_fit",
+      "personal_product_recommendation",
+      "risk_boundary"
+    ],
+    "enterprise_route_keys": [
+      "product_development",
+      "formula_foodification",
+      "herb_replacement",
+      "flavor_form_factor",
+      "market_analysis",
+      "compliance_review"
+    ],
+    "graph_baseline": {
+      "updated_at": "2026-06-25 11:19",
+      "node_count": 86482,
+      "relationship_count": 207354,
+      "compound_count": 0,
+      "source_summary": "0604 KB1-KB8 + 0512 CDB1 + KB4/KB7/0524 增强补充源"
+    },
+    "data_gaps_no_model_fill": [
+      "电子鼻/感官实验",
+      "工艺稳定性/独立工艺库",
+      "加工助剂细则（图谱未结构化部分）",
+      "行业报告",
+      "完整保健食品功能目录",
+      "用户个人口味偏好持久化档案"
+    ]
+  },
+  "reasoning_templates": {
+    "enterprise_default": [
+      "识别企业研发任务类型与食品化输出边界",
+      "检查目标功效、剂型、人群、风味、成本、合规等核心约束是否齐全",
+      "按路由核对 KB1-KB7 与 CDB1 证据及缺口",
+      "先判断合法性、配伍禁忌、宣传边界与实验验证需求",
+      "组织研发/替代/市场/合规建议，并追问缺失约束"
+    ],
+    "personal_default": [
+      "识别个人端任务类型与医疗边界（不做诊断、不替代治疗）",
+      "检查体质档案、年龄人群、风险状态、诉求与口味偏好是否齐全",
+      "按路由核对 KB8、KB1、KB2、KB3、KB7 与 CDB1 辅助证据",
+      "先过滤禁忌、慎用、十八反十九畏与特殊人群风险",
+      "给出食养/适配/风险提醒，并主动追问缺失信息"
+    ],
+    "formula_foodification": [
+      "确认方剂药食同源化任务与 KB5 原方读取路径",
+      "检查原方名/组成、目标剂型、目标人群是否齐全",
+      "逐味 KB1 合法性分流，动态调用 KB4 单味替代并核对 KB2/KB3",
+      "复核方剂语境、十八反十九畏、KB7 食品化宣传边界",
+      "输出保留/替代/重组建议、风味剂型优化与追问"
+    ],
+    "risk_boundary": [
+      "识别高风险人群与能不能吃/推荐/症状复合意图",
+      "检查年龄、症状细节、目标原料/产品/方剂是否齐全",
+      "核对 KB1/KB2/KB5/KB7/KB8 禁忌、慎用、合规与 CDB1 人群画像",
+      "区分可考虑/谨慎/不建议，并说明就医或专业咨询边界",
+      "不输出儿童剂量或家庭处方，必要时追问体温/用药/就医情况"
+    ]
+  },
+  "audience_signals": {
+    "enterprise": ["开发", "研发", "新品", "产品开发", "配方设计", "食品化", "药食同源化", "改造", "竞品", "上市", "卖点", "差异化", "工艺适配", "GB2760", "GB7718"],
+    "personal": ["我", "适合我", "我能", "我的", "体质", "食养", "调理", "适合我吗", "能不能吃", "能吃吗", "送礼", "怕苦", "孕妇", "儿童", "老人", "慢病", "过敏"]
+  },
+  "route_examples": {
+    "product_development": {
+      "positive": ["开发一款适合熬夜人群的护肝饮品", "基于酸枣仁做助眠固体饮料"],
+      "negative": ["这个产品适合我吗", "孕妇能不能吃黄芪"]
+    },
+    "formula_foodification": {
+      "positive": ["把四君子汤改造成药食同源代餐粉", "把经典方剂食品化成茶包"],
+      "negative": ["四君子汤的原方组成是什么", "我是什么体质"]
+    },
+    "herb_replacement": {
+      "positive": ["麻黄可以用什么药食同源原料替代", "这个单味药能不能换成食品原料"],
+      "negative": ["把整方改造成饮品", "这个产品适合我吗"]
+    },
+    "flavor_form_factor": {
+      "positive": ["这个配方是否好喝/适合做什么剂型", "这组原料做软糖还是固体饮料更合适"],
+      "negative": ["消费者喜欢什么口味", "我怕苦该买什么产品"]
+    },
+    "market_analysis": {
+      "positive": ["同类竞品卖点和差异化怎么做", "这个品类消费者评论痛点是什么"],
+      "negative": ["孕妇能不能吃", "某个原料有什么功效"]
+    },
+    "compliance_review": {
+      "positive": ["这个配方宣传助眠是否合规", "标签上能不能写治疗失眠"],
+      "negative": ["开发一款助眠饮品", "我能不能吃这个产品"]
+    },
+    "constitution_assessment": {
+      "positive": ["我是什么体质", "帮我做九种体质辨识"],
+      "negative": ["开发体质茶饮产品", "某原料能否替代麻黄"]
+    },
+    "personalized_food_recommendation": {
+      "positive": ["我湿气重适合吃什么", "气虚体质日常食养怎么选"],
+      "negative": ["开发祛湿新品", "竞品评论痛点是什么"]
+    },
+    "personal_product_fit": {
+      "positive": ["这个产品适合我吗", "我能不能吃这款固体饮料"],
+      "negative": ["设计一个产品方案", "这个品类市场怎么样"]
+    },
+    "personal_product_recommendation": {
+      "positive": ["给老人送礼买什么药食同源产品", "怕苦的人适合买什么成品"],
+      "negative": ["这个配方是否合规", "改造四君子汤"]
+    },
+    "risk_boundary": {
+      "positive": ["孕妇能不能吃黄芪", "7岁儿童咳嗽多痰能不能用这个方"],
+      "negative": ["黄芪有什么功效", "做一款儿童产品"]
+    },
+    "formula_relation": {
+      "positive": ["四君子汤的组成和君臣佐使是什么", "葛根汤出自哪里"],
+      "negative": ["把四君子汤做成代餐粉", "孕妇能不能吃黄芪"]
+    },
+    "herb_efficacy": {
+      "positive": ["黄芪有什么功效和禁忌", "山药是不是药食同源原料"],
+      "negative": ["麻黄替代方案", "这个产品适合我吗"]
+    },
+    "entity_explanation": {
+      "positive": ["介绍一下茯苓", "这个概念是什么意思"],
+      "negative": ["开发新品", "我是什么体质"]
+    }
+  },
+  "routes": [
+    {
+      "task_key": "product_development",
+      "audience": "enterprise",
+      "question_type": "product_recommendation",
+      "label": "企业端：产品研发与方案生成",
+      "route_label": "企业端：产品研发、目标功效、人群、剂型、市场与合规判断",
+      "kb_route": "KB1 原料合法性、KB2 功效病症性味归经、KB3 风味评价、KB6 产品与市场、KB7 食品合规边界、CDB1 消费者画像与评论偏好",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB6", "KB7", "CDB1"],
+      "answer_outline": ["核心结论", "任务路由", "推荐理由", "研发或产品建议", "风味与剂型判断", "合规边界", "下一步验证", "追问建议"],
+      "output_boundary": "输出候选配方、剂型、卖点、实验验证路径和普通食品合规边界；不承诺疾病治疗。",
+      "evidence_requirements": ["原料合法性", "功效匹配", "风味接受度", "产品/市场线索", "消费者画像/风味偏好", "食品合规规则"],
+      "preferred_entity_types": ["Product", "ConsumerProfile", "ConsumerSegment", "Herb", "Formula", "Effect", "Flavor", "ComplianceRule", "RiskExpression", "ConsumerReview"],
+      "graph_scene": "product_recommendation",
+      "priority": 95,
+      "match": {
+        "any": ["开发", "研发", "新品", "新产品", "产品开发", "配方设计", "护肝饮品", "助眠饮品", "固体饮料", "代餐粉", "茶包", "软糖"],
+        "boost": ["目标功效", "目标人群", "上市", "卖点", "差异化", "实验", "验证", "护肝", "助眠", "祛湿", "健脾", "抗疲劳"],
+        "negative": ["适合我", "我适合", "我能", "孕妇", "儿童能不能"]
+      },
+      "missing_slots": [
+        {"key": "target_goal", "priority": 10, "required": true, "question": "这款产品的目标功效或消费场景是什么？", "any_of": ["护肝", "助眠", "抗疲劳", "润肺", "止咳", "化痰", "祛湿", "健脾", "补气", "控糖", "降脂"]},
+        {"key": "dosage_form", "priority": 20, "required": true, "question": "希望优先评估哪种剂型：饮品、固体饮料、代餐粉、茶包还是软糖？", "any_of": ["饮品", "固体饮料", "代餐粉", "茶包", "软糖", "口服液", "冲剂", "片剂", "胶囊", "剂型"]},
+        {"key": "target_population", "priority": 30, "required": true, "question": "目标人群是谁，例如学生、白领、中老年、女性、轻养生用户？", "any_of": ["人群", "学生", "白领", "中老年", "女性", "男性", "熬夜", "上班族", "轻养生"]},
+        {"key": "taste_or_cost", "priority": 40, "required": false, "question": "有没有口味、甜度、苦涩感、成本或竞品差异化约束？", "any_of": ["好喝", "风味", "口味", "苦", "涩", "药味", "甜", "成本", "竞品", "差异化"]},
+        {"key": "compliance_launch", "priority": 50, "required": false, "question": "是否已有上市合规或宣传边界要求（普通食品、标签、禁用表述）？", "any_of": ["合规", "宣传", "标签", "上市", "GB2760", "GB7718", "普通食品"]}
+      ]
+    },
+    {
+      "task_key": "formula_foodification",
+      "audience": "enterprise",
+      "question_type": "formula_replacement",
+      "label": "企业端：名方/方剂药食同源化",
+      "route_label": "企业端：名方/方剂药食同源化动态重组",
+      "kb_route": "KB5 读取原方，KB1 做逐味合法性判断，KB4 动态单味替代，KB2/KB3 复核功效与风味，KB7 做合规边界",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB4", "KB5", "KB7"],
+      "answer_outline": ["核心结论", "原方依据", "保留与替代分流", "动态替代对比", "重组配方建议", "风味与剂型优化", "风味与人群适配", "合规边界", "证据边界", "追问建议"],
+      "output_boundary": "输出原方依据、保留药材、替代路径、重组建议、风味剂型优化和食品化边界；不声称存在预生成替代方。",
+      "evidence_requirements": ["KB5 原方组成", "KB1 合法性", "KB4 替代评分", "KB3 风味", "消费者画像/风味偏好", "KB7 合规", "配伍禁忌(十八反十九畏)"],
+      "preferred_entity_types": ["Formula", "Herb", "Effect", "Symptom", "Flavor", "ConsumerProfile", "ConsumerSegment", "NatureFlavor", "Taboo", "ConstitutionType", "ComplianceRule", "RiskExpression"],
+      "graph_scene": "formula_replacement",
+      "priority": 120,
+      "match": {
+        "any": ["药食同源化", "食品化", "改造成", "改造", "重组", "经典方剂", "名方"],
+        "boost": ["方剂", "方子", "四君子汤", "汤", "丸", "散", "代餐粉", "固体饮料", "饮品"],
+        "negative": ["我是什么体质", "适合我吗"]
+      },
+      "missing_slots": [
+        {"key": "formula_name_or_ingredients", "priority": 10, "required": true, "question": "如果图谱未命中原方，请补充原方名或原方组成，便于读取 KB5 原方依据。", "any_of": ["汤", "方", "方剂", "四君子汤", "组成", "原方"]},
+        {"key": "dosage_form", "priority": 20, "required": true, "question": "目标剂型想做饮品、固体饮料、代餐粉、茶包，还是其他形式？", "any_of": ["饮品", "固体饮料", "代餐粉", "茶包", "软糖", "剂型"]},
+        {"key": "target_population", "priority": 30, "required": true, "question": "目标人群是谁，例如熬夜、脾胃虚弱、女性、老人或普通大众？", "any_of": ["人群", "儿童", "老人", "女性", "男性", "孕妇", "熬夜", "上班族", "学生", "大众"]},
+        {"key": "taste_goal", "priority": 40, "required": false, "question": "产品风味目标是低苦味、微甜、酸甜还是草本香？是否需要避开药味/后味？", "any_of": ["低苦", "微甜", "酸甜", "草本", "药味", "后味", "风味", "口味"]}
+      ]
+    },
+    {
+      "task_key": "herb_replacement",
+      "audience": "enterprise",
+      "question_type": "formula_replacement",
+      "label": "企业端：单味药替代",
+      "route_label": "企业端：单味药药食同源替代评分",
+      "kb_route": "KB1 限定药食同源合法性，KB4 提供单味替代评分，KB2/KB3 解释功效、性味归经和风味接受度",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB4"],
+      "answer_outline": ["核心结论", "替代候选排序", "评分拆解", "风味与人群适配", "不能完全替代点", "风险与禁忌", "证据边界", "追问建议"],
+      "output_boundary": "输出 Top 替代原料、评分拆解、风味人群适配和不能完全替代点。",
+      "evidence_requirements": ["CAN_REPLACE 分数", "功效相似度", "风味接受度", "安全性", "药食同源合法性", "配伍禁忌(十八反十九畏)"],
+      "preferred_entity_types": ["Herb", "Effect", "Symptom", "Flavor", "ConsumerProfile", "ConsumerSegment", "NatureFlavor", "Taboo", "ComplianceRule", "RiskExpression"],
+      "graph_scene": "formula_replacement",
+      "priority": 115,
+      "match": {
+        "any": ["替代", "替换", "代替", "取代", "换成", "换掉"],
+        "boost": ["单味", "某味", "药材", "原料", "药食同源原料"],
+        "negative": ["整方", "方剂药食同源化", "改造成", "改造"]
+      },
+      "missing_slots": [
+        {"key": "replacement_preference", "question": "候选替代是否必须药食同源，并优先低苦味、低成本或某个剂型适配？", "any_of": ["低苦", "低成本", "剂型", "风味", "安全", "合规", "药食同源"]}
+      ]
+    },
+    {
+      "task_key": "flavor_form_factor",
+      "audience": "enterprise",
+      "question_type": "product_recommendation",
+      "label": "企业端：风味优化与剂型工艺",
+      "route_label": "企业端：风味、剂型与工艺适配判断",
+      "kb_route": "KB3 风味评价为主，结合 KB6 产品与市场、CDB1 消费者画像与评论偏好、KB7 合规边界，必要时带入 KB1/KB2 原料和功效线索",
+      "required_kbs": ["KB2", "KB3", "KB6", "KB7", "CDB1"],
+      "answer_outline": ["核心结论", "任务路由", "推荐理由", "风味与剂型判断", "研发或产品建议", "合规边界", "下一步验证", "追问建议"],
+      "output_boundary": "先判断口味接受度和剂型可行性，再给工艺路线方向和验证指标。",
+      "evidence_requirements": ["苦涩/药味风险", "香气/后味", "消费者风味偏好/不喜欢", "剂型趋势", "工艺或添加剂边界"],
+      "preferred_entity_types": ["Product", "ConsumerProfile", "ConsumerSegment", "Flavor", "ConsumerReview", "Herb", "Effect", "Formula", "ComplianceRule", "RiskExpression"],
+      "graph_scene": "product_recommendation",
+      "priority": 110,
+      "match": {
+        "any": ["好喝", "口味", "风味", "苦", "涩", "药味", "香气", "剂型", "工艺", "适合做什么剂型"],
+        "boost": ["配方", "产品", "饮品", "固体饮料", "代餐粉", "茶包", "软糖"],
+        "negative": ["适合我吗", "我适合", "喜欢什么口味", "口味偏好", "风味偏好", "消费者画像", "人群画像"]
+      },
+      "missing_slots": [
+        {"key": "formula_or_ingredients", "question": "请补充配方组成或主要原料，便于判断苦涩、药味和剂型适配。", "any_of": ["配方", "原料", "组成", "配料"]},
+        {"key": "target_form", "question": "希望优先比较饮品、固体饮料、茶包、代餐粉还是软糖？", "any_of": ["饮品", "固体饮料", "茶包", "代餐粉", "软糖", "剂型"]},
+        {"key": "taste_goal", "question": "目标口味是低苦味、酸甜、微甜、草本香，还是其他风味方向？", "any_of": ["低苦", "酸甜", "微甜", "草本", "香", "口味", "风味"]}
+      ]
+    },
+    {
+      "task_key": "market_analysis",
+      "audience": "enterprise",
+      "question_type": "product_recommendation",
+      "label": "企业端：竞品与市场差异化",
+      "route_label": "企业端：竞品市场、价格带、卖点和差异化判断",
+      "kb_route": "KB6 产品与市场、CDB1 消费者画像与评论偏好为主，结合 KB3 风味评价和 KB2 功效标签提取差异化方向",
+      "required_kbs": ["KB6", "KB3", "KB2", "CDB1"],
+      "answer_outline": ["核心结论", "任务路由", "推荐理由", "研发或产品建议", "风味与剂型判断", "下一步验证", "追问建议"],
+      "output_boundary": "输出竞品格局、常见剂型/卖点、差评痛点、价格带和差异化方向。",
+      "evidence_requirements": ["产品/品牌", "剂型", "卖点", "价格销量", "消费者画像", "评论或场景"],
+      "preferred_entity_types": ["Product", "ConsumerProfile", "ConsumerSegment", "ConsumerReview", "Herb", "Effect", "Flavor", "ComplianceRule"],
+      "graph_scene": "product_recommendation",
+      "priority": 100,
+      "match": {
+        "any": ["竞品", "市场", "价格", "销量", "评论", "差评", "差异化", "卖点", "价格带", "喜欢什么口味", "口味偏好", "风味偏好", "消费者画像", "人群画像", "消费偏好"],
+        "boost": ["产品", "剂型", "品牌", "消费", "人群", "学生", "老人", "宝妈", "女性", "男性"],
+        "negative": ["适合我吗"]
+      },
+      "missing_slots": [
+        {"key": "market_category", "question": "请补充要对标的产品类别、功效场景或竞品名称。", "any_of": ["竞品", "产品", "品类", "品牌", "功效", "场景"]},
+        {"key": "target_market", "question": "目标人群或价格带是否已有设定？", "any_of": ["人群", "价格", "价格带", "白领", "学生", "老人", "女性"]}
+      ]
+    },
+    {
+      "task_key": "compliance_review",
+      "audience": "enterprise",
+      "question_type": "product_recommendation",
+      "label": "企业端：食品合规审查",
+      "route_label": "企业端：原料、添加剂、标签和宣传合规审查",
+      "kb_route": "KB7 食品标准合规为主，结合 KB1 原料合法性、KB6 产品信息和风险表述",
+      "required_kbs": ["KB7", "KB1", "KB6"],
+      "answer_outline": ["核心结论", "任务路由", "推荐理由", "合规边界", "研发或产品建议", "下一步验证", "追问建议"],
+      "output_boundary": "输出合规风险等级、风险点、禁用/慎用表述和需要补充核验的信息。",
+      "evidence_requirements": ["药食同源目录", "GB2760", "GB7718", "宣传边界", "风险表述"],
+      "preferred_entity_types": ["ComplianceRule", "RiskExpression", "Herb", "Product", "Effect"],
+      "graph_scene": "product_recommendation",
+      "priority": 108,
+      "match": {
+        "any": ["合规", "宣传", "标签", "GB2760", "GB7718", "普通食品", "禁用", "慎用", "上市", "广告法"],
+        "boost": ["原料", "添加剂", "声称", "功效宣称"],
+        "negative": []
+      },
+      "missing_slots": [
+        {"key": "compliance_scope", "question": "请补充食品类别、宣传语、标签场景或目标市场。", "any_of": ["食品类别", "宣传语", "标签", "市场", "GB2760", "GB7718", "普通食品"]}
+      ]
+    },
+    {
+      "task_key": "constitution_assessment",
+      "audience": "personal",
+      "question_type": "constitution_recommendation",
+      "label": "个人端：九种体质辨识",
+      "route_label": "个人端：九种体质辨识与量表入口",
+      "kb_route": "KB8 体质问卷、评分规则和九种体质食养方向",
+      "required_kbs": ["KB8"],
+      "answer_outline": ["核心结论", "判断依据", "食养或产品适配建议", "风险与禁忌", "证据边界", "追问建议"],
+      "output_boundary": "输出体质测评入口、评分依据、体质方向和慎用边界；未完成问卷前不直接判定体质。",
+      "evidence_requirements": ["体质类型", "体质问卷", "评分规则", "食养方向"],
+      "preferred_entity_types": ["ConstitutionType", "ConstitutionQuestion", "Herb", "ComplianceRule"],
+      "graph_scene": "constitution_recommendation",
+      "offer_constitution_panel": true,
+      "priority": 130,
+      "match": {
+        "any": ["我是什么体质", "测体质", "体质测试", "体质测评", "体质辨识", "体质量表", "问卷", "不确定自己的体质", "重新测体质"],
+        "boost": ["九种体质", "平和质", "气虚质", "阳虚质", "阴虚质", "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质"],
+        "negative": []
+      },
+      "missing_slots": [
+        {"key": "constitution_answers", "priority": 10, "required": true, "question": "如果你想确认体质，请先完成九种体质量表，或告诉我已知主导体质。", "any_of": ["平和质", "气虚质", "阳虚质", "阴虚质", "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质"]},
+        {"key": "symptom_goal", "priority": 20, "required": false, "question": "你当前最想改善的具体感受是什么，例如疲劳、睡眠差、湿气重、怕冷或上火？", "any_of": ["疲劳", "睡眠", "湿气", "怕冷", "上火", "咳嗽", "多痰"]}
+      ]
+    },
+    {
+      "task_key": "personal_product_recommendation",
+      "audience": "personal",
+      "question_type": "product_recommendation",
+      "label": "个人端：成品/成药产品选购推荐",
+      "route_label": "个人端：按送礼、人群、口味和剂型偏好做成品产品推荐",
+      "kb_route": "KB6 产品与市场、CDB1 消费者画像与评论偏好、KB3 风味评价为主，结合 KB1、KB7、KB8 做安全和合规边界",
+      "required_kbs": ["KB6", "CDB1", "KB3", "KB1", "KB7", "KB8"],
+      "answer_outline": ["核心结论", "判断依据", "食养或产品适配建议", "风味与人群适配", "风险与禁忌", "证据边界", "追问建议"],
+      "output_boundary": "输出成品/成药产品选购方向、适合/谨慎/不建议和购买筛选条件；不承诺疾病治疗，不替代医生建议。",
+      "evidence_requirements": ["产品/品牌/剂型", "消费者画像", "人群分组", "评论风味偏好", "苦味/药味风险", "特殊人群风险", "合规边界"],
+      "preferred_entity_types": ["Product", "ConsumerProfile", "ConsumerSegment", "ConsumerReview", "Flavor", "Herb", "ConstitutionType", "ComplianceRule", "RiskExpression", "Taboo"],
+      "graph_scene": "product_recommendation",
+      "priority": 126,
+      "match": {
+        "any": ["推荐成药产品", "成药产品", "成品产品", "推荐产品", "送礼", "礼盒", "买什么", "购物", "购买", "怕苦"],
+        "boost": ["老人", "长辈", "中老年", "产品", "保健品", "口服液", "冲剂", "茶包", "低苦", "好喝", "甜", "品牌"],
+        "negative": ["开发", "研发", "产品开发", "配方设计", "这个产品适合我吗", "产品适合我吗"]
+      },
+      "missing_slots": [
+        {"key": "recipient_profile", "question": "送礼对象是否有慢病、过敏、正在用药或明确忌口？", "any_of": ["慢病", "过敏", "用药", "高血压", "糖尿病", "忌口"]},
+        {"key": "shopping_preference", "question": "更看重礼盒体面、低糖低苦、便携剂型、品牌知名度，还是价格区间？", "any_of": ["礼盒", "低糖", "低苦", "便携", "品牌", "价格", "预算"]},
+        {"key": "flavor_preference", "question": "对方能接受草本味或轻微药味吗，还是必须偏甜、低苦、无明显药味？", "any_of": ["甜", "苦", "药味", "口味", "风味", "好喝"]}
+      ]
+    },
+    {
+      "task_key": "personalized_food_recommendation",
+      "audience": "personal",
+      "question_type": "constitution_recommendation",
+      "label": "个人端：个性化食养推荐",
+      "route_label": "个人端：体质、症状和偏好驱动的食养推荐",
+      "kb_route": "KB8 体质规则为主，结合 CDB1 消费者画像与评论偏好、KB1、KB2、KB3、KB7 做食养与风险过滤",
+      "required_kbs": ["KB8", "CDB1", "KB1", "KB2", "KB3", "KB7"],
+      "answer_outline": ["核心结论", "判断依据", "食养或产品适配建议", "风险与禁忌", "证据边界", "追问建议"],
+      "output_boundary": "输出食养方向、可选原料/产品类型、场景建议和禁忌提醒；不做疾病诊断。",
+      "evidence_requirements": ["体质档案或体质类型", "症状/目标", "人群画像", "药食同源合法性", "风味偏好", "禁忌风险"],
+      "preferred_entity_types": ["ConstitutionType", "ConsumerProfile", "ConsumerSegment", "Herb", "Symptom", "Product", "Flavor", "ComplianceRule", "ConsumerReview"],
+      "graph_scene": "constitution_recommendation",
+      "priority": 112,
+      "match": {
+        "any": ["我适合吃什么", "我适合", "我能吃什么", "我可以吃", "食养", "调理", "适合喝什么", "适合吃", "适合什么产品", "适合哪种产品", "怕苦"],
+        "boost": ["疲劳", "睡眠", "湿气", "怕冷", "上火", "口味", "过敏", "老人", "学生", "宝妈", "女性", "男性"],
+        "negative": ["产品适合我吗", "这个产品适合我吗"]
+      },
+      "missing_slots": [
+        {"key": "constitution", "priority": 10, "required": true, "question": "你是否已知自己的体质，还是需要先做九种体质量表？", "any_of": ["平和质", "气虚质", "阳虚质", "阴虚质", "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质"]},
+        {"key": "age_gender", "priority": 15, "required": false, "question": "请补充年龄段和性别（或人群标签，如学生、宝妈、老人），便于做人群适配。", "any_of": ["岁", "男", "女", "学生", "宝妈", "老人", "中年", "青年"]},
+        {"key": "risk_profile", "priority": 20, "required": true, "question": "是否有孕期、哺乳期、儿童、慢病、过敏或正在用药等风险情况？", "any_of": ["孕妇", "孕期", "哺乳", "儿童", "慢病", "过敏", "用药", "高血压", "糖尿病"]},
+        {"key": "target_need", "priority": 30, "required": true, "question": "你主要想改善疲劳、睡眠、咳嗽、湿气、怕冷、上火，还是其他具体场景？", "any_of": ["疲劳", "睡眠", "咳嗽", "湿气", "怕冷", "上火", "祛湿", "健脾", "助眠"]},
+        {"key": "flavor_preference", "priority": 40, "required": true, "question": "你更偏好甜、酸、草本香哪种方向？是否需要避开苦味、涩感或药味？", "any_of": ["甜", "酸", "草本", "苦", "涩", "药味", "口味", "风味", "怕苦"]},
+        {"key": "usage_scene", "priority": 50, "required": false, "question": "更偏向日常茶饮、冲调粉、即食产品，还是其他食用场景？", "any_of": ["茶", "冲调", "代餐", "即食", "粥", "场景"]}
+      ]
+    },
+    {
+      "task_key": "personal_product_fit",
+      "audience": "personal",
+      "question_type": "product_recommendation",
+      "label": "个人端：产品适配判断",
+      "route_label": "个人端：产品成分、体质和风险适配判断",
+      "kb_route": "KB1、KB2、KB3、KB7、KB8、CDB1 共同判断产品成分、体质需求、禁忌、风味偏好和合规边界",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB7", "KB8", "CDB1"],
+      "answer_outline": ["核心结论", "判断依据", "食养或产品适配建议", "风险与禁忌", "证据边界", "追问建议"],
+      "output_boundary": "输出适合/谨慎/不建议、原因和替代方向；不替代医生建议。",
+      "evidence_requirements": ["产品/配料", "体质档案", "人群画像", "禁忌", "风味偏好", "合规边界"],
+      "preferred_entity_types": ["Product", "ConsumerProfile", "ConsumerSegment", "Herb", "ConstitutionType", "Flavor", "ComplianceRule", "RiskExpression", "Taboo", "ConsumerReview"],
+      "graph_scene": "product_recommendation",
+      "priority": 125,
+      "match": {
+        "any": ["这个产品适合我吗", "产品适合我吗", "适合我吗", "我能吃这个产品吗", "我可以吃这个产品吗"],
+        "boost": ["产品", "配料", "成分", "保健品", "固体饮料", "茶包", "代餐粉"],
+        "negative": []
+      },
+      "missing_slots": [
+        {"key": "product_info", "priority": 10, "required": true, "question": "请补充产品名称、配料表或主要原料，我才能判断是否适合你。", "any_of": ["产品", "配料", "成分", "原料", "品牌"]},
+        {"key": "constitution", "priority": 20, "required": true, "question": "你是否已知自己的体质，还是需要先做九种体质量表？", "any_of": ["平和质", "气虚质", "阳虚质", "阴虚质", "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质"]},
+        {"key": "risk_profile", "priority": 30, "required": true, "question": "是否有孕期、哺乳期、儿童、慢病、过敏或正在用药等风险情况？", "any_of": ["孕妇", "孕期", "哺乳", "儿童", "慢病", "过敏", "用药", "高血压", "糖尿病"]},
+        {"key": "flavor_preference", "priority": 40, "required": false, "question": "你对产品的口味偏好是什么？是否需要避开苦味、涩感或药味？", "any_of": ["甜", "苦", "涩", "药味", "口味", "风味", "怕苦"]}
+      ]
+    },
+    {
+      "task_key": "risk_boundary",
+      "audience": "personal",
+      "question_type": "constitution_recommendation",
+      "label": "个人端：特殊人群与禁忌风险边界",
+      "route_label": "个人端：孕妇、儿童、慢病、过敏等风险边界判断",
+      "kb_route": "KB1、KB2、KB3、KB5、KB7、KB8、CDB1 检查原料禁忌、方剂边界、风味接受、人群画像、合规边界和体质慎用规则",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB5", "KB7", "KB8", "CDB1"],
+      "answer_outline": ["核心结论", "判断依据", "食养或产品适配建议", "风味与人群适配", "证据边界", "风险与禁忌", "追问建议"],
+      "output_boundary": "先给图谱支持的食养/产品辅助方向、适合与不适合边界，并区分药食同源合法候选、谨慎候选、非药食同源或禁忌排除线索；再在风险与禁忌中提示就医/专业咨询；不输出治疗化承诺、儿童剂量或家庭处方。",
+      "evidence_requirements": ["原料合法性", "禁忌/使用注意", "特殊人群", "方剂核验", "风味接受边界", "合规规则", "体质慎用", "人群画像/风味偏好", "配伍禁忌(十八反十九畏)"],
+      "preferred_entity_types": ["Herb", "Formula", "Product", "ConsumerProfile", "ConsumerSegment", "ConsumerReview", "Flavor", "ComplianceRule", "RiskExpression", "Taboo", "ConstitutionType", "Symptom"],
+      "graph_scene": "constitution_recommendation",
+      "priority": 160,
+      "match": {
+        "any": ["孕妇", "孕期", "哺乳", "儿童", "小孩", "孩子", "男童", "女童", "幼儿", "少儿", "7岁", "发热", "高热", "发烧", "咳嗽多痰", "药方", "推荐药方", "开药", "慢病", "过敏", "能不能吃", "能吃吗", "可不可以吃", "慎用", "禁忌"],
+        "boost": ["黄芪", "原料", "药材", "产品", "老人", "高血压", "糖尿病", "用药", "咳嗽", "多痰", "痰", "体温", "年龄", "性别", "方剂", "食养", "推荐"],
+        "negative": ["开发", "研发"]
+      },
+      "missing_slots": [
+        {"key": "risk_profile", "priority": 10, "required": true, "question": "请补充具体人群状态，例如孕期/哺乳期、儿童年龄、慢病类型、过敏史或正在用药。", "any_of": ["孕妇", "孕期", "哺乳", "儿童", "小孩", "孩子", "男童", "女童", "岁", "慢病", "过敏", "用药", "高血压", "糖尿病"]},
+        {"key": "symptom_detail", "priority": 20, "required": false, "question": "请补充症状持续时间、体温范围、是否喘憋/精神差、是否已就医或用药。", "any_of": ["咳嗽", "多痰", "发热", "发烧", "高热", "体温", "症状"]},
+        {"key": "target_item", "priority": 30, "required": true, "question": "请补充要判断的原料、配方、方剂或产品名称。", "any_of": ["黄芪", "原料", "药材", "产品", "配方", "方剂", "药方"]},
+        {"key": "flavor_preference", "priority": 40, "required": false, "question": "若涉及产品或食养方向，是否需避开苦味、涩感或药味？", "any_of": ["苦", "涩", "药味", "口味", "风味", "怕苦"]}
+      ]
+    },
+    {
+      "task_key": "formula_relation",
+      "audience": "enterprise",
+      "question_type": "formula_relation",
+      "label": "通用/企业端：方剂知识检索",
+      "route_label": "通用/企业端：方剂知识检索与原方依据整理",
+      "kb_route": "KB5 方剂知识库为主，结合 KB1、KB2、KB3、KB7 检查原料、功效、风味和边界",
+      "required_kbs": ["KB5", "KB1", "KB2", "KB3", "KB7"],
+      "answer_outline": ["核心结论", "知识依据", "方剂组成与剂量", "风味与人群适配", "风险与禁忌", "证据边界", "总结建议", "追问建议"],
+      "output_boundary": "输出原方来源、组成、君臣佐使、功效主治、风味人群和证据边界。",
+      "evidence_requirements": ["方剂节点", "组成剂量", "功效症状", "禁忌", "风味/人群"],
+      "preferred_entity_types": ["Formula", "Herb", "Effect", "Symptom", "Flavor", "NatureFlavor", "Source", "ConstitutionType"],
+      "graph_scene": "formula_relation",
+      "priority": 60,
+      "match": {
+        "any": ["方剂", "方子", "名方", "四君子汤", "葛根汤"],
+        "boost": ["组成", "剂量", "君臣佐使", "主治", "出处"],
+        "negative": ["改造", "改造成", "替代", "药食同源化", "食品化"]
+      },
+      "missing_slots": [
+        {"key": "formula_focus", "question": "是否需要重点查看组成剂量、君臣佐使、主治功效，还是禁忌边界？", "any_of": ["剂量", "用量", "配比", "组成", "君臣佐使", "主治", "禁忌"]}
+      ]
+    },
+    {
+      "task_key": "herb_efficacy",
+      "audience": "general",
+      "question_type": "herb_efficacy",
+      "label": "通用：原料功效与合法性",
+      "route_label": "通用：原料功效、合法性、风味和禁忌证据整理",
+      "kb_route": "KB1 原料合法性、KB2 功效病症性味归经、KB3 风味和 KB7 合规边界",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB7"],
+      "answer_outline": ["核心结论", "知识依据", "风味与人群适配", "风险与禁忌", "证据边界", "总结建议", "追问建议"],
+      "output_boundary": "输出功效、性味归经、风味、禁忌、合规边界；不扩大为治疗承诺。",
+      "evidence_requirements": ["原料节点", "功效/症状", "性味归经", "风味", "禁忌/合规"],
+      "preferred_entity_types": ["Herb", "Formula", "Effect", "EffectCategory", "Symptom", "Flavor", "NatureFlavor", "Meridian", "ConstitutionType", "ComplianceRule"],
+      "graph_scene": "herb_efficacy",
+      "priority": 50,
+      "match": {
+        "any": ["功效", "作用", "禁忌", "药材", "食材", "药食同源", "性味", "归经"],
+        "boost": ["原料", "合法", "目录", "风味"],
+        "negative": ["替代", "改造", "适合我吗"]
+      },
+      "missing_slots": [
+        {"key": "herb_name", "question": "请补充明确的原料或药材名称。", "any_of": ["黄芪", "山药", "大枣", "茯苓", "薏苡仁", "陈皮"]}
+      ]
+    },
+    {
+      "task_key": "entity_explanation",
+      "audience": "general",
+      "question_type": "entity_explanation",
+      "label": "通用：实体解释与图谱证据整理",
+      "route_label": "通用：实体解释与图谱证据整理",
+      "kb_route": "按命中实体在 KB1-KB8 中扩展相邻证据",
+      "required_kbs": ["KB1", "KB2", "KB3", "KB5", "KB7", "KB8"],
+      "answer_outline": ["核心结论", "知识依据", "风味与人群适配", "风险与禁忌", "证据边界", "总结建议", "追问建议"],
+      "output_boundary": "只基于命中实体和相邻证据解释，不补图谱外结论。",
+      "evidence_requirements": ["核心实体", "相邻关系", "证据缺口"],
+      "preferred_entity_types": ["Herb", "Formula", "Effect", "Symptom", "Flavor", "NatureFlavor", "Meridian", "ComplianceRule", "RiskExpression"],
+      "graph_scene": "entity_explanation",
+      "priority": 1,
+      "match": {
+        "any": ["是什么", "介绍", "解释", "含义"],
+        "boost": [],
+        "negative": []
+      },
+      "missing_slots": [
+        {"key": "entity_name", "question": "请补充一个更明确的药材、方剂、产品、体质或症状名称。", "any_of": []}
+      ]
+    }
+  ]
+}

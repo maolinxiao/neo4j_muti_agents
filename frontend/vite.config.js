@@ -12,4 +12,13 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "showcase-3d": ["3d-force-graph", "three"],
+        },
+      },
+    },
+  },
 });

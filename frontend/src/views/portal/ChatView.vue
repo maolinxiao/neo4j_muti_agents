@@ -50,14 +50,18 @@
 
           <template v-for="msg in store.messages" :key="msg.id">
             <!-- AI message -->
-            <div v-if="msg.role === 'assistant'" class="msg-row assistant-row">
+            <div
+              v-if="msg.role === 'assistant'"
+              class="msg-row assistant-row"
+              :class="{ 'assistant-row-wide': msg.extra_payload?.constitution_assessment }"
+            >
               <div class="msg-avatar">
                 <el-icon :size="24"><Cpu /></el-icon>
               </div>
               <div class="msg-body assistant-body">
                 <!-- Think / Reasoning section (collapsible) -->
                 <div
-                  v-if="msg.extra_payload?.think_content"
+                  v-if="msg.extra_payload?.process_summary || msg.extra_payload?.think_content"
                   class="msg-section think-section"
                 >
                   <el-collapse v-model="thinkCollapseState[msg.id]">
@@ -65,14 +69,28 @@
                       <template #title>
                         <span class="think-title">
                           <el-icon><Loading /></el-icon>
-                          {{ store.streamingMessageId === msg.id ? "思考过程（流式生成中）" : "思考过程（已折叠，可展开）" }}
+                          {{ store.streamingMessageId === msg.id ? "图谱检索与证据整理摘要（生成中）" : "图谱检索与证据整理摘要" }}
                           <span
                             v-if="store.streamingMessageId === msg.id"
                             class="think-streaming-badge"
-                          >思考中...</span>
+                          >生成中...</span>
                         </span>
                       </template>
-                      <div class="think-inner">{{ msg.extra_payload.think_content }}</div>
+                      <div class="think-inner">{{ displayProcessSummary(msg) }}</div>
+                      <div
+                        v-if="msg.extra_payload?.missing_slots?.length"
+                        class="missing-slot-list"
+                      >
+                        <span class="missing-slot-label">待补充信息</span>
+                        <el-tag
+                          v-for="(slot, slotIdx) in msg.extra_payload.missing_slots.slice(0, 4)"
+                          :key="slotIdx"
+                          class="missing-slot-tag"
+                          size="small"
+                        >
+                          {{ slot }}
+                        </el-tag>
+                      </div>
                     </el-collapse-item>
                   </el-collapse>
                 </div>
@@ -81,7 +99,7 @@
                   <!-- Streaming text -->
                   <div
                     v-if="parseAnswerSections(msg.content).length"
-                    class="structured-answer"
+                    class="structured-answer answer-panel"
                   >
                     <div
                       v-for="section in parseAnswerSections(msg.content)"
@@ -97,6 +115,10 @@
                           <p v-if="block.type === 'paragraph'" class="answer-paragraph">
                             {{ block.text }}
                           </p>
+                          <div v-else-if="block.type === 'definition'" class="answer-definition">
+                            <span class="answer-definition-term">{{ block.term }}</span>
+                            <span v-if="block.text" class="answer-definition-text">{{ block.text }}</span>
+                          </div>
                           <ul
                             v-else-if="block.type === 'list' && !block.ordered"
                             class="answer-list"
@@ -113,7 +135,7 @@
                       </div>
                     </div>
                   </div>
-                  <span v-else class="answer-text">{{ msg.content }}</span>
+                  <span v-else class="answer-text">{{ cleanAnswerText(msg.content) }}</span>
                   <span
                     v-if="store.streamingMessageId === msg.id"
                     class="streaming-cursor"
@@ -125,13 +147,23 @@
                   >正在生成回答...</span>
                 </div>
 
+                <div
+                  v-if="msg.extra_payload?.constitution_assessment && isLatestAssistantMessage(msg.id)"
+                  class="msg-section constitution-section"
+                >
+                  <ConstitutionAssessmentPanel
+                    :payload="msg.extra_payload.constitution_assessment"
+                    compact
+                  />
+                </div>
+
                 <!-- Evidence section -->
                 <div
                   v-if="msg.extra_payload?.evidence_summary || msg.extra_payload?.related_entities?.length"
                   class="msg-section"
                 >
                   <el-collapse>
-                    <el-collapse-item title="图谱证据摘要" name="evidence">
+                    <el-collapse-item title="证据来源与实体" name="evidence">
                       <div class="evidence-inner">
                         <div
                           v-if="msg.extra_payload?.evidence_summary"
@@ -199,7 +231,7 @@
 
                 <!-- Follow-up questions -->
                 <div
-                  v-if="msg.extra_payload?.follow_up_questions?.length && !msg.id.startsWith('pending')"
+                  v-if="msg.extra_payload?.follow_up_questions?.length"
                   class="follow-up-row"
                 >
                   <el-tag
@@ -221,6 +253,14 @@
                     :type="msg.extra_payload.answer_mode === 'llm_grounded' ? 'success' : 'warning'"
                   >
                     {{ msg.extra_payload.answer_mode === 'llm_grounded' ? 'LLM整合回答' : '图谱本地总结' }}
+                  </el-tag>
+                  <el-tag
+                    v-if="msg.extra_payload?.qa_route?.label"
+                    size="small"
+                    type="info"
+                    effect="plain"
+                  >
+                    {{ msg.extra_payload.qa_route.label }}
                   </el-tag>
                   <span class="msg-time">{{ formatTime(msg.created_at) }}</span>
                 </div>
@@ -294,10 +334,12 @@ import { useRoute, useRouter } from "vue-router";
 import { ChatDotRound, Cpu, Loading, Plus, Promotion, UserFilled } from "@element-plus/icons-vue";
 
 import { api } from "../../api/client";
+import ConstitutionAssessmentPanel from "../../components/ConstitutionAssessmentPanel.vue";
 import GraphCanvas from "../../components/GraphCanvas.vue";
 import EntityDrawer from "../../components/EntityDrawer.vue";
-import { useChatStore } from "../../stores/chat";
+import { normalizeThinkContent, useChatStore } from "../../stores/chat";
 import {
+  cleanAnswerText,
   formatSectionBody,
   parseAnswerSections,
   sectionClass,
@@ -316,15 +358,24 @@ const allEntitiesData = ref([]);
 const thinkCollapseState = ref({});
 
 const exampleQuestions = [
-  "黄芪的功效是什么？",
-  "四君子汤包含哪些药材？",
-  "治疗失眠的药食同源药材有哪些？",
+  "把四君子汤改造成药食同源代餐粉",
+  "麻黄可以用什么药食同源原料替代？",
+  "孕妇能不能吃黄芪？",
 ];
 
 const useHint = (text) => {
   question.value = text;
   submit();
 };
+
+const isLatestAssistantMessage = (messageId) => {
+  const latestAssistant = [...store.messages].reverse().find((msg) => msg.role === "assistant");
+  return latestAssistant?.id === messageId;
+};
+
+const displayProcessSummary = (msg) => normalizeThinkContent(
+  msg.extra_payload?.process_summary || msg.extra_payload?.think_content || ""
+);
 
 const scrollToBottom = () => {
   nextTick(() => {
@@ -347,8 +398,7 @@ watch(
   () => {
     const streamingId = store.streamingMessageId;
     const streamingMsg = store.messages.find((msg) => msg.id === streamingId);
-    if (streamingMsg?.extra_payload?.think_content) {
-      thinkCollapseState.value[streamingId] = ["think"];
+    if (streamingMsg?.extra_payload?.think_content && thinkCollapseState.value[streamingId]?.length) {
       scrollToBottom();
     }
   },
@@ -359,7 +409,7 @@ watch(
   () => store.streamingMessageId,
   (newId, oldId) => {
     if (newId) {
-      thinkCollapseState.value[newId] = ["think"];
+      thinkCollapseState.value[newId] = [];
       return;
     }
     if (oldId) {
@@ -604,6 +654,13 @@ onMounted(async () => {
 .assistant-row {
   align-self: flex-start;
 }
+.assistant-row-wide {
+  width: 100%;
+  max-width: min(1120px, 100%);
+}
+.assistant-row-wide .assistant-body {
+  flex: 1;
+}
 .user-row {
   align-self: flex-end;
 }
@@ -654,42 +711,65 @@ onMounted(async () => {
   color: #303133;
 }
 .structured-answer {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  display: block;
+}
+.answer-panel {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  overflow: hidden;
 }
 .answer-section {
-  padding: 10px 12px 12px;
-  border-radius: 6px;
-  border-left: 3px solid #dcdfe6;
-  background: #fafbfc;
-  margin-bottom: 4px;
+  padding: 12px 14px 14px;
+  border-bottom: 1px solid #ebeef5;
+  background: #fff;
 }
 .answer-section.is-primary {
-  border-left-color: #409eff;
-  background: #f0f7ff;
+  background: #fff;
 }
 .answer-section.is-info {
-  border-left-color: #79bbff;
-  background: #f5faff;
+  background: #fff;
 }
 .answer-section.is-warning {
-  border-left-color: #e6a23c;
-  background: #fdf6ec;
+  background: #fffaf2;
 }
 .answer-section.is-plan {
-  border-left-color: #67c23a;
-  background: #f6ffed;
+  background: #fff;
 }
 .answer-section.is-summary {
-  border-left-color: #909399;
-  background: #f4f4f5;
+  background: #fafafa;
+}
+.answer-section:last-child {
+  border-bottom: none;
 }
 .answer-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 14px;
   font-weight: 600;
   color: #303133;
   margin-bottom: 8px;
+}
+.answer-section-title::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #909399;
+  flex: 0 0 auto;
+}
+.answer-section.is-primary .answer-section-title::before {
+  background: #409eff;
+}
+.answer-section.is-warning .answer-section-title::before {
+  background: #e6a23c;
+}
+.answer-section.is-plan .answer-section-title::before {
+  background: #67c23a;
+}
+.answer-section.is-info .answer-section-title::before {
+  background: #79bbff;
 }
 .answer-section-body {
   font-size: 14px;
@@ -703,6 +783,30 @@ onMounted(async () => {
 }
 .answer-paragraph:last-child {
   margin-bottom: 0;
+}
+.answer-definition {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid #dcdfe6;
+}
+.answer-definition:last-child {
+  margin-bottom: 0;
+}
+.answer-definition-term {
+  flex: 0 0 auto;
+  max-width: 34%;
+  font-weight: 600;
+  color: #303133;
+  overflow-wrap: anywhere;
+}
+.answer-definition-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #606266;
+  overflow-wrap: anywhere;
 }
 .answer-list {
   margin: 0 0 8px;
@@ -762,17 +866,41 @@ onMounted(async () => {
   color: #909399;
   line-height: 1.7;
   white-space: pre-wrap;
-  background: #fafafa;
+  background: #fbfcfd;
   border: 1px solid #ebeef5;
   border-radius: 6px;
   padding: 10px 12px;
-  max-height: 300px;
+  max-height: 220px;
   overflow-y: auto;
+}
+
+.missing-slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.missing-slot-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.missing-slot-tag {
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+  line-height: 1.45;
+  padding: 4px 8px;
 }
 
 /* Sections in AI bubble */
 .msg-section {
   margin-top: 8px;
+}
+.constitution-section {
+  margin-top: 12px;
 }
 .msg-section :deep(.el-collapse) {
   border: none;
@@ -846,6 +974,16 @@ onMounted(async () => {
 .follow-up-tag {
   cursor: pointer;
   font-size: 12px;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  line-height: 1.5;
+  align-items: flex-start;
+}
+.follow-up-tag :deep(.el-tag__content) {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .follow-up-tag:hover {
   background: #ecf5ff;

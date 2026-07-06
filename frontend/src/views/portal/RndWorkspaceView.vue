@@ -201,6 +201,10 @@
                 <el-table-column prop="source_herb" label="原药材" min-width="90" />
                 <el-table-column prop="recommended_herb" label="推荐替代" min-width="90" />
                 <el-table-column prop="score" label="GNN分数" width="80" />
+                <el-table-column prop="flavor_acceptance" label="风味接受度" width="100" />
+                <el-table-column prop="flavor_similarity" label="风味相似度" width="100" />
+                <el-table-column prop="safety_score" label="安全分" width="80" />
+                <el-table-column prop="population_fit" label="人群适配" min-width="180" show-overflow-tooltip />
                 <el-table-column prop="reason" label="说明" min-width="140" show-overflow-tooltip />
               </el-table>
               <div class="compare-block mt-10">

@@ -5,7 +5,7 @@ from typing import Any
 
 from app.repositories.neo4j_repository import Neo4jRepository
 from app.repositories.postgres_repository import PostgresRepository
-from app.services.minimax_client import MiniMaxClient
+from app.services.deepseek_client import DeepSeekClient
 
 
 class RnDWorkflowOrchestrator:
@@ -22,11 +22,11 @@ class RnDWorkflowOrchestrator:
         self,
         postgres_repository: PostgresRepository,
         neo4j_repository: Neo4jRepository,
-        minimax_client: MiniMaxClient,
+        llm_client: DeepSeekClient,
     ) -> None:
         self.postgres_repository = postgres_repository
         self.neo4j_repository = neo4j_repository
-        self.minimax_client = minimax_client
+        self.llm_client = llm_client
 
     def start_run(self, session_id: str, question: str, reuse_last_brief: bool = False) -> dict[str, Any]:
         workflow_session = self.postgres_repository.get_workflow_session(session_id)
@@ -83,7 +83,10 @@ class RnDWorkflowOrchestrator:
                     "brief": brief,
                     "question": question,
                     "instruction": (
-                        "按研发逻辑顺序拆解需求并输出可执行任务计划（方剂生成→功效预测→风味预测→替代映射）。"
+                        "按企业端研发逻辑拆解需求并输出可执行任务计划。"
+                        "若命中经典名方或方剂药食同源化任务，必须先读 KB5 原方，再按 KB1 逐味合法性判断、"
+                        "KB4 动态单味替代、KB2/KB3 功效风味复核、KB7 合规边界推进。"
+                        "产品开发任务按 KB1、KB2、KB3、KB6、KB7 推进，风味/剂型要先判断好喝、可做、合规。"
                         "必须明确：目标人群、关键功效路径、药食同源合规检查点、每阶段交付物。"
                         "所有输出需标注数据来源（如《中国药典》、GB标准、FlavorDB等）。"
                     ),
@@ -132,7 +135,9 @@ class RnDWorkflowOrchestrator:
                         "整合前序模块（方剂生成、功效预测、风味预测、替代映射）并输出最终研发方案。"
                         "必须给出：最终方剂组成与方解、每味药材在目标中的作用与剂量依据、"
                         "核心功效与作用机制、风味特征与消费者接受度、替代方案与多维对比、"
-                        "合规与风险提示、可执行下一步。所有输出需标注数据来源。"
+                        "合规与风险提示、可执行下一步。若属于方剂药食同源化，必须明确输出 KB5 原方依据、"
+                        "保留药材、替代药材、重组配方、风味剂型、食品化边界和实验验证建议。"
+                        "所有输出需标注数据来源。"
                         "若证据不足，需具体说明缺口和补充数据建议。"
                     ),
                 },
@@ -196,21 +201,27 @@ class RnDWorkflowOrchestrator:
 
     def _run_formula_generation(self, workflow_session_id: str, run_id: str, sequence: int, brief: dict[str, Any]) -> dict[str, Any]:
         search_terms = self._brief_search_terms(brief)
+        formula_contexts = self.neo4j_repository.find_formulas_for_brief(search_terms, limit=3)
         candidates = self.neo4j_repository.find_candidate_herbs_for_brief(search_terms, limit=18)
         selected = candidates[:8]
-        herb_names = [item["id"] for item in selected]
-        graph_snapshot_id = self._save_graph_snapshot(workflow_session_id, brief["goal"], herb_names) if selected else None
+        herb_names = self._formula_context_herb_names(formula_contexts) + [item["id"] for item in selected]
+        herb_names = list(dict.fromkeys([name for name in herb_names if name]))
+        graph_snapshot_id = self._save_graph_snapshot(workflow_session_id, brief["goal"], herb_names) if herb_names else None
         payload = {
             "brief": brief,
+            "kb5_formula_context": formula_contexts,
             "candidate_herbs": [self._compact_herb(item) for item in candidates],
             "instruction": (
-                "从候选药食同源药材中设计 1-3 个候选方剂。每个方剂需输出："
+                "若 kb5_formula_context 非空，必须先保留 KB5 原方来源、组成、君臣佐使、功效、主治、禁忌和剂量比例，"
+                "再逐味判断药食同源合法性：药食同源药材保留，非药食同源药材进入后续 KB4 单味替代流程，"
+                "有明显安全风险的药材只作原方说明或建议剔除。"
+                "若未命中 KB5 原方，则从候选药食同源药材中设计 1-3 个候选方剂。每个方剂需输出："
                 "方名、配伍（君臣佐使）、各药材剂量区间（标注成人每日推荐用量与最大安全用量）、"
                 "方解（配伍逻辑与各药材作用）、经典名方参考、适用场景、不适用场景。"
                 "所有药材须来自药食同源目录，剂量须符合食品安全标准。"
             ),
         }
-        fallback = self._formula_fallback(brief, selected)
+        fallback = self._formula_fallback(brief, selected, formula_contexts)
         return self._run_step(
             run_id,
             sequence,
@@ -297,14 +308,25 @@ class RnDWorkflowOrchestrator:
             "efficacy_prediction": efficacy_result["output_payload"],
             "flavor_prediction": flavor_result["output_payload"],
             "replacement_candidates": replacement_payload,
+            "target_population": brief.get("target_population") or "未指定，需按体质/场景补充",
+            "population_profile": self._build_rnd_population_profile(brief, efficacy_result["output_payload"]),
+            "candidate_flavor_population_matrix": self._build_replacement_matrix(herb_entities, replacement_payload),
             "instruction": (
-                "基于功效、风味、成本、合规、工艺、供应链六个维度，给出正式替代建议。"
-                "必须对比替代前后的功效等效性、风味影响、成本变动、工艺适配性差异。"
+                "只基于 KB4 CAN_REPLACE 单味药替代评分给出替代建议，不能声称存在预生成方剂替代版本。"
+                "基于功效、风味、目标人群/体质、成本、合规、工艺、供应链七个维度，给出正式替代建议。"
+                "必须对比替代前后的功效等效性、风味影响、目标人群变化、成本变动、工艺适配性差异。"
                 "优先推荐供应稳定、成本更低、风味更优的药食同源替代品种。"
+                "如果候选风味接受度低、风味相似度低或安全/人群边界变窄，必须降级推荐或反对替代。"
                 "若无可替代项，需明确说明「为什么不建议替代」并标注适用场景。"
             ),
         }
-        fallback = self._replacement_fallback(herb_entities, replacement_payload)
+        fallback = self._replacement_fallback(
+            herb_entities,
+            replacement_payload,
+            brief=brief,
+            efficacy_payload=efficacy_result["output_payload"],
+            flavor_payload=flavor_result["output_payload"],
+        )
         return self._run_step(
             run_id,
             sequence,
@@ -340,7 +362,7 @@ class RnDWorkflowOrchestrator:
         self.postgres_repository.session.commit()
         self.postgres_repository.session.refresh(step)
         system_prompt = prompt.system_prompt if prompt else ""
-        output_payload, latency_ms = self.minimax_client.generate_structured_output(
+        output_payload, latency_ms = self.llm_client.generate_structured_output(
             system_prompt=system_prompt,
             payload=input_payload,
             fallback=fallback,
@@ -363,7 +385,7 @@ class RnDWorkflowOrchestrator:
         }
 
     def _build_brief(self, question: str, last_brief: dict[str, Any] | None) -> dict[str, Any]:
-        brief = self.minimax_client.build_rnd_brief(question)
+        brief = self.llm_client.build_rnd_brief(question)
         if last_brief:
             for key in ["constraints", "dosage_form", "target_population", "timeline", "budget", "compliance_scope"]:
                 if not brief.get(key) and last_brief.get(key):
@@ -413,6 +435,94 @@ class RnDWorkflowOrchestrator:
                 search_terms.append(term)
         return search_terms[:12] or [brief.get("goal", "")]
 
+    def _build_rnd_population_profile(self, brief: dict[str, Any], efficacy_payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        efficacy_payload = efficacy_payload or {}
+        return {
+            "target_population": brief.get("target_population") or efficacy_payload.get("target_population") or "未指定",
+            "avoid_population": efficacy_payload.get("avoid_population", []),
+            "contraindicated_population": efficacy_payload.get("contraindicated_population", []),
+            "dosage_form": brief.get("dosage_form") or "未指定",
+            "constraints": brief.get("constraints", []),
+            "note": "替代映射需要检查替代后是否改变适用人群、禁忌人群或口味接受度。",
+        }
+
+    def _build_replacement_matrix(
+        self,
+        herb_entities: list[dict[str, Any]],
+        replacement_payload: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for herb in herb_entities:
+            payload = next((item for item in replacement_payload if item["source_key"] == herb["id"]), None)
+            if not payload:
+                continue
+            source_snapshot = self._herb_flavor_snapshot(herb)
+            for candidate in payload.get("candidates", [])[:5]:
+                rows.append(
+                    {
+                        "source_herb": herb.get("name") or herb["id"],
+                        "candidate_herb": candidate.get("name") or candidate.get("id"),
+                        "final_score": candidate.get("score"),
+                        "professional_score": candidate.get("professional_score"),
+                        "flavor_acceptance": candidate.get("flavor_acceptance"),
+                        "flavor_similarity": candidate.get("flavor_similarity"),
+                        "safety_score": candidate.get("safety_score"),
+                        "source_flavor": source_snapshot,
+                        "candidate_flavor": self._herb_flavor_snapshot(candidate),
+                        "population_fit_note": self._population_fit_note(candidate),
+                    }
+                )
+        return rows[:40]
+
+    @staticmethod
+    def _herb_flavor_snapshot(entity: dict[str, Any]) -> dict[str, Any]:
+        props = entity.get("props", {}) or {}
+        return {
+            "nature": props.get("nature"),
+            "flavor": props.get("flavor"),
+            "overall_flavor_acceptance": props.get("overall_flavor_acceptance"),
+            "bitter_risk": props.get("bitter_risk"),
+            "astringent_risk": props.get("astringent_risk"),
+            "herbal_medicine_risk": props.get("herbal_medicine_risk"),
+            "aftertaste_risk": props.get("aftertaste_risk"),
+            "aroma_description": props.get("aroma_description"),
+            "usage_precautions": props.get("usage_precautions") or props.get("usage_note"),
+            "contraindication": props.get("contraindication"),
+            "food_homology": props.get("food_homology") or props.get("is_food_homology"),
+        }
+
+    @staticmethod
+    def _format_flavor_snapshot(snapshot: dict[str, Any]) -> str:
+        parts: list[str] = []
+        for key, label in [
+            ("flavor", "味"),
+            ("nature", "性"),
+            ("aroma_description", "香气"),
+            ("overall_flavor_acceptance", "接受度"),
+            ("bitter_risk", "苦味风险"),
+            ("astringent_risk", "涩感风险"),
+            ("herbal_medicine_risk", "药味风险"),
+            ("aftertaste_risk", "后味风险"),
+        ]:
+            value = snapshot.get(key)
+            if value is not None and value != "":
+                parts.append(f"{label}:{value}")
+        return "；".join(parts) if parts else "图谱未提供明确风味字段"
+
+    @staticmethod
+    def _population_fit_note(entity: dict[str, Any]) -> str:
+        props = entity.get("props", {}) or {}
+        cautions = [
+            props.get("contraindication"),
+            props.get("usage_precautions"),
+            props.get("usage_note"),
+            props.get("pregnancy_taboo"),
+        ]
+        caution_text = "；".join(str(item) for item in cautions if item)
+        if caution_text:
+            return f"需复核人群边界：{caution_text}"
+        return "未见明确人群禁忌字段，仍需按目标人群/体质复核。"
+
     def _compact_herb(self, entity: dict[str, Any]) -> dict[str, Any]:
         props = entity.get("props", {})
         return {
@@ -421,6 +531,15 @@ class RnDWorkflowOrchestrator:
             "score": entity.get("score", 0),
             "tags": entity.get("tags", []),
             "food_homology": props.get("food_homology"),
+            "nature": props.get("nature"),
+            "flavor": props.get("flavor"),
+            "overall_flavor_acceptance": props.get("overall_flavor_acceptance"),
+            "bitter_risk": props.get("bitter_risk"),
+            "astringent_risk": props.get("astringent_risk"),
+            "herbal_medicine_risk": props.get("herbal_medicine_risk"),
+            "aroma_description": props.get("aroma_description"),
+            "usage_precautions": props.get("usage_precautions") or props.get("usage_note"),
+            "contraindication": props.get("contraindication"),
         }
 
     def _load_herb_entities(self, herb_names: list[str]) -> list[dict[str, Any]]:
@@ -433,6 +552,11 @@ class RnDWorkflowOrchestrator:
 
     def _collect_formula_herbs(self, formula_payload: dict[str, Any]) -> list[str]:
         herb_names: list[str] = []
+        for formula_context in formula_payload.get("kb5_formula_context", []):
+            for ingredient in formula_context.get("ingredients", []):
+                herb_name = ingredient.get("name")
+                if herb_name and herb_name not in herb_names:
+                    herb_names.append(herb_name)
         for formula in formula_payload.get("formulas", []):
             for herb in formula.get("ingredients", []):
                 herb_key = herb.get("herb_key") or herb.get("name")
@@ -440,8 +564,24 @@ class RnDWorkflowOrchestrator:
                     herb_names.append(herb_key)
         return herb_names
 
-    def _formula_fallback(self, brief: dict[str, Any], selected: list[dict[str, Any]]) -> dict[str, Any]:
+    @staticmethod
+    def _formula_context_herb_names(formula_contexts: list[dict[str, Any]]) -> list[str]:
+        herb_names: list[str] = []
+        for formula_context in formula_contexts:
+            for ingredient in formula_context.get("ingredients", []):
+                herb_name = ingredient.get("name")
+                if herb_name and herb_name not in herb_names:
+                    herb_names.append(herb_name)
+        return herb_names
+
+    def _formula_fallback(
+        self,
+        brief: dict[str, Any],
+        selected: list[dict[str, Any]],
+        formula_contexts: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
         goal = brief.get("goal", "")
+        formula_contexts = formula_contexts or []
         goal_tokens: list[str] = []
         if any(token in goal for token in ["感冒", "风寒", "风热"]):
             goal_tokens.extend(["解表", "散寒", "疏风", "宣肺", "止咳", "清热"])
@@ -459,8 +599,22 @@ class RnDWorkflowOrchestrator:
                 scored.append((score, herb))
             prioritized = [item for _, item in sorted(scored, key=lambda pair: pair[0], reverse=True)]
 
+        original_formula = formula_contexts[0] if formula_contexts else None
         ingredients = []
-        for index, herb in enumerate(prioritized[:4]):
+        if original_formula:
+            for index, herb in enumerate(original_formula.get("ingredients", [])[:4]):
+                role = herb.get("role") or (["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药")
+                ingredients.append(
+                    {
+                        "name": herb.get("name"),
+                        "herb_key": herb.get("name"),
+                        "role": role,
+                        "dose_range": herb.get("dosage") or "图谱未提供剂量",
+                        "rationale": "KB5 原方组成，需经 KB1 合法性判断和 KB4 单味替代复核",
+                    }
+                )
+
+        for index, herb in enumerate(prioritized[: max(0, 4 - len(ingredients))]):
             role = ["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药"
             ingredients.append(
                 {
@@ -472,28 +626,52 @@ class RnDWorkflowOrchestrator:
                 }
             )
 
-        compliance_notes = ["正式推荐仅保留药食同源目录药材。"]
+        compliance_notes = [
+            "正式推荐仅保留药食同源目录药材。",
+            "若命中 KB5 原方，原方中非药食同源药材需进入 KB4 单味替代评分，不能直接食品化。",
+        ]
         risks = ["当前为本地结构化结果，建议对剂量范围、孕期/慢病人群适配性做人工复核。"]
         if not prioritized:
             compliance_notes = ["未检索到足够候选药材，建议补充目标相关检索条件。"]
             risks = ["未检索到足够候选药材。"]
 
         return {
+            "kb5_formula_context": formula_contexts,
             "formulas": [
                 {
-                    "name": "药食同源候选方-1",
-                    "ingredients": ingredients,
-                    "classic_reference": "基于图谱候选药食同源药材组合，建议参照经典名方进一步优化配伍。",
-                    "fang_jie": (
-                        f"本方围绕「{brief['goal']}」设计，"
-                        + ("以" + ingredients[0]["name"] + "为君药，" if ingredients else "")
-                        + "遵循君臣佐使配伍原则，各药协同发挥目标功效。"
-                        "具体配伍逻辑需结合体质与症状分型做二次校验。"
+                    "name": (
+                        f"{original_formula.get('formula_name')}药食同源化候选方"
+                        if original_formula
+                        else "药食同源候选方-1"
                     ),
-                    "notes": "基于图谱候选药食同源药材自动生成，建议结合体质与症状分型做二次校验。",
+                    "ingredients": ingredients,
+                    "classic_reference": (
+                        f"KB5 原方：{original_formula.get('formula_name')}；来源：{'、'.join(original_formula.get('sources', [])) or '图谱未提供来源'}。"
+                        if original_formula
+                        else "基于图谱候选药食同源药材组合，建议参照经典名方进一步优化配伍。"
+                    ),
+                    "fang_jie": (
+                        "先保留 KB5 原方语境，再按 KB1 合法性和 KB4 单味替代评分动态重组，需专家复核君臣佐使与剂量。"
+                        if original_formula
+                        else (
+                            f"本方围绕「{brief['goal']}」设计，"
+                            + ("以" + ingredients[0]["name"] + "为君药，" if ingredients else "")
+                            + "遵循君臣佐使配伍原则，各药协同发挥目标功效。"
+                            "具体配伍逻辑需结合体质与症状分型做二次校验。"
+                        )
+                    ),
+                    "notes": (
+                        "KB5 原方单独保留；当前不是预生成替代方，而是原方依据 + 后续 KB4 单味替代的动态重组建议。"
+                        if original_formula
+                        else "基于图谱候选药食同源药材自动生成，建议结合体质与症状分型做二次校验。"
+                    ),
                 }
             ],
-            "selection_rationale": f"围绕目标「{brief['goal']}」，按功效相关性优先筛选药食同源药材并进行君臣佐使配伍。",
+            "selection_rationale": (
+                f"已命中 KB5 原方「{original_formula.get('formula_name')}」，先保留原方依据，再逐味进入合法性与替代分流。"
+                if original_formula
+                else f"围绕目标「{brief['goal']}」，按功效相关性优先筛选药食同源药材并进行君臣佐使配伍。"
+            ),
             "fang_jie": "详见 formulas[].fang_jie",
             "classic_references": ["建议参照《太平惠民和剂局方》等经典方剂文献进行配伍优化。"],
             "compliance_notes": compliance_notes,
@@ -533,25 +711,63 @@ class RnDWorkflowOrchestrator:
         herb_entities = self._load_herb_entities(herb_names)
         defects = []
         optimization_suggestions = []
+        tastes: list[str] = []
+        aromas: list[str] = []
+        mouthfeel: list[str] = []
+        risk_notes: list[str] = []
+        for entity in herb_entities:
+            name = entity.get("name") or entity["id"]
+            snapshot = self._herb_flavor_snapshot(entity)
+            if snapshot.get("flavor"):
+                tastes.append(f"{name}:{snapshot['flavor']}")
+            if snapshot.get("aroma_description"):
+                aromas.append(f"{name}:{snapshot['aroma_description']}")
+            for key, label in [
+                ("bitter_risk", "苦味"),
+                ("astringent_risk", "涩感"),
+                ("herbal_medicine_risk", "药味"),
+                ("aftertaste_risk", "后味"),
+            ]:
+                value = snapshot.get(key)
+                if value is not None and value != "":
+                    mouthfeel.append(f"{name}:{label}{value}")
+                    try:
+                        if float(value) >= 0.6:
+                            risk_notes.append(f"{name}{label}风险偏高")
+                    except (TypeError, ValueError):
+                        pass
         if not herb_entities:
             defects.append("缺少完整的风味标签，评估结果偏保守。")
+        if risk_notes:
+            defects.extend(risk_notes[:6])
         if herb_names:
             optimization_suggestions.append("可优先通过调整君臣比例改善整体接受度。")
             optimization_suggestions.append("必要时补充适应剂型的辅料或工艺调整。")
         return {
             "flavor_profile": {
-                "taste": [],
-                "aroma": [],
-                "mouthfeel": ["待结合剂型进一步评估"],
+                "taste": tastes[:10],
+                "aroma": aromas[:10],
+                "mouthfeel": mouthfeel[:10] or ["待结合剂型进一步评估"],
             },
-            "coordination_summary": "当前根据药材图谱关系做了初步风味归纳，建议结合剂型进一步验证。",
+            "coordination_summary": (
+                "当前根据药材图谱 KB3 风味属性做了初步风味归纳，建议结合剂型和目标人群口味偏好进一步验证。"
+            ),
             "defects": defects,
             "optimization_suggestions": optimization_suggestions,
             "consumer_acceptance": "需结合目标人群口味偏好与剂型特点进一步评估消费者接受度。",
             "data_sources": ["FlavorDB", "BungentDB", "图谱 NatureFlavor/Flavor 关系"],
         }
 
-    def _replacement_fallback(self, herb_entities: list[dict[str, Any]], replacement_payload: list[dict[str, Any]]) -> dict[str, Any]:
+    def _replacement_fallback(
+        self,
+        herb_entities: list[dict[str, Any]],
+        replacement_payload: list[dict[str, Any]],
+        brief: dict[str, Any] | None = None,
+        efficacy_payload: dict[str, Any] | None = None,
+        flavor_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        brief = brief or {}
+        population_profile = self._build_rnd_population_profile(brief, efficacy_payload or {})
         recommendations = []
         baseline_comparison = []
         for herb in herb_entities:
@@ -559,23 +775,79 @@ class RnDWorkflowOrchestrator:
             if not payload or not payload["candidates"]:
                 continue
             candidate = payload["candidates"][0]
+            source_flavor = self._herb_flavor_snapshot(herb)
+            candidate_flavor = self._herb_flavor_snapshot(candidate)
+            flavor_acceptance = candidate.get("flavor_acceptance")
+            flavor_similarity = candidate.get("flavor_similarity")
+            safety_score = candidate.get("safety_score")
+            population_note = self._population_fit_note(candidate)
+            downgrade_reasons = []
+            for value, label in [
+                (flavor_acceptance, "风味接受度偏低"),
+                (safety_score, "安全评分偏低"),
+            ]:
+                try:
+                    if value is not None and float(value) < 0.6:
+                        downgrade_reasons.append(label)
+                except (TypeError, ValueError):
+                    pass
+            if candidate.get("recommendation_status") and "不" in str(candidate.get("recommendation_status")):
+                downgrade_reasons.append(f"推荐状态：{candidate.get('recommendation_status')}")
+            reason_parts = [
+                "CAN_REPLACE Top1 候选",
+                f"风味接受度 {flavor_acceptance}" if flavor_acceptance is not None else "缺少风味接受度",
+                f"风味相似度 {flavor_similarity}" if flavor_similarity is not None else "缺少风味相似度",
+                population_note,
+            ]
+            if downgrade_reasons:
+                reason_parts.append("需降级复核：" + "、".join(downgrade_reasons))
             recommendations.append(
                 {
                     "source_herb": herb["name"],
                     "recommended_herb": candidate.get("name"),
                     "score": candidate.get("score"),
-                    "reason": "CAN_REPLACE Top1 候选",
+                    "professional_score": candidate.get("professional_score"),
+                    "flavor_acceptance": flavor_acceptance,
+                    "flavor_similarity": flavor_similarity,
+                    "safety_score": safety_score,
+                    "flavor_impact": (
+                        f"原药材：{self._format_flavor_snapshot(source_flavor)}；"
+                        f"替代药材：{self._format_flavor_snapshot(candidate_flavor)}"
+                    ),
+                    "population_fit": population_note,
+                    "target_population": population_profile.get("target_population"),
+                    "recommendation_status": candidate.get("recommendation_status") or ("需复核" if downgrade_reasons else "可作为候选"),
+                    "reason": "；".join(reason_parts),
+                }
+            )
+            baseline_comparison.append(
+                {
+                    "source_herb": herb["name"],
+                    "candidate_herb": candidate.get("name"),
+                    "efficacy_score": candidate.get("professional_score") or candidate.get("effect_similarity"),
+                    "flavor_before": self._format_flavor_snapshot(source_flavor),
+                    "flavor_after": self._format_flavor_snapshot(candidate_flavor),
+                    "flavor_acceptance": flavor_acceptance,
+                    "flavor_similarity": flavor_similarity,
+                    "safety_score": safety_score,
+                    "population_before_after": population_note,
+                    "decision": "降级复核" if downgrade_reasons else "候选保留",
                 }
             )
 
         if recommendations:
+            target_population = population_profile.get("target_population") or "未指定目标人群"
+            flavor_summary = (flavor_payload or {}).get("coordination_summary") or "风味预测信息有限"
             impact_summary = (
-                "当前提供了正式替代候选，但这些替代需要进一步核验其功效保持、风味影响和合规性。"
+                f"当前提供了正式替代候选，已按目标人群（{target_population}）、风味接受度、风味相似度和安全性做初步筛查。"
+                f"风味模块结论：{flavor_summary}。"
+                "这些替代仍需要进一步核验其功效保持、风味影响、人群边界和合规性。"
                 "如替代可能削弱核心目标，应保留原方并优先改进配伍。"
             )
             compliance_notes = [
                 "替代前需再次确认替代药材仍属于药食同源目录。",
                 "替代后需评估是否改变适用人群或禁忌范围。",
+                "风味接受度低或目标人群不明确时，不应直接进入最终配方。",
             ]
         else:
             impact_summary = (
@@ -591,7 +863,7 @@ class RnDWorkflowOrchestrator:
             "impact_summary": impact_summary,
             "compliance_notes": compliance_notes,
             "applicable_scenarios": (
-                ["成本优化场景", "供应链保障场景"] if recommendations else ["暂无合适替代方案，建议保留原方"]
+                ["风味优化场景", "目标人群适配场景", "成本优化场景", "供应链保障场景"] if recommendations else ["暂无合适替代方案，建议保留原方"]
             ),
         }
 
@@ -609,15 +881,21 @@ class RnDWorkflowOrchestrator:
             return {
                 "brief_summary": brief["goal"],
                 "task_plan": [
-                    "方剂生成：筛选药食同源候选药材并设计组方",
-                    "功效预测：评估中医与现代药理功效",
-                    "风味预测：分析风味特征与消费者接受度",
-                    "替代映射：多维对比替代方案",
+                    "方剂生成：先检索 KB5 名方/方剂原方，再筛选药食同源候选药材并设计食品化组方",
+                    "功效预测：结合 KB2 评估中医与现代药理功效",
+                    "风味预测：结合 KB3/KB6 判断好喝程度、剂型适配和消费者接受度",
+                    "替代映射：仅基于 KB4 单味药 CAN_REPLACE 关系做动态替代对比",
+                    "合规审查：用 KB1/KB7 检查原料合法性、普通食品宣传边界和风险人群",
                 ],
-                "consistency_checks": ["检查是否存在非药食同源成分", "检查替代后是否削弱核心目标"],
+                "consistency_checks": [
+                    "检查是否存在非药食同源成分",
+                    "检查 KB5 原方语境是否保留",
+                    "检查替代后是否削弱核心目标",
+                    "检查风味剂型和食品化合规边界是否完整",
+                ],
                 "final_recommendation": "",
                 "next_actions": ["等待子模块执行"],
-                "data_sources": ["《中国药典》2020年版", "国家卫健委药食同源物品目录", "FlavorDB", "BungentDB"],
+                "data_sources": ["KB1 药食同源合法性", "KB2 功效病症性味归经", "KB3 风味评价", "KB4 单味替代评分", "KB5 名方方剂", "KB6 产品市场", "KB7 食品合规"],
             }
 
         formulas = (formula_payload or {}).get("formulas", [])
@@ -630,36 +908,50 @@ class RnDWorkflowOrchestrator:
         flavor_summary = (flavor_payload or {}).get("coordination_summary") or "风味评估信息有限"
         replacements = (replacement_payload or {}).get("recommended_replacements", [])
         replacement_text = "当前不建议替代核心药材" if not replacements else "存在可替代候选，需人工确认替代收益与风险"
+        kb5_contexts = (formula_payload or {}).get("kb5_formula_context", [])
+        kb5_text = ""
+        if kb5_contexts:
+            first_context = kb5_contexts[0]
+            kb5_text = (
+                f"KB5 原方依据：{first_context.get('formula_name')}；"
+                f"来源：{'、'.join(first_context.get('sources', [])) or '图谱未提供来源'}。"
+            )
 
         recommendation = (
             f"针对「{question}」，已形成药食同源候选方：{herb_text}。"
+            f"{kb5_text}"
             f"核心功效判断为：{efficacy_text}。"
             f"风味与可接受性评估：{flavor_summary}。"
             f"{replacement_text}。"
-            "建议先做小样验证和人群适配评估，再进入工艺放大。"
+            "最终需输出保留药材、替代药材、重组配方、风味剂型、食品化边界和实验验证建议；"
+            "建议先做小样验证、感官评价、稳定性和合规文案复核，再进入工艺放大。"
         )
         return {
             "brief_summary": brief["goal"],
             "task_plan": [
-                "确认候选方剂成分与药食同源目录一致",
-                "评估方剂功效与用户目标匹配度",
-                "评估风味协调性与适用人群",
-                "确认替代映射是否可行并评估风险",
+                "确认 KB5 原方依据、组成和君臣佐使是否已保留",
+                "用 KB1 确认候选方剂成分与药食同源目录一致",
+                "用 KB2 评估方剂功效与用户目标匹配度",
+                "用 KB3/KB6 评估风味协调性、剂型和适用人群",
+                "用 KB4 确认单味替代映射是否可行并评估风险",
+                "用 KB7 复核普通食品宣传边界和上市风险",
             ],
             "consistency_checks": [
                 "已按固定顺序整合各模块结果。",
-                "方剂成分限定为药食同源目录候选。",
+                "KB5 名方/方剂知识库单独保留，未将 KB4 误用为方剂替代版本库。",
+                "方剂成分需限定为药食同源目录候选，非药食同源原方药材必须走 KB4 单味替代。",
                 "已检查替代建议是否存在削弱核心目标的风险。",
-                "建议对禁忌人群与剂量区间继续做人工核验。",
+                "建议对禁忌人群、剂量区间、风味剂型和合规文案继续做人工核验。",
             ],
             "final_recommendation": recommendation,
             "next_actions": [
-                "复核正式方剂剂量和适用人群",
-                "补充禁忌与适用边界说明",
-                "根据剂型继续完善风味与工艺方案",
+                "复核 KB5 原方组成、剂量比例和适用人群",
+                "列出保留药材、替代药材和不能完全替代点",
+                "补充禁忌、普通食品宣传边界和适用边界说明",
+                "根据剂型继续完善风味、工艺和小样验证方案",
                 "如存在证据缺口，补充实验或文献验证。",
             ],
-            "data_sources": ["《中国药典》2020年版", "国家卫健委药食同源物品目录", "FlavorDB", "图谱 CAN_REPLACE 关系"],
+            "data_sources": ["KB1 药食同源合法性", "KB2 功效病症性味归经", "KB3 风味评价", "KB4 CAN_REPLACE 单味替代", "KB5 名方/方剂", "KB6 产品市场", "KB7 食品合规"],
         }
 
     def _normalize_goal(self, text: str) -> str:

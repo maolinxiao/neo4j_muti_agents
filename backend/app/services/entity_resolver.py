@@ -64,12 +64,21 @@ class EntityResolver:
         }
 
     def resolve(self, question: str, preferred_types: list[str] | None = None) -> list[dict]:
+        fast_results = self._resolve_fast_personal_constitution(question, preferred_types)
+        if fast_results is not None:
+            return fast_results
+
         candidates = self._build_candidates(question)
         if not candidates:
             candidates = [question.strip()]
         return self.resolve_terms(candidates, preferred_types=preferred_types)
 
     def resolve_terms(self, terms: list[str], preferred_types: list[str] | None = None) -> list[dict]:
+        joined_terms = " ".join(terms or [])
+        fast_results = self._resolve_fast_personal_constitution(joined_terms, preferred_types)
+        if fast_results is not None:
+            return fast_results
+
         candidates = [term.strip() for term in terms if term and term.strip()]
         if not candidates:
             return []
@@ -82,7 +91,7 @@ class EntityResolver:
             min_score = self._min_score(candidate)
             if min_score > 140:
                 continue
-            for entity in self.neo4j_repository.search_entities(candidate, limit=10):
+            for entity in self.neo4j_repository.search_entities(candidate, limit=10, entity_types=preferred_types):
                 if entity["id"] in seen:
                     continue
                 if entity.get("score", 0) < min_score:
@@ -105,12 +114,38 @@ class EntityResolver:
             item.pop("_type_rank", None)
         return results[:12]
 
+    def _resolve_fast_personal_constitution(
+        self,
+        text: str,
+        preferred_types: list[str] | None = None,
+    ) -> list[dict] | None:
+        preferred = preferred_types or []
+        if not preferred or preferred[0] != "ConstitutionType":
+            return None
+
+        source = text or ""
+        constitution_names = ["平和质", "气虚质", "阳虚质", "阴虚质", "痰湿质", "湿热质", "血瘀质", "气郁质", "特禀质"]
+        matched_names = [name for name in constitution_names if name in source]
+        if matched_names:
+            finder = getattr(self.neo4j_repository, "find_constitution_types", None)
+            if callable(finder):
+                return finder(matched_names)
+            return []
+
+        generic_tokens = ("体质", "量表", "问卷", "测试", "测评", "辨识", "识别")
+        if any(token in source for token in generic_tokens):
+            return []
+
+        return None
+
     def _build_candidates(self, question: str) -> list[str]:
         cleaned = re.sub(r"[？?，,。；;：:、（）()\[\]【】/\\\n\r\t]+", " ", question)
         segments = [segment.strip() for segment in cleaned.split() if segment.strip()]
         candidates: list[str] = []
 
         self._append_candidate(candidates, question.strip())
+        for target in self._extract_personal_risk_targets(question):
+            self._append_candidate(candidates, target)
         for segment in segments:
             self._append_candidate(candidates, segment)
 
@@ -121,6 +156,19 @@ class EntityResolver:
                 self._append_candidate(candidates, piece)
 
         return candidates
+
+    def _extract_personal_risk_targets(self, question: str) -> list[str]:
+        compact = re.sub(r"\s+", "", question or "")
+        patterns = [
+            r"(?:能不能吃|可不可以吃|能吃吗|能吃|可以吃|适合吃|食用|服用|吃)([A-Za-z0-9一-鿿·-]{2,16})",
+        ]
+        targets: list[str] = []
+        for pattern in patterns:
+            for match in re.findall(pattern, compact):
+                cleaned = re.sub(r"[吗呢吧呀啊？?。！!，,；;：:]+$", "", match.strip())
+                if cleaned and cleaned not in targets and not self._is_noise_candidate(cleaned):
+                    targets.append(cleaned)
+        return targets
 
     def _append_candidate(self, bucket: list[str], candidate: str) -> None:
         candidate = candidate.strip()

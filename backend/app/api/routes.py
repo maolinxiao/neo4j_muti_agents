@@ -3,7 +3,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_user, get_neo4j_repository, get_qa_orchestrator, get_rnd_workflow_orchestrator
+from app.api.deps import (
+    get_constitution_service,
+    get_current_user,
+    get_neo4j_repository,
+    get_qa_orchestrator,
+    get_rnd_workflow_orchestrator,
+)
 from app.core.config import settings
 from app.db.models import AppUser, CypherTemplate, EntityProfile, PromptTemplate, WorkflowRun, WorkflowSession
 from app.db.sqlalchemy import SessionLocal, get_db_session
@@ -28,6 +34,15 @@ from app.schemas.chat import (
     GraphResponse,
     QAResponse,
 )
+from app.schemas.constitution import (
+    ConstitutionAssessmentCreate,
+    ConstitutionAssessmentRead,
+    ConstitutionAssessmentResult,
+    ConstitutionProfileRead,
+    ConstitutionProfileUpdate,
+    ConstitutionQuestionRead,
+    ConstitutionTypeRead,
+)
 from app.schemas.entity import EntityRead, EntitySearchRead
 from app.schemas.rnd import (
     WorkflowRunCreate,
@@ -38,7 +53,8 @@ from app.schemas.rnd import (
     WorkflowStepDetailRead,
     WorkflowStepRunRead,
 )
-from app.services.minimax_client import MiniMaxClient
+from app.services.deepseek_client import DeepSeekClient
+from app.services.constitution_service import ConstitutionService
 from app.services.qa_orchestrator import QAOrchestrator
 from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
 from app.services.auth_service import AuthService
@@ -48,6 +64,7 @@ health_router = APIRouter(tags=["health"])
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 chat_router = APIRouter(tags=["chat"])
 entity_router = APIRouter(tags=["entity"])
+constitution_router = APIRouter(prefix="/constitution", tags=["constitution"])
 rnd_router = APIRouter(prefix="/rnd", tags=["rnd"])
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -73,7 +90,7 @@ def _run_workflow_in_background(run_id: str) -> None:
     db = SessionLocal()
     neo4j = Neo4jRepository()
     try:
-        orchestrator = RnDWorkflowOrchestrator(PostgresRepository(db), neo4j, MiniMaxClient())
+        orchestrator = RnDWorkflowOrchestrator(PostgresRepository(db), neo4j, DeepSeekClient())
         orchestrator.resume_run(run_id)
     finally:
         neo4j.close()
@@ -127,7 +144,7 @@ def health_check(db: Session = Depends(get_db_session), neo4j: Neo4jRepository =
         "status": "ok",
         "postgres": True,
         "neo4j": neo4j.health_check(),
-        "minimax_configured": bool(settings.minimax_api_key),
+        "llm_configured": bool(settings.llm_api_key),
     }
 
 
@@ -160,10 +177,12 @@ def ask_question(
     payload: ChatMessageCreate,
     db: Session = Depends(get_db_session),
     neo4j: Neo4jRepository = Depends(get_neo4j_repository),
+    current_user: AppUser = Depends(get_current_user),
 ) -> QAResponse:
     orchestrator = get_qa_orchestrator(db, neo4j)
+    current_user_snapshot = {"id": current_user.id}
     try:
-        result = orchestrator.ask(session_id, payload.question)
+        result = orchestrator.ask(session_id, payload.question, current_user=current_user_snapshot)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return QAResponse(**result)
@@ -175,6 +194,7 @@ def ask_question_stream(
     payload: ChatMessageCreate,
     db: Session = Depends(get_db_session),
     neo4j: Neo4jRepository = Depends(get_neo4j_repository),
+    current_user: AppUser = Depends(get_current_user),
 ):
     repo = PostgresRepository(db)
     session = repo.get_chat_session(session_id)
@@ -186,8 +206,9 @@ def ask_question_stream(
     repo.session.commit()
 
     orchestrator = get_qa_orchestrator(db, neo4j)
+    current_user_snapshot = {"id": current_user.id}
     return StreamingResponse(
-        orchestrator.ask_stream(session_id, payload.question),
+        orchestrator.ask_stream(session_id, payload.question, current_user=current_user_snapshot),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -242,6 +263,82 @@ def get_entity(entity_id: str, neo4j: Neo4jRepository = Depends(get_neo4j_reposi
     return EntityRead(**entity)
 
 
+@constitution_router.get("/types", response_model=list[ConstitutionTypeRead])
+def list_constitution_types(service: ConstitutionService = Depends(get_constitution_service)) -> list[ConstitutionTypeRead]:
+    return [ConstitutionTypeRead(**item) for item in service.list_constitution_types()]
+
+
+@constitution_router.get("/questionnaire")
+def get_constitution_questionnaire(
+    current_user: AppUser = Depends(get_current_user),
+    service: ConstitutionService = Depends(get_constitution_service),
+) -> dict:
+    return service.build_questionnaire_payload(current_user.id)
+
+
+@constitution_router.get("/profile", response_model=ConstitutionProfileRead | None)
+def get_constitution_profile(
+    current_user: AppUser = Depends(get_current_user),
+    service: ConstitutionService = Depends(get_constitution_service),
+) -> ConstitutionProfileRead | None:
+    profile = service.get_constitution_profile(current_user.id)
+    if profile is None:
+        return None
+    return ConstitutionProfileRead.model_validate(profile, from_attributes=True)
+
+
+@constitution_router.put("/profile", response_model=ConstitutionProfileRead)
+def update_constitution_profile(
+    payload: ConstitutionProfileUpdate,
+    current_user: AppUser = Depends(get_current_user),
+    service: ConstitutionService = Depends(get_constitution_service),
+    db: Session = Depends(get_db_session),
+) -> ConstitutionProfileRead:
+    profile = service.upsert_profile(current_user.id, payload.model_dump())
+    db.commit()
+    db.refresh(profile)
+    return ConstitutionProfileRead.model_validate(profile, from_attributes=True)
+
+
+@constitution_router.post("/assessments", response_model=ConstitutionAssessmentResult)
+def create_constitution_assessment(
+    payload: ConstitutionAssessmentCreate,
+    current_user: AppUser = Depends(get_current_user),
+    service: ConstitutionService = Depends(get_constitution_service),
+    db: Session = Depends(get_db_session),
+) -> ConstitutionAssessmentResult:
+    assessment, profile, matched_questions = service.create_assessment(current_user.id, payload.model_dump())
+    db.commit()
+    db.refresh(assessment)
+    db.refresh(profile)
+    return ConstitutionAssessmentResult(
+        assessment=ConstitutionAssessmentRead.model_validate(assessment, from_attributes=True),
+        profile=ConstitutionProfileRead.model_validate(profile, from_attributes=True),
+        matched_questions=[ConstitutionQuestionRead(**item) for item in matched_questions],
+    )
+
+
+@constitution_router.get("/assessments", response_model=list[ConstitutionAssessmentRead])
+def list_constitution_assessments(
+    current_user: AppUser = Depends(get_current_user),
+    service: ConstitutionService = Depends(get_constitution_service),
+) -> list[ConstitutionAssessmentRead]:
+    assessments = service.list_assessments(current_user.id)
+    return [ConstitutionAssessmentRead.model_validate(item, from_attributes=True) for item in assessments]
+
+
+@constitution_router.get("/assessments/{assessment_id}", response_model=ConstitutionAssessmentRead)
+def get_constitution_assessment(
+    assessment_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    service: ConstitutionService = Depends(get_constitution_service),
+) -> ConstitutionAssessmentRead:
+    assessment = service.get_assessment(assessment_id)
+    if assessment is None or assessment.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Constitution assessment not found")
+    return ConstitutionAssessmentRead.model_validate(assessment, from_attributes=True)
+
+
 @admin_router.get("/overview", response_model=OverviewResponse)
 def get_overview(db: Session = Depends(get_db_session), neo4j: Neo4jRepository = Depends(get_neo4j_repository)) -> OverviewResponse:
     prompt_count = db.query(PromptTemplate).count()
@@ -253,7 +350,7 @@ def get_overview(db: Session = Depends(get_db_session), neo4j: Neo4jRepository =
     return OverviewResponse(
         postgres_ok=True,
         neo4j_ok=neo4j.health_check(),
-        minimax_configured=MiniMaxClient().health_check(),
+        llm_configured=DeepSeekClient().health_check(),
         entity_profile_count=profile_count,
         workflow_session_count=workflow_session_count,
         workflow_run_count=workflow_run_count,

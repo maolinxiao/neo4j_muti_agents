@@ -1,0 +1,33 @@
+{
+  "nodes": [
+    { "id": "platform", "name": "知识图谱", "type": "Platform", "tag": "八库联动 · 证据底座" },
+    { "id": "herb1", "name": "原料合法性库", "type": "Herb", "tag": "KB1 · 目录与禁忌" },
+    { "id": "herb2", "name": "原料使用注意库", "type": "Herb", "tag": "KB1 · 毒性·慎用" },
+    { "id": "formula1", "name": "名方方剂库", "type": "Formula", "tag": "KB5 · 组成与主治" },
+    { "id": "effect1", "name": "功效病症库", "type": "Effect", "tag": "KB2 · 性味·归经" },
+    { "id": "product1", "name": "产品与市场库", "type": "Product", "tag": "KB6 · 竞品·场景" },
+    { "id": "compliance1", "name": "食品标准合规库", "type": "ComplianceRule", "tag": "KB7 · 标准·边界" },
+    { "id": "constitution1", "name": "体质食养库", "type": "ConstitutionType", "tag": "KB8 · 辨识·推荐" },
+    { "id": "kb3", "name": "风味评价库", "type": "KBMarker", "tag": "KB3 · 感官·接受度" },
+    { "id": "kb4", "name": "替代评分库", "type": "KBMarker", "tag": "KB4 · 映射·取舍" }
+  ],
+  "links": [
+    { "source": "platform", "target": "herb1" },
+    { "source": "platform", "target": "herb2" },
+    { "source": "platform", "target": "formula1" },
+    { "source": "platform", "target": "effect1" },
+    { "source": "platform", "target": "product1" },
+    { "source": "platform", "target": "compliance1" },
+    { "source": "platform", "target": "constitution1" },
+    { "source": "platform", "target": "kb3" },
+    { "source": "platform", "target": "kb4" },
+    { "source": "herb1", "target": "effect1" },
+    { "source": "herb2", "target": "constitution1" },
+    { "source": "formula1", "target": "herb1" },
+    { "source": "formula1", "target": "effect1" },
+    { "source": "product1", "target": "formula1" },
+    { "source": "compliance1", "target": "herb1" },
+    { "source": "kb3", "target": "product1" },
+    { "source": "kb4", "target": "formula1" }
+  ]
+}

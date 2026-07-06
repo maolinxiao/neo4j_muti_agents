@@ -21,7 +21,7 @@
             <el-icon><Monitor /></el-icon>
           </div>
           <div class="stat-info">
-            <div class="stat-value">2</div>
+            <div class="stat-value">3</div>
             <div class="stat-label">核心工作台</div>
           </div>
         </el-card>
@@ -51,6 +51,24 @@
     </el-row>
 
     <el-row :gutter="20" class="mt-20">
+      <el-col :xs="24" :md="8">
+        <el-card shadow="hover" class="feature-card">
+          <template #header>
+            <div class="card-header">
+              <span class="card-title">体质辨识工作台</span>
+            </div>
+          </template>
+          <div class="feature-body">
+            <p class="feature-desc">适合先建立个人体质档案，完成量表测评或手动选择体质，让后续知识问答自动带入个体化背景。</p>
+            <ul class="feature-list">
+              <li>九种体质规则表格</li>
+              <li>标准量表逐题测评</li>
+              <li>体质档案与历史记录</li>
+            </ul>
+            <el-button type="warning" @click="goConstitution">进入体质辨识</el-button>
+          </div>
+        </el-card>
+      </el-col>
       <el-col :xs="24" :md="12">
         <el-card shadow="hover" class="feature-card">
           <template #header>
@@ -59,9 +77,9 @@
             </div>
           </template>
           <div class="feature-body">
-            <p class="feature-desc">适合快速检索药材、成分、功效标签和替代关系，查看证据图谱并追溯节点详情。</p>
+            <p class="feature-desc">适合快速检索药材、方剂、功效、风味、替代和合规证据，查看证据图谱并追溯节点详情。</p>
             <ul class="feature-list">
-              <li>药材 / 成分 / 功效标签检索</li>
+              <li>药材 / 方剂 / 功效 / 合规检索</li>
               <li>证据子图与参考来源</li>
               <li>历史知识问答回看</li>
             </ul>
@@ -70,7 +88,7 @@
         </el-card>
       </el-col>
       
-      <el-col :xs="24" :md="12">
+      <el-col :xs="24" :md="8">
         <el-card shadow="hover" class="feature-card">
           <template #header>
             <div class="card-header">
@@ -98,6 +116,7 @@ import { Monitor, Cpu, Share } from "@element-plus/icons-vue";
 
 const router = useRouter();
 
+const goConstitution = () => router.push({ name: "constitution" });
 const goKnowledge = () => router.push({ name: "chat" });
 const goRnd = () => router.push({ name: "rnd" });
 </script>

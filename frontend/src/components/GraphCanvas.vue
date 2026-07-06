@@ -43,7 +43,7 @@
             :y1="edge.sourceNode.y"
             :x2="edge.targetNode.x"
             :y2="edge.targetNode.y"
-            :class="['edge-line', { highlighted: edge.highlighted }]"
+            :class="['edge-line', { highlighted: edge.highlighted, 'edge-incompatible': edge.type === 'INCOMPATIBLE_WITH' }]"
             marker-end="url(#arrow)"
           />
           <text :x="edge.labelX" :y="edge.labelY" class="edge-label">{{ edge.type }}</text>
@@ -123,16 +123,18 @@ const colorByType = (type) => {
   const palette = {
     Question: "#1e293b",
     Herb: "#4ade80",
-    Compound: "#60a5fa",
     Effect: "#fb923c",
     EffectCategory: "#a78bfa",
     Flavor: "#a78bfa",
     Formula: "#fbbf24",
     Product: "#22c55e",
-    ConsumerProfile: "#06b6d4",
+    ConsumerProfile: "#14b8a6",
     ConsumerSegment: "#0ea5e9",
+    ConsumerReview: "#f59e0b",
     ConstitutionType: "#ec4899",
     ConstitutionQuestion: "#f472b6",
+    ComplianceRule: "#6366f1",
+    RiskExpression: "#ef4444",
     Symptom: "#2dd4bf",
     Taboo: "#f87171",
     Source: "#22d3ee",
@@ -167,12 +169,14 @@ const typeGroups = computed(() => {
 const sectorKeys = computed(() => Object.keys(typeGroups.value));
 
 const sectorFillColors = {
-  Herb: "rgba(74,222,128,0.10)", Compound: "rgba(96,165,250,0.10)",
+  Herb: "rgba(74,222,128,0.10)",
   Effect: "rgba(251,146,60,0.10)", EffectCategory: "rgba(167,139,250,0.10)",
   Flavor: "rgba(167,139,250,0.10)", Formula: "rgba(251,191,36,0.10)",
-  Product: "rgba(34,197,94,0.10)", ConsumerProfile: "rgba(6,182,212,0.10)",
-  ConsumerSegment: "rgba(14,165,233,0.10)", ConstitutionType: "rgba(236,72,153,0.10)",
+  Product: "rgba(34,197,94,0.10)",
+  ConsumerProfile: "rgba(20,184,166,0.10)", ConsumerSegment: "rgba(14,165,233,0.10)",
+  ConsumerReview: "rgba(245,158,11,0.10)", ConstitutionType: "rgba(236,72,153,0.10)",
   ConstitutionQuestion: "rgba(244,114,182,0.10)",
+  ComplianceRule: "rgba(99,102,241,0.10)", RiskExpression: "rgba(239,68,68,0.10)",
   Symptom: "rgba(45,212,191,0.10)", Taboo: "rgba(248,113,113,0.10)",
   Source: "rgba(34,211,238,0.10)", NatureFlavor: "rgba(52,211,153,0.10)",
   Meridian: "rgba(56,189,248,0.10)", Attribute: "rgba(45,212,191,0.10)",
@@ -180,12 +184,14 @@ const sectorFillColors = {
 };
 
 const sectorStrokeColors = {
-  Herb: "rgba(74,222,128,0.28)", Compound: "rgba(96,165,250,0.28)",
+  Herb: "rgba(74,222,128,0.28)",
   Effect: "rgba(251,146,60,0.28)", EffectCategory: "rgba(167,139,250,0.28)",
   Flavor: "rgba(167,139,250,0.28)", Formula: "rgba(251,191,36,0.28)",
-  Product: "rgba(34,197,94,0.28)", ConsumerProfile: "rgba(6,182,212,0.28)",
-  ConsumerSegment: "rgba(14,165,233,0.28)", ConstitutionType: "rgba(236,72,153,0.28)",
+  Product: "rgba(34,197,94,0.28)",
+  ConsumerProfile: "rgba(20,184,166,0.28)", ConsumerSegment: "rgba(14,165,233,0.28)",
+  ConsumerReview: "rgba(245,158,11,0.28)", ConstitutionType: "rgba(236,72,153,0.28)",
   ConstitutionQuestion: "rgba(244,114,182,0.28)",
+  ComplianceRule: "rgba(99,102,241,0.28)", RiskExpression: "rgba(239,68,68,0.28)",
   Symptom: "rgba(45,212,191,0.28)", Taboo: "rgba(248,113,113,0.28)",
   Source: "rgba(34,211,238,0.28)", NatureFlavor: "rgba(52,211,153,0.28)",
   Meridian: "rgba(56,189,248,0.28)", Attribute: "rgba(45,212,191,0.28)",
@@ -507,6 +513,11 @@ const handleNodeClick = (node) => {
 .edge-line.highlighted {
   stroke: #475569;
   stroke-width: 2.4;
+}
+.edge-line.edge-incompatible {
+  stroke: #dc2626;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
 }
 
 .edge-label {

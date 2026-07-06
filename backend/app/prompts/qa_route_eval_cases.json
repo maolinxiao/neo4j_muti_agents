@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "description": "QA 业务路由回归用例：覆盖企业端 6 类、个人端 5 类和通用兜底路由。",
+  "cases": [
+    {
+      "question": "开发一款适合熬夜人群的护肝饮品",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "product_development",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "把四君子汤改造成药食同源代餐粉",
+      "expected_question_type": "formula_replacement",
+      "expected_qa_route": "formula_foodification",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "麻黄可以用什么药食同源原料替代",
+      "expected_question_type": "formula_replacement",
+      "expected_qa_route": "herb_replacement",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "这个配方是否好喝/适合做什么剂型",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "flavor_form_factor",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "同类竞品卖点和差异化怎么做",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "market_analysis",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "这个配方宣传助眠是否合规",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "compliance_review",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "我是什么体质",
+      "expected_question_type": "constitution_recommendation",
+      "expected_qa_route": "constitution_assessment",
+      "expected_audience": "personal"
+    },
+    {
+      "question": "我湿气重适合吃什么",
+      "expected_question_type": "constitution_recommendation",
+      "expected_qa_route": "personalized_food_recommendation",
+      "expected_audience": "personal"
+    },
+    {
+      "question": "这个产品适合我吗",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "personal_product_fit",
+      "expected_audience": "personal"
+    },
+    {
+      "question": "给老人送礼买什么药食同源产品",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "personal_product_recommendation",
+      "expected_audience": "personal"
+    },
+    {
+      "question": "孕妇能不能吃黄芪",
+      "expected_question_type": "constitution_recommendation",
+      "expected_qa_route": "risk_boundary",
+      "expected_audience": "personal"
+    },
+    {
+      "question": "四君子汤的组成和君臣佐使是什么",
+      "expected_question_type": "formula_relation",
+      "expected_qa_route": "formula_relation",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "黄芪有什么功效",
+      "expected_question_type": "herb_efficacy",
+      "expected_qa_route": "herb_efficacy",
+      "expected_audience": "general"
+    },
+    {
+      "question": "介绍一下茯苓",
+      "expected_question_type": "entity_explanation",
+      "expected_qa_route": "entity_explanation",
+      "expected_audience": "general"
+    }
+  ]
+}

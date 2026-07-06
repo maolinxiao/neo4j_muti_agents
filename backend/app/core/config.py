@@ -27,10 +27,13 @@ class Settings:
     neo4j_uri: str = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
     neo4j_username: str = os.getenv("NEO4J_USERNAME", "neo4j")
     neo4j_password: str = os.getenv("NEO4J_PASSWORD", "3217858658")
-    minimax_api_base: str = os.getenv("MINIMAX_API_BASE", "https://api.minimaxi.com/v1")
-    minimax_api_key: str = os.getenv("MINIMAX_API_KEY", "")
-    minimax_model: str = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7")
-    minimax_reasoning_split: bool = _as_bool(os.getenv("MINIMAX_REASONING_SPLIT"), True)
+    llm_api_base: str = os.getenv("DEEPSEEK_API_BASE") or os.getenv("MINIMAX_API_BASE", "https://api.deepseek.com")
+    llm_api_key: str = os.getenv("DEEPSEEK_API_KEY") or os.getenv("MINIMAX_API_KEY", "")
+    llm_model: str = os.getenv("DEEPSEEK_MODEL") or os.getenv("MINIMAX_MODEL", "deepseek-v4-pro")
+    llm_reasoning_enabled: bool = _as_bool(
+        os.getenv("DEEPSEEK_THINKING_ENABLED") or os.getenv("MINIMAX_REASONING_SPLIT"),
+        True,
+    )
     max_graph_nodes: int = int(os.getenv("MAX_GRAPH_NODES", "40"))
     max_graph_edges: int = int(os.getenv("MAX_GRAPH_EDGES", "80"))
     default_temperature: float = float(os.getenv("DEFAULT_TEMPERATURE", "0.2"))
@@ -38,6 +41,22 @@ class Settings:
     default_admin_username: str = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
     default_admin_password: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123456")
     auth_session_ttl_hours: int = int(os.getenv("AUTH_SESSION_TTL_HOURS", "24"))
+
+    @property
+    def minimax_api_base(self) -> str:
+        return self.llm_api_base
+
+    @property
+    def minimax_api_key(self) -> str:
+        return self.llm_api_key
+
+    @property
+    def minimax_model(self) -> str:
+        return self.llm_model
+
+    @property
+    def minimax_reasoning_split(self) -> bool:
+        return self.llm_reasoning_enabled
 
 
 settings = Settings()

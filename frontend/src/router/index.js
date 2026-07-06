@@ -2,8 +2,10 @@ import { createRouter, createWebHistory } from "vue-router";
 
 import MainLayout from "../layouts/MainLayout.vue";
 import LoginView from "../views/LoginView.vue";
+import ShowcaseHomeView from "../views/showcase/ShowcaseHomeView.vue";
 import HomeView from "../views/portal/HomeView.vue";
 import ChatView from "../views/portal/ChatView.vue";
+import ConstitutionView from "../views/portal/ConstitutionView.vue";
 import RndWorkspaceView from "../views/portal/RndWorkspaceView.vue";
 import HistoryView from "../views/portal/HistoryView.vue";
 import OverviewView from "../views/admin/OverviewView.vue";
@@ -13,13 +15,15 @@ import LogsView from "../views/admin/LogsView.vue";
 import { useAuthStore } from "../stores/auth";
 
 const routes = [
+  { path: "/", name: "showcase", component: ShowcaseHomeView, meta: { public: true } },
   { path: "/login", name: "login", component: LoginView, meta: { public: true } },
   {
-    path: "/",
+    path: "/app",
     component: MainLayout,
     children: [
-      { path: "", name: "home", component: HomeView },
+      { path: "", name: "app-home", component: HomeView },
       { path: "chat/:sessionId?", name: "chat", component: ChatView },
+      { path: "constitution", name: "constitution", component: ConstitutionView },
       { path: "rnd/:sessionId?", name: "rnd", component: RndWorkspaceView },
       { path: "history", name: "history", component: HistoryView },
       { path: "admin/overview", name: "admin-overview", component: OverviewView },
@@ -39,7 +43,7 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (to.meta.public) {
     if (to.name === "login" && auth.isAuthenticated) {
-      return { name: "home" };
+      return { name: "app-home" };
     }
     return true;
   }

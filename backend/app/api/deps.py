@@ -8,14 +8,15 @@ from app.db.sqlalchemy import get_db_session
 from app.repositories.neo4j_repository import Neo4jRepository
 from app.repositories.postgres_repository import PostgresRepository
 from app.services.auth_service import AuthService
+from app.services.constitution_service import ConstitutionService
 from app.services.entity_resolver import EntityResolver
 from app.services.graph_retriever import GraphRetriever
-from app.services.minimax_client import MiniMaxClient
+from app.services.deepseek_client import DeepSeekClient
 from app.services.qa_orchestrator import QAOrchestrator
 from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
 
 
-def get_pg_repository(session: Session) -> PostgresRepository:
+def get_pg_repository(session: Session = Depends(get_db_session)) -> PostgresRepository:
     return PostgresRepository(session)
 
 
@@ -47,15 +48,29 @@ def get_current_user(
     return user
 
 
-def get_qa_orchestrator(session: Session, neo4j_repository: Neo4jRepository) -> QAOrchestrator:
+def get_qa_orchestrator(
+    session: Session = Depends(get_db_session),
+    neo4j_repository: Neo4jRepository = Depends(get_neo4j_repository),
+) -> QAOrchestrator:
     postgres_repository = PostgresRepository(session)
     resolver = EntityResolver(neo4j_repository)
     retriever = GraphRetriever(neo4j_repository, postgres_repository)
-    minimax_client = MiniMaxClient()
-    return QAOrchestrator(postgres_repository, resolver, retriever, minimax_client)
+    llm_client = DeepSeekClient()
+    return QAOrchestrator(postgres_repository, resolver, retriever, llm_client)
 
 
-def get_rnd_workflow_orchestrator(session: Session, neo4j_repository: Neo4jRepository) -> RnDWorkflowOrchestrator:
+def get_constitution_service(
+    session: Session = Depends(get_db_session),
+    neo4j_repository: Neo4jRepository = Depends(get_neo4j_repository),
+) -> ConstitutionService:
     postgres_repository = PostgresRepository(session)
-    minimax_client = MiniMaxClient()
-    return RnDWorkflowOrchestrator(postgres_repository, neo4j_repository, minimax_client)
+    return ConstitutionService(postgres_repository, neo4j_repository)
+
+
+def get_rnd_workflow_orchestrator(
+    session: Session = Depends(get_db_session),
+    neo4j_repository: Neo4jRepository = Depends(get_neo4j_repository),
+) -> RnDWorkflowOrchestrator:
+    postgres_repository = PostgresRepository(session)
+    llm_client = DeepSeekClient()
+    return RnDWorkflowOrchestrator(postgres_repository, neo4j_repository, llm_client)

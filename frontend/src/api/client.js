@@ -61,6 +61,7 @@ export const api = {
         const decoder = new TextDecoder();
         let buffer = "";
         let currentEvent = null;
+        let terminalEventReceived = false;
 
         const dispatch = (ev) => {
           try {
@@ -69,8 +70,13 @@ export const api = {
             else if (ev.event === "think") onThink && onThink(data);
             else if (ev.event === "evidence") onEvidence(data);
             else if (ev.event === "graph") onGraph(data);
-            else if (ev.event === "done") onDone(data);
-            else if (ev.event === "error") onError(new Error(data.message || "Stream error"));
+            else if (ev.event === "done") {
+              terminalEventReceived = true;
+              onDone(data);
+            } else if (ev.event === "error") {
+              terminalEventReceived = true;
+              onError(new Error(data.message || "Stream error"));
+            }
           } catch (e) {
             // skip malformed events
           }
@@ -103,6 +109,9 @@ export const api = {
         if (currentEvent && currentEvent.event) {
           dispatch(currentEvent);
         }
+        if (!terminalEventReceived && onDone) {
+          onDone({ incomplete: true });
+        }
       })
       .catch((err) => {
         if (onError) onError(err);
@@ -111,6 +120,13 @@ export const api = {
   listMessages: (sessionId) => client.get(`/chat/sessions/${sessionId}/messages`),
   getGraph: (sessionId) => client.get(`/chat/sessions/${sessionId}/graph`),
   getGraphSnapshot: (snapshotId) => client.get(`/chat/graph-snapshots/${snapshotId}`),
+  getConstitutionTypes: () => client.get("/constitution/types"),
+  getConstitutionQuestionnaire: () => client.get("/constitution/questionnaire"),
+  getConstitutionProfile: () => client.get("/constitution/profile"),
+  updateConstitutionProfile: (payload) => client.put("/constitution/profile", payload),
+  createConstitutionAssessment: (payload) => client.post("/constitution/assessments", payload),
+  listConstitutionAssessments: () => client.get("/constitution/assessments"),
+  getConstitutionAssessment: (assessmentId) => client.get(`/constitution/assessments/${assessmentId}`),
   searchEntities: (q) => client.get("/entities/search", { params: { q } }),
   getEntity: (id) => client.get(`/entities/${id}`),
   getOverview: () => client.get("/admin/overview"),

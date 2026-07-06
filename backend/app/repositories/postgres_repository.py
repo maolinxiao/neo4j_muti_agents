@@ -4,6 +4,8 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     ChatMessage,
     ChatSession,
+    ConstitutionAssessment,
+    ConstitutionProfile,
     CypherTemplate,
     EntityProfile,
     GraphSnapshot,
@@ -130,6 +132,45 @@ class PostgresRepository:
             .limit(20)
         )
         return list(self.session.scalars(stmt))
+
+    def get_constitution_profile(self, user_id: str) -> ConstitutionProfile | None:
+        stmt = select(ConstitutionProfile).where(ConstitutionProfile.user_id == user_id)
+        return self.session.scalar(stmt)
+
+    def upsert_constitution_profile(self, user_id: str, payload: dict) -> ConstitutionProfile:
+        profile = self.get_constitution_profile(user_id)
+        if profile is None:
+            profile = ConstitutionProfile(user_id=user_id, **payload)
+            self.session.add(profile)
+        else:
+            for field, value in payload.items():
+                setattr(profile, field, value)
+        self.session.flush()
+        return profile
+
+    def create_constitution_assessment(self, user_id: str, payload: dict, result: dict) -> ConstitutionAssessment:
+        assessment = ConstitutionAssessment(
+            user_id=user_id,
+            answers=payload.get("answers", {}),
+            scores=result.get("scores", {}),
+            primary_constitution=result.get("primary_constitution", ""),
+            secondary_constitutions=result.get("secondary_constitutions", []),
+            result_summary=result.get("result_summary"),
+        )
+        self.session.add(assessment)
+        self.session.flush()
+        return assessment
+
+    def list_constitution_assessments(self, user_id: str) -> list[ConstitutionAssessment]:
+        stmt = (
+            select(ConstitutionAssessment)
+            .where(ConstitutionAssessment.user_id == user_id)
+            .order_by(desc(ConstitutionAssessment.created_at))
+        )
+        return list(self.session.scalars(stmt))
+
+    def get_constitution_assessment(self, assessment_id: str) -> ConstitutionAssessment | None:
+        return self.session.get(ConstitutionAssessment, assessment_id)
 
     def create_workflow_session(self, title: str | None = None, last_brief: dict | None = None) -> WorkflowSession:
         workflow_session = WorkflowSession(title=title, last_brief=last_brief)

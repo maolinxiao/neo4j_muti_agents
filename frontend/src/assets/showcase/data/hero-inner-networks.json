@@ -1,0 +1,106 @@
+{
+  "platform": {
+    "radius": 14,
+    "nodes": [
+      { "name": "KB1", "subtitle": "原料合法性", "color": "#5eead4" },
+      { "name": "KB2", "subtitle": "功效病症", "color": "#fdba74" },
+      { "name": "KB3", "subtitle": "风味评价", "color": "#fcd34d" },
+      { "name": "KB4", "subtitle": "替代评分", "color": "#94a3b8" },
+      { "name": "KB5", "subtitle": "名方方剂", "color": "#fde68a" },
+      { "name": "KB6", "subtitle": "产品市场", "color": "#86efac" },
+      { "name": "KB7", "subtitle": "食品合规", "color": "#a5b4fc" },
+      { "name": "KB8", "subtitle": "体质食养", "color": "#f9a8d4" }
+    ],
+    "links": [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 2], [4, 5], [6, 7]]
+  },
+  "herb1": {
+    "radius": 10,
+    "nodes": [
+      { "name": "目录归属", "subtitle": "药食同源", "color": "#5eead4" },
+      { "name": "合法边界", "subtitle": "可用范围", "color": "#2dd4bf" },
+      { "name": "毒性风险", "subtitle": "安全等级", "color": "#fb923c" },
+      { "name": "配伍禁忌", "subtitle": "使用注意", "color": "#a5b4fc" }
+    ],
+    "links": [[0, 1], [1, 2], [0, 3], [2, 3]]
+  },
+  "herb2": {
+    "radius": 10,
+    "nodes": [
+      { "name": "特殊人群", "subtitle": "孕妇·儿童", "color": "#5eead4" },
+      { "name": "慎用情形", "subtitle": "风险提示", "color": "#fca5a5" },
+      { "name": "用量边界", "subtitle": "使用规范", "color": "#fdba74" },
+      { "name": "跨库关联", "subtitle": "体质·合规", "color": "#f9a8d4" }
+    ],
+    "links": [[0, 1], [1, 2], [2, 3], [0, 3]]
+  },
+  "formula1": {
+    "radius": 11,
+    "nodes": [
+      { "name": "名方来源", "subtitle": "典籍出处", "color": "#fde68a" },
+      { "name": "方剂组成", "subtitle": "原料清单", "color": "#fcd34d" },
+      { "name": "君臣佐使", "subtitle": "配伍结构", "color": "#d9f99d" },
+      { "name": "功效主治", "subtitle": "适应症", "color": "#fdba74" }
+    ],
+    "links": [[0, 1], [1, 2], [2, 3], [0, 3], [1, 3]]
+  },
+  "effect1": {
+    "radius": 10,
+    "nodes": [
+      { "name": "功效分类", "subtitle": "大类·标签", "color": "#fdba74" },
+      { "name": "病症关联", "subtitle": "主治方向", "color": "#fb923c" },
+      { "name": "性味归经", "subtitle": "中医属性", "color": "#5eead4" },
+      { "name": "禁忌规则", "subtitle": "慎用边界", "color": "#fca5a5" }
+    ],
+    "links": [[0, 1], [1, 2], [2, 3], [0, 2]]
+  },
+  "constitution1": {
+    "radius": 10,
+    "nodes": [
+      { "name": "体质问卷", "subtitle": "九种分型", "color": "#f9a8d4" },
+      { "name": "评分规则", "subtitle": "判定逻辑", "color": "#fda4af" },
+      { "name": "食养方向", "subtitle": "适宜原则", "color": "#86efac" },
+      { "name": "慎用原料", "subtitle": "禁忌清单", "color": "#fca5a5" }
+    ],
+    "links": [[0, 1], [1, 2], [0, 3], [2, 3]]
+  },
+  "compliance1": {
+    "radius": 10,
+    "nodes": [
+      { "name": "同源目录", "subtitle": "准入清单", "color": "#a5b4fc" },
+      { "name": "标签标准", "subtitle": "GB7718", "color": "#818cf8" },
+      { "name": "添加剂规范", "subtitle": "GB2760", "color": "#6366f1" },
+      { "name": "宣传边界", "subtitle": "禁用·慎用", "color": "#c4b5fd" }
+    ],
+    "links": [[0, 1], [1, 2], [2, 3], [0, 3]]
+  },
+  "product1": {
+    "radius": 11,
+    "nodes": [
+      { "name": "产品档案", "subtitle": "品牌·品类", "color": "#86efac" },
+      { "name": "剂型场景", "subtitle": "形态·用途", "color": "#6ee7b7" },
+      { "name": "卖点标签", "subtitle": "市场定位", "color": "#fcd34d" },
+      { "name": "竞品对照", "subtitle": "功效标签", "color": "#fdba74" }
+    ],
+    "links": [[0, 1], [1, 2], [0, 2], [2, 3], [0, 3]]
+  },
+  "kb3": {
+    "radius": 9,
+    "nodes": [
+      { "name": "苦味涩感", "subtitle": "感官维度", "color": "#fde68a" },
+      { "name": "药味风险", "subtitle": "接受障碍", "color": "#fcd34d" },
+      { "name": "香气层次", "subtitle": "风味特征", "color": "#fbbf24" },
+      { "name": "接受度", "subtitle": "综合评价", "color": "#86efac" }
+    ],
+    "links": [[0, 1], [1, 2], [0, 2], [2, 3]]
+  },
+  "kb4": {
+    "radius": 9,
+    "nodes": [
+      { "name": "原药对照", "subtitle": "待替品种", "color": "#94a3b8" },
+      { "name": "替代评分", "subtitle": "CAN_REPLACE", "color": "#64748b" },
+      { "name": "功效映射", "subtitle": "对齐维度", "color": "#2dd4bf" },
+      { "name": "取舍说明", "subtitle": "成本·工艺", "color": "#fcd34d" }
+    ],
+    "links": [[0, 1], [1, 2], [2, 3], [0, 3]]
+  }
+}

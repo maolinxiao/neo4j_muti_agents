@@ -7,7 +7,7 @@
 - `研发协同工作台`
   面向药食同源产品研发，围绕需求解析、方剂生成、功效预测、风味预测、替代映射进行顺序编排。
 
-当前前端基于 `Vue 3 + Element Plus + Pinia`，后端基于 `FastAPI + SQLAlchemy`，业务数据存储在 `PostgreSQL`，知识图谱存储在 `Neo4j`，并接入 `MiniMax` 做结构化生成。
+当前前端基于 `Vue 3 + Element Plus + Pinia`，后端基于 `FastAPI + SQLAlchemy`，业务数据存储在 `PostgreSQL`，知识图谱存储在 `Neo4j`，并接入 `DeepSeek` 做结构化生成。
 
 ## 项目结构
 
@@ -40,7 +40,7 @@ neo4j_muti_agents/
 │  └─ package.json
 ├─ origin_data/                 # 原始数据与补充目录
 ├─ scripts/
-│  └─ import_neo4j_graph_v3.py  # v3 图谱导入脚本
+│  └─ import_agent_kg_0604.py   # 0604 KB1-KB8 + CDB1 全量重建脚本
 ├─ requirements.txt
 └─ README.md
 ```
@@ -53,7 +53,7 @@ neo4j_muti_agents/
 - 问答结果与证据子图联动展示
 - 参考来源详情弹窗
 - Prompt / Cypher 模板管理
-- MiniMax 失败时自动降级到本地图谱回答
+- DeepSeek 失败时自动降级到本地图谱回答
 
 ### 2. 研发协同
 
@@ -71,79 +71,139 @@ neo4j_muti_agents/
 
 ## 图谱建模说明
 
-当前正式图谱（v3）采用以下数据源：
+当前正式图谱按 2026-06-04 最新数据全量重建，数据源为：
 
-- `D:\工作\多智能体-宋\最新数据\0508汇总\neo4j_graph_v3\` 目录下所有 CSV
+- `D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目\药食同源Agent_8类知识库-0531`
+- `D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目\0512-消费者_体质`
+
+新图谱以 KB1-KB8 与 CDB1 消费者画像/评论偏好库为权威源，不导入旧 `Compound` / 成分网络；旧 `neo4j_graph_v3` 和 dump 仅作为备份参考。
+
+### 8 类知识库
+
+| 编号 | 知识库 | 图谱用途 |
+|------|--------|----------|
+| KB1 | 药食同源原料合法性库 | 原料合法性、毒性、孕妇禁忌、使用注意 |
+| KB2 | 功效-病症-性味归经库 | 功效、病症、性味、归经、禁忌 |
+| KB3 | 风味评价库 | 苦味/涩感/药味风险、香气、风味接受度 |
+| KB4 | 单味药替代评分库 | `CAN_REPLACE` 单味药替代评分 |
+| KB5 | 名方/方剂知识库 | 方剂、来源、组成、君臣佐使、功效、主治 |
+| KB6 | 产品与市场库 | 产品、品牌、剂型、卖点、场景、竞品功效标签 |
+| KB7 | 食品标准合规库 | 药食同源目录、GB2760、GB7718、宣传边界、禁用慎用表述 |
+| KB8 | 9 种体质辨识与食养规则库 | 体质问卷、评分规则、食养方向、慎用原料 |
+| CDB1 | 消费者画像与评论偏好库 | 产品、消费者画像、人群场景功效分组、京东/淘宝评论、风味偏好、剂型偏好、投诉点 |
 
 ### 图谱节点
 
 | 标签 | 唯一键 | 说明 |
 |------|--------|------|
-| `Herb` | `herb_name` | 药材 |
-| `Compound` | `canonical_smiles` | 化合物 |
-| `Effect` | `effect_name` | 功效 |
-| `Flavor` | `flavor_name` | 食品/感官风味 |
-| `Formula` | `formula_name` | 方剂 |
-| `EffectCategory` | `effect_category_name` | 功效分类 |
+| `Herb` | `herb_name` | 药食同源/非药食同源原料 |
+| `EffectCategory` | `effect_category_name` | 功效大类/二级功效分类 |
+| `Effect` | `effect_name` | 功效标签 |
 | `Symptom` | `symptom_name` | 症状/主治 |
-| `Taboo` | `taboo_name` | 禁忌 |
-| `Source` | `source_name` | 方剂出处 |
-| `NatureFlavor` | `nature_flavor_name` | 中医性味（辛、甘、苦、温、寒等） |
+| `NatureFlavor` | `nature_flavor_name` | 中医性味 |
 | `Meridian` | `meridian_name` | 归经 |
+| `Flavor` | `flavor_name` | 食品/感官风味 |
+| `Taboo` | `taboo_name` | 禁忌/慎用描述 |
+| `Formula` | `formula_name` | 名方/方剂 |
+| `Source` | `source_name` | 方剂出处 |
+| `Product` | `product_id` | 产品/竞品 |
+| `ComplianceRule` | `rule_id` | 食品合规、标签、宣传、体质评分等规则 |
+| `RiskExpression` | `expression` | 禁用/慎用宣传表述 |
+| `ConstitutionType` | `constitution_type_name` | 九种体质 |
+| `ConstitutionQuestion` | `question_code` | 体质问卷题目 |
+| `ConsumerProfile` | `profile_id` | 商品对应消费者画像 |
+| `ConsumerSegment` | `segment_key` | 人群-场景-功效分组 |
+| `ConsumerReview` | `review_id` | 匿名化消费者评论与标签 |
 
-说明：Flavor 表示食品/感官风味，NatureFlavor 表示中医性味，二者不可合并。
+说明：`Flavor` 表示食品/感官风味，`NatureFlavor` 表示中医性味，二者不可合并。
 
 ### 图谱关系
 
-| 关系 | 起点 → 终点 | 属性 |
+| 关系 | 起点 → 终点 | 说明 |
 |------|-------------|------|
-| `CONTAINS` | Herb → Compound | `ob`, `dl` |
-| `HAS_EFFECT` | Herb → Effect | — |
-| `HAS_FLAVOR` | Herb → Flavor | `intensity` |
-| `HAS_COMPOUND_EFFECT` | Compound → Effect | — |
-| `PRODUCES_FLAVOR` | Compound → Flavor | `intensity` |
-| `IN_FORMULA` | Herb → Formula | `role`, `dosage` |
-| `BELONGS_TO_EFFECT_CATEGORY` | Herb → EffectCategory | — |
-| `TREATS` | Herb → Symptom | — |
-| `HAS_TABOO` | Herb → Taboo | — |
-| `HAS_NATURE_FLAVOR` | Herb → NatureFlavor | — |
-| `ENTERS_MERIDIAN` | Herb → Meridian | — |
-| `FROM_SOURCE` | Formula → Source | — |
-| `HAS_EFFECT` | Formula → Effect | — |
-| `TARGETS_SYMPTOM` | Formula → Symptom | — |
-| `HAS_TABOO` | Formula → Taboo | — |
-| `MONARCH_HERB` | Formula → Herb | — |
-| `MINISTER_HERB` | Formula → Herb | — |
-| `ASSISTANT_HERB` | Formula → Herb | — |
-| `GUIDE_HERB` | Formula → Herb | — |
-| `CAN_REPLACE` | Herb → Herb | `model`, `rank`, `final_score`, `flavor_acceptance`, `effect_similarity`, `source_type` |
+| `HAS_EFFECT` | Herb/Formula → Effect | 原料或方剂功效 |
+| `BELONGS_TO_EFFECT_CATEGORY` | Herb → EffectCategory | 原料功效分类 |
+| `TREATS` | Herb → Symptom | 原料主治/适配病症 |
+| `TARGETS_SYMPTOM` | Formula → Symptom | 方剂主治/适配病症 |
+| `HAS_NATURE_FLAVOR` | Herb → NatureFlavor | 中医性味 |
+| `ENTERS_MERIDIAN` | Herb → Meridian | 归经 |
+| `HAS_FLAVOR` | Herb → Flavor | 食品感官风味 |
+| `HAS_TABOO` | Herb/Formula → Taboo | 禁忌或慎用 |
+| `CAN_REPLACE` | Herb → Herb | 单味药替代评分；含 KB4 Top10、`consumer_aware` 消费者感知分、禁忌排除候选 |
+| `INCOMPATIBLE_WITH` | Herb → Herb | 十八反/十九畏配伍禁忌（双向） |
+| `IN_FORMULA` | Herb → Formula | 方剂组成，属性含 `role` |
+| `MONARCH_HERB` / `MINISTER_HERB` / `ASSISTANT_HERB` / `GUIDE_HERB` | Formula → Herb | 君臣佐使 |
+| `FROM_SOURCE` | Formula → Source | 方剂出处 |
+| `USES_HERB` | Product → Herb | 产品配料中的原料；KB6 配料缺失时按商品名匹配已知 Herb，并在边属性记录 `match_source` |
+| `CLAIMS_EFFECT` | Product → Effect | 产品/竞品功效标签 |
+| `LISTED_IN_COMPLIANCE_RULE` | Herb → ComplianceRule | 原料进入药食同源目录或相关规则 |
+| `DERIVED_FROM_RULE` | RiskExpression → ComplianceRule | 禁用/慎用表述对应规则 |
+| `ASSESSES_CONSTITUTION` | ConstitutionQuestion → ConstitutionType | 体质问卷题目归属 |
+| `RECOMMENDS_HERB` | ConstitutionType → Herb | 体质食养适宜原料 |
+| `CAUTIONS_HERB` | ConstitutionType → Herb | 体质慎用原料 |
+| `HAS_CONSUMER_PROFILE` | Product → ConsumerProfile | 产品对应消费者画像 |
+| `PREFERS_FLAVOR` / `DISLIKES_FLAVOR` | ConsumerProfile → Flavor | 画像偏好/不喜欢风味 |
+| `SEGMENT_PREFERS_FLAVOR` | ConsumerSegment → Flavor | 人群分组高频风味 |
+| `TOP_PRODUCT` | ConsumerSegment → Product | 人群分组高频产品 |
+| `MATCHES_CONSUMER_SEGMENT` | ConsumerProfile → ConsumerSegment | 画像匹配的人群场景功效分组 |
+| `REVIEWS_PRODUCT` | ConsumerReview → Product | 评论对应产品 |
+| `MENTIONS_FLAVOR` / `MENTIONS_EFFECT` | ConsumerReview → Flavor/Effect | 评论标签提到的风味/功效 |
+| `BELONGS_TO_CONSUMER_SEGMENT` | ConsumerReview → ConsumerSegment | 评论归属的人群场景功效分组 |
 
-## 当前正式导入结果
+### 全量重建导入
 
-最近一次导入后的图谱统计：
+```powershell
+python .\scripts\import_agent_kg_0604.py --dry-run --data-root "D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目"
+python .\scripts\import_agent_kg_0604.py --clear --data-root "D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目"
+```
 
-| 节点/关系 | 数量 |
-|-----------|------|
-| Herb | 659 |
-| Compound | 1613 |
-| Effect | 49 |
-| Flavor | 9 |
-| Formula | 100 |
-| EffectCategory | 21 |
-| Symptom | 1260 |
-| Taboo | 387 |
-| Source | 30 |
-| NatureFlavor | 28 |
-| Meridian | 23 |
-| CONTAINS | 4034 |
-| HAS_EFFECT (Herb) | 965 |
-| HAS_FLAVOR | 520 |
-| CAN_REPLACE | ~378 |
-| 其他关系 | ~16,000+ |
-| **总节点** | **~4,179** |
-| **总关系** | **~22,830** |
+`--dry-run` 只解析 KB1-KB8 与 CDB1 并输出计划统计，不连接 Neo4j。正式 `--clear` 导入会先把旧 Neo4j 图谱导出为 JSON 备份到 `neo4j_backups/`，再清空并重建；如确需跳过备份，可显式传入 `--skip-backup`。
 
-注：`food_homology = '是'` 的药材约 114 种，便于研发场景检索与候选召回。
+回退示例：
+
+```powershell
+python .\scripts\restore_neo4j_backup.py --backup neo4j_backups\neo4j_backup_before_0604_rebuild_YYYYMMDD_HHMMSS.json --yes
+```
+
+本次优化 additionally 导入：KB4 十八反十九畏、评分/风味规则、禁忌排除候选；KB7 分拆合规文件；`consumer_aware_substitute_results.csv`；`0524/meandqi` 方剂补充。
+
+### 0604 dry-run 计划统计
+
+以下统计来自 2026-06-25 11:19 对 6-4 KB1-KB8 + CDB1 与增强补充源执行 `--dry-run` 的解析结果，作为正式导入后的验收基线。CDB1 同时服务企业端（人群定位、风味/剂型、市场差异化）和个人端（产品适配、口味偏好、风险边界辅助判断）。
+
+| 节点类型 | 计划数量 | 节点类型 | 计划数量 |
+|----------|----------|----------|----------|
+| ConsumerReview | 63,522 | Symptom | 11,125 |
+| Formula | 3,155 | ConsumerSegment | 3,033 |
+| Source | 2,063 | Effect | 1,570 |
+| Herb | 865 | Taboo | 419 |
+| ComplianceRule | 226 | Product | 192 |
+| ConsumerProfile | 106 | EffectCategory | 51 |
+| RiskExpression | 46 | Flavor | 34 |
+| ConstitutionQuestion | 30 | NatureFlavor | 22 |
+| Meridian | 14 | ConstitutionType | 9 |
+
+| 关系类型 | 计划数量 | 关系类型 | 计划数量 |
+|----------|----------|----------|----------|
+| REVIEWS_PRODUCT | 63,522 | MENTIONS_EFFECT | 27,002 |
+| BELONGS_TO_CONSUMER_SEGMENT | 25,737 | IN_FORMULA | 20,664 |
+| MENTIONS_FLAVOR | 19,904 | TARGETS_SYMPTOM | 11,519 |
+| CAN_REPLACE | 9,338 | TREATS | 4,620 |
+| FROM_SOURCE | 3,760 | HAS_EFFECT | 3,328 |
+| MATCHES_CONSUMER_SEGMENT | 2,817 | TOP_PRODUCT | 2,817 |
+| SEGMENT_PREFERS_FLAVOR | 2,497 | HAS_NATURE_FLAVOR | 1,505 |
+| ENTERS_MERIDIAN | 1,383 | HAS_FLAVOR | 988 |
+| CLAIMS_EFFECT | 893 | BELONGS_TO_EFFECT_CATEGORY | 892 |
+| ASSISTANT_HERB | 690 | HAS_TABOO | 690 |
+| MINISTER_HERB | 669 | MONARCH_HERB | 431 |
+| USES_HERB | 431 | DISLIKES_FLAVOR | 334 |
+| PREFERS_FLAVOR | 318 | GUIDE_HERB | 144 |
+| LISTED_IN_COMPLIANCE_RULE | 110 | HAS_CONSUMER_PROFILE | 106 |
+| INCOMPATIBLE_WITH | 76 | RECOMMENDS_HERB | 60 |
+| DERIVED_FROM_RULE | 46 | CAUTIONS_HERB | 33 |
+| ASSESSES_CONSTITUTION | 30 |  |  |
+
+计划总量：86,482 个节点、207,354 条关系；`Compound` / 成分网络计划导入数量为 0。
 
 ## 环境准备
 
@@ -175,7 +235,7 @@ host: localhost
 port: 5432
 database: postgres
 username: postgres
-password: 1234
+password: <your-postgres-password>
 ```
 
 ### 4. Neo4j
@@ -185,16 +245,16 @@ password: 1234
 ```text
 uri: neo4j://localhost:7687
 username: neo4j
-password: 3217858658
+password: <your-neo4j-password>
 ```
 
-### 5. MiniMax
+### 5. DeepSeek
 
 后端通过环境变量读取：
 
-- `MINIMAX_API_BASE`
-- `MINIMAX_API_KEY`
-- `MINIMAX_MODEL`
+- `DEEPSEEK_API_BASE`
+- `DEEPSEEK_API_KEY`
+- `DEEPSEEK_MODEL`
 
 ## 配置文件
 
@@ -210,10 +270,10 @@ Copy-Item .\backend\.env.example .\backend\.env
 POSTGRES_DSN=postgresql+psycopg://postgres:1234@localhost:5432/postgres
 NEO4J_URI=neo4j://localhost:7687
 NEO4J_USERNAME=neo4j
-NEO4J_PASSWORD=3217858658
-MINIMAX_API_BASE=https://api.minimaxi.com/v1
-MINIMAX_API_KEY=你的Key
-MINIMAX_MODEL=MiniMax-M2.7
+NEO4J_PASSWORD=<your-neo4j-password>
+DEEPSEEK_API_BASE=https://api.deepseek.com
+DEEPSEEK_API_KEY=你的Key
+DEEPSEEK_MODEL=deepseek-v4-pro
 ```
 
 ## 启动方式
@@ -274,55 +334,42 @@ powershell -ExecutionPolicy Bypass -File .\backend\scripts\stop_backend.ps1
 powershell -ExecutionPolicy Bypass -File .\frontend\scripts\stop_frontend.ps1
 ```
 
-## 2026-05 增量升级说明
+## 2026-06 全量重建说明
 
-### 增量数据导入
+### 0604 数据导入
 
-本次新增 `scripts/import_agent_project_data.py`，用于把 `D:\工作\多智能体-宋\最新数据\药食同源agent项目` 中的新数据增量合并到 Neo4j，不清空现有图谱。
+`scripts/import_agent_kg_0604.py` 用于把 6-4 最新 KB1-KB8 与 CDB1 消费者画像/评论偏好数据全量重建到 Neo4j。该脚本不导入旧 `Compound` / 成分网络。
 
 ```powershell
-python .\scripts\import_agent_project_data.py --dry-run
-python .\scripts\import_agent_project_data.py
+python .\scripts\import_agent_kg_0604.py --dry-run --data-root "D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目"
+python .\scripts\import_agent_kg_0604.py --clear --data-root "D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目"
 ```
 
 可选参数：
 
-- `--data-root`：指定数据根目录。
-- `--limit`：限制每类数据处理行数，便于抽样验证。
-- `--dry-run`：只解析并输出统计，不写入 Neo4j。
+- `--data-root`：指定 6-4 数据根目录。
+- `--dry-run`：只解析并输出统计，不连接 Neo4j。
+- `--clear`：正式导入前清空目标 Neo4j。
+- `--backup-dir`：正式 `--clear` 前旧图谱 JSON 备份目录。
+- `--skip-backup`：显式跳过旧图谱备份。
 
-新增节点标签：
+业务规则来自：
 
-| 标签 | 唯一键 | 说明 |
-|------|--------|------|
-| `Product` | `product_id` | 药食同源产品/成药商品 |
-| `ConsumerProfile` | `profile_id` | 产品级消费者聚合画像 |
-| `ConsumerSegment` | `segment_key` | 消费者人群/场景/功效分组 |
-| `ConstitutionType` | `constitution_type_name` | 中医体质类型 |
-| `ConstitutionQuestion` | `question_code` | 体质评估题目 |
+- `思考逻辑流程.html`
+- `药食同源Agent_企业个人分流_名方方剂知识库流程图.html`
 
-新增关系：
-
-| 关系 | 起点 → 终点 | 说明 |
-|------|-------------|------|
-| `USES_HERB` | Product → Herb | 产品使用的药食同源原料 |
-| `HAS_CONSUMER_PROFILE` | Product → ConsumerProfile | 产品对应消费者聚合画像 |
-| `MATCHES_CONSUMER_SEGMENT` | ConsumerProfile → ConsumerSegment | 画像匹配的人群/场景分组 |
-| `TOP_PRODUCT` | ConsumerSegment → Product | 分组下推荐/高频产品 |
-| `PREFERS_FLAVOR` | ConsumerProfile → Flavor | 消费者偏好风味 |
-| `DISLIKES_FLAVOR` | ConsumerProfile → Flavor | 消费者排斥风味 |
-| `ASSESSES_CONSTITUTION` | ConstitutionQuestion → ConstitutionType | 体质题目指向体质类型 |
-
-消费者评论只导入画像、分组、风味偏好、好评率、评论量等聚合字段，不导入用户名和评论原文。
+关键约束：KB5 名方/方剂知识库单独保留；KB4 只存单味药替代评分，方剂药食同源化时动态组合 KB5 + KB1 + KB2 + KB3 + KB4 + KB7。
 
 ### 知识问答升级
 
-新增问题类型：
+重点问题类型：
 
-- `constitution_recommendation`：体质/症状导向的药食同源方剂推荐。
-- `product_recommendation`：消费者画像/成药产品推荐。
+- `constitution_recommendation`：体质/症状导向的个人端食养推荐。
+- `product_recommendation`：产品、风味、市场、剂型、合规类企业端问答。
 
-回答规则集中放在 `backend/app/prompts/knowledge_qa_answer_rules.md`，由 `QAOrchestrator` 拼入系统提示词。推荐类回答按“核心结论、用户画像/体质判断依据、推荐方案、图谱证据、风险与禁忌、证据边界、追问建议”组织；体质推荐不做医学诊断，产品推荐优先使用人群、功效需求、剂型、风味偏好、价格敏感度、好评率和评论量等图谱证据。
+回答规则集中放在 `backend/app/prompts/knowledge_qa_answer_rules.md`，由 `QAOrchestrator` 拼入系统提示词。推荐类回答按“核心结论、体质/产品判断依据、推荐方案、图谱证据、风险与禁忌、证据边界、追问建议”组织；体质推荐不做医学诊断，产品推荐优先使用产品、原料、功效、风味、市场和 KB7 合规证据。
+
+问答业务路由以 `backend/app/prompts/qa_route_rules.json` 为机器可读主规则，`backend/app/prompts/qa_reasoning_flow.md` 维护可展示的五步过程摘要，`backend/app/prompts/knowledge_qa_answer_rules.md` 维护安全边界、回答风格、禁止项和评分展示规则。企业端覆盖产品研发、方剂食品化、单味替代、风味剂型、市场、合规；个人端覆盖体质辨识、食养推荐、产品适配、成品选购和风险边界。可用 `python scripts\validate_qa_routing.py` 回归校验典型问题的 `qa_route/question_type/audience`。
 
 ### 登录与权限
 
@@ -336,7 +383,7 @@ python .\scripts\import_agent_project_data.py
 
 ```env
 DEFAULT_ADMIN_USERNAME=admin
-DEFAULT_ADMIN_PASSWORD=admin123456
+DEFAULT_ADMIN_PASSWORD=<change-me>
 AUTH_SESSION_TTL_HOURS=24
 ```
 
@@ -367,20 +414,21 @@ Ctrl + C
 
 ## 数据导入
 
-重建 v3 知识图谱：
+重建 0604 KB1-KB8 + CDB1 知识图谱：
 
 ```powershell
-python .\scripts\import_neo4j_graph_v3.py
+python .\scripts\import_agent_kg_0604.py --dry-run
+python .\scripts\import_agent_kg_0604.py --clear
 ```
 
 脚本执行内容：
 
-1. 清空业务图谱
-2. 重建所有节点的唯一约束
-3. 导入 11 种节点类型
-4. 导入 19 种关系类型
-5. 导入 consumer-aware 替代结果
-6. 输出导入统计
+1. 解析 KB1-KB8 与 CDB1 并输出计划统计
+2. 正式导入时先备份旧图谱
+3. 清空业务图谱
+4. 重建所有节点唯一约束
+5. 导入 18 种节点类型和 KB1-KB8/CDB1 关系
+6. 确认不导入 `Compound` / 成分网络
 
 ## 研发工作流接口
 
@@ -443,7 +491,7 @@ npm config set cache ..\.npm-cache --location=user
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 
-### 3. MiniMax 返回了错误结构
+### 3. DeepSeek 返回了错误结构
 
 后端已经加入结构化输出兜底：
 

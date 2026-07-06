@@ -42,6 +42,10 @@ class QAResponse(BaseModel):
     cautions: str = ""
     follow_up_questions: list[str] = Field(default_factory=list)
     answer_mode: str = "graph_fallback"
+    qa_route: dict[str, Any] | None = None
+    process_summary: str = ""
+    missing_slots: list[str] = Field(default_factory=list)
+    constitution_assessment: dict[str, Any] | None = None
 
 
 class GraphResponse(BaseModel):

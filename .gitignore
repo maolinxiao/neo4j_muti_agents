@@ -7,6 +7,20 @@ node_modules/
 
 # Log files
 *.log
+neo4j_backups/
+
+# Local agent/debug artifacts
+.agents/
+.dbg/
+.trae/
+outputs/
+tmp_*
+temp_*
+stream_timing.txt
+debug-chat-send-failure.md
+scripts.rar
+skills-lock.json
+frontend/vite.config.js.timestamp-*.mjs
 
 # IDE
 .vscode/

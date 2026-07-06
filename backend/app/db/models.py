@@ -46,13 +46,19 @@ class AppUser(Base, TimestampMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     auth_sessions: Mapped[list["AuthSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    constitution_profiles: Mapped[list["ConstitutionProfile"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    constitution_assessments: Mapped[list["ConstitutionAssessment"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
 
 
 class AuthSession(Base, TimestampMixin):
     __tablename__ = "auth_session"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, nullable=False)
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, unique=True, nullable=False)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -160,6 +166,36 @@ class SystemConfig(Base, TimestampMixin):
     config_value: Mapped[str | None] = mapped_column(Text)
     config_json: Mapped[dict | None] = mapped_column(JSONB)
     config_type: Mapped[str] = mapped_column(String(32), default="string", nullable=False)
+
+
+class ConstitutionAssessment(Base, TimestampMixin):
+    __tablename__ = "constitution_assessment"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, nullable=False)
+    answers: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    scores: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    primary_constitution: Mapped[str] = mapped_column(String(128), nullable=False)
+    secondary_constitutions: Mapped[list | None] = mapped_column(JSONB)
+    result_summary: Mapped[str | None] = mapped_column(Text)
+
+    user: Mapped[AppUser] = relationship(back_populates="constitution_assessments")
+
+
+class ConstitutionProfile(Base, TimestampMixin):
+    __tablename__ = "constitution_profile"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, nullable=False)
+    primary_constitution: Mapped[str] = mapped_column(String(128), nullable=False)
+    secondary_constitutions: Mapped[list | None] = mapped_column(JSONB)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="manual")
+    scores: Mapped[dict | None] = mapped_column(JSONB)
+    notes: Mapped[str | None] = mapped_column(Text)
+    last_assessment_id: Mapped[str | None] = mapped_column(ForeignKey("constitution_assessment.id"))
+
+    user: Mapped[AppUser] = relationship(back_populates="constitution_profiles")
+    last_assessment: Mapped[ConstitutionAssessment | None] = relationship(foreign_keys=[last_assessment_id])
 
 
 class WorkflowSession(Base, TimestampMixin):

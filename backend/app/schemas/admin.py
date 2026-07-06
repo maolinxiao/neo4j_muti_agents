@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class OverviewResponse(BaseModel):
     postgres_ok: bool
     neo4j_ok: bool
-    minimax_configured: bool
+    llm_configured: bool
     entity_profile_count: int
     workflow_session_count: int
     workflow_run_count: int

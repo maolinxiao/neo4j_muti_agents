@@ -1,0 +1,342 @@
+<template>
+  <section id="audience" class="sc-section sc-section--soft audience-section">
+    <ShowcaseSectionDecor tone="gold" />
+    <ShowcaseReveal3D variant="up" stagger>
+      <div class="showcase-container section-inner">
+        <ShowcaseSectionHeader
+          eyebrow="Use Cases"
+          title="企业端与个人端分流"
+          lead="同一图谱底座，服务研发决策与个人食养两类路径——问题先分类，证据先召回。"
+        />
+        <div class="audience-grid">
+          <article class="reveal-stagger-item audience-panel enterprise sc-glass sc-card-hover sc-card-glow" :style="{ '--reveal-index': 0 }">
+            <div class="panel-visual">
+              <div class="panel-badge">Enterprise</div>
+              <h3>企业端 · 研发协同</h3>
+              <p class="panel-lead">面向产品研发、方剂改造与合规决策，强调证据链与 Agent 协同输出。</p>
+            </div>
+            <div class="panel-content">
+              <ul>
+                <li v-for="item in enterpriseItems" :key="item">{{ item }}</li>
+              </ul>
+              <blockquote>「这个配方是否好喝，适合做什么剂型」</blockquote>
+            </div>
+          </article>
+          <div class="reveal-stagger-item classifier-bridge" :style="{ '--reveal-index': 1 }" aria-hidden="true">
+            <div class="classifier-core">
+              <span>Intent Router</span>
+              <strong>问题分类器</strong>
+              <small>企业研发 / 个人食养</small>
+            </div>
+            <div class="classifier-line classifier-line--top" />
+            <div class="classifier-line classifier-line--bottom" />
+          </div>
+          <article class="reveal-stagger-item audience-panel personal sc-glass sc-card-hover sc-card-glow" :style="{ '--reveal-index': 2 }">
+            <div class="panel-visual">
+              <div class="panel-badge">Personal</div>
+              <h3>个人端 · 体质食养</h3>
+              <p class="panel-lead">面向体质辨识、食养推荐与安全提醒，强调个体适配与禁忌边界。</p>
+            </div>
+            <div class="panel-content">
+              <ul>
+                <li v-for="item in personalItems" :key="item">{{ item }}</li>
+              </ul>
+              <blockquote>「孕妇能不能吃某某原料」</blockquote>
+            </div>
+          </article>
+        </div>
+      </div>
+    </ShowcaseReveal3D>
+  </section>
+</template>
+
+<script setup>
+import ShowcaseReveal3D from "./ShowcaseReveal3D.vue";
+import ShowcaseSectionDecor from "./ShowcaseSectionDecor.vue";
+import ShowcaseSectionHeader from "./ShowcaseSectionHeader.vue";
+
+const enterpriseItems = [
+  "产品研发与名方/方剂药食同源化",
+  "单味药替代与 CAN_REPLACE 映射",
+  "风味优化与剂型工艺建议",
+  "竞品市场分析与功效标签对比",
+  "食品标准合规审查与宣传边界",
+];
+
+const personalItems = [
+  "九种体质辨识与问卷测评",
+  "个性化食养推荐与适宜原料",
+  "产品适配判断与场景匹配",
+  "禁忌风险提醒与慎用边界",
+];
+</script>
+
+<style scoped>
+.audience-section {
+  position: relative;
+}
+
+.section-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.audience-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.audience-panel {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--sc-radius-md);
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: var(--sc-bg-panel);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.classifier-bridge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+}
+
+/* 白色玻璃圆核 + accent 双环描边，统一浅色主题 */
+.classifier-core {
+  position: relative;
+  z-index: 1;
+  width: 132px;
+  min-height: 132px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--sc-text);
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.9), transparent 42%),
+    rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border: 1px solid rgba(5, 150, 105, 0.28);
+  box-shadow:
+    0 0 0 5px rgba(5, 150, 105, 0.06),
+    0 18px 44px rgba(15, 23, 42, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+}
+
+.classifier-core::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: inherit;
+  border: 1px dashed rgba(5, 150, 105, 0.35);
+  animation: classifierSpin 22s linear infinite;
+}
+
+.classifier-core::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: inherit;
+  border: 1px solid rgba(5, 150, 105, 0.16);
+}
+
+.classifier-core span,
+.classifier-core small {
+  font-size: 0.68rem;
+  color: var(--sc-text-secondary);
+}
+
+.classifier-core span {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 650;
+  color: var(--sc-accent);
+}
+
+.classifier-core strong {
+  margin: 0.15rem 0;
+  font-size: 1rem;
+  color: var(--sc-text);
+}
+
+.classifier-line {
+  position: absolute;
+  left: -22%;
+  right: -22%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.42), transparent);
+  overflow: visible;
+}
+
+/* 连接线渐变流光 */
+.classifier-line::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: 18%;
+  height: 3px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.65), transparent);
+  animation: classifierFlow 2.6s ease-in-out infinite;
+}
+
+.classifier-line--bottom::after {
+  animation-delay: 1.3s;
+}
+
+@keyframes classifierFlow {
+  0% { left: -18%; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { left: 100%; opacity: 0; }
+}
+
+.classifier-line--top {
+  top: 39%;
+  transform: rotate(-7deg);
+}
+
+.classifier-line--bottom {
+  top: 61%;
+  transform: rotate(7deg);
+}
+
+@keyframes classifierSpin {
+  to { transform: rotate(360deg); }
+}
+
+.panel-visual {
+  padding: 2.5rem 2.5rem 1.5rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent);
+}
+
+.panel-content {
+  padding: 0 2.5rem 2.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.audience-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+}
+
+.enterprise::before {
+  background: linear-gradient(90deg, var(--sc-highlight), transparent);
+}
+
+.personal::before {
+  background: linear-gradient(90deg, var(--sc-accent), transparent);
+}
+
+.panel-badge {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--sc-text-secondary);
+}
+
+.enterprise .panel-badge {
+  color: var(--sc-highlight);
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.personal .panel-badge {
+  color: var(--sc-accent);
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.audience-panel h3 {
+  margin: 0 0 0.85rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--sc-text);
+}
+
+.enterprise h3 {
+  color: var(--sc-highlight);
+}
+
+.personal h3 {
+  color: var(--sc-accent);
+}
+
+.panel-lead {
+  margin: 0;
+  color: var(--sc-text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.audience-panel ul {
+  margin: 0 0 auto;
+  padding-left: 1.2rem;
+  color: var(--sc-text);
+  font-size: 0.95rem;
+}
+
+.audience-panel li {
+  margin-bottom: 0.65rem;
+  position: relative;
+}
+
+.audience-panel li::marker {
+  color: var(--sc-muted);
+}
+
+.audience-panel blockquote {
+  margin: 2rem 0 0;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--sc-text-secondary);
+  background: rgba(0, 0, 0, 0.02);
+  border-left: 3px solid var(--sc-accent);
+}
+
+.enterprise blockquote {
+  border-left-color: var(--sc-highlight);
+  background: rgba(217, 119, 6, 0.04);
+}
+
+.personal blockquote {
+  border-left-color: var(--sc-accent);
+  background: rgba(5, 150, 105, 0.04);
+}
+
+@media (max-width: 980px) {
+  .audience-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .classifier-bridge {
+    min-height: 130px;
+  }
+
+  .classifier-line {
+    left: 12%;
+    right: 12%;
+  }
+}
+</style>

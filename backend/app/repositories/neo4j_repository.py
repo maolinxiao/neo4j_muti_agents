@@ -987,6 +987,26 @@ OPTIONAL MATCH (n1)-[r2]-(n2)
 RETURN h AS n, r1 AS r, n1 AS m, r2, n2
 LIMIT 140
 """,
+            "product_development": """
+MATCH (h:Herb {herb_name: $entity_id})
+OPTIONAL MATCH (h)-[r1:HAS_EFFECT|BELONGS_TO_EFFECT_CATEGORY|TREATS|HAS_NATURE_FLAVOR|ENTERS_MERIDIAN|HAS_FLAVOR|HAS_TABOO|LISTED_IN_COMPLIANCE_RULE|RECOMMENDS_HERB|CAUTIONS_HERB|INCOMPATIBLE_WITH]-(n1)
+OPTIONAL MATCH (n1)-[r2:DERIVED_FROM_RULE]-(n2)
+RETURN h AS n, r1 AS r, n1 AS m, r2, n2
+LIMIT 180
+
+UNION ALL
+
+MATCH (h:Herb {herb_name: $entity_id})-[r1:BELONGS_TO_EFFECT_CATEGORY]->(ec:EffectCategory)<-[r2:BELONGS_TO_EFFECT_CATEGORY]-(candidate:Herb)
+WHERE candidate <> h
+  AND candidate.food_homology = '是'
+  AND NOT (h)-[:INCOMPATIBLE_WITH]-(candidate)
+WITH h, candidate, collect(DISTINCT ec) AS shared_categories
+ORDER BY size(shared_categories) DESC, coalesce(candidate.overall_flavor_acceptance, 0) DESC, candidate.herb_name
+LIMIT 6
+UNWIND shared_categories AS ec
+MATCH (h)-[r1:BELONGS_TO_EFFECT_CATEGORY]->(ec)<-[r2:BELONGS_TO_EFFECT_CATEGORY]-(candidate)
+RETURN h AS n, r1 AS r, ec AS m, r2, candidate AS n2
+""",
             "formula_relation": """
 MATCH (f:Formula {formula_name: $entity_id})
 OPTIONAL MATCH (f)-[r1]-(n1)
@@ -1020,11 +1040,43 @@ RETURN n, r1 AS r, n1 AS m, r2, n2
 LIMIT 140
 """,
         }
-        if scene == "herb_efficacy" and entity_type != "Herb":
+        if scene in {"herb_efficacy", "product_development"} and entity_type != "Herb":
             scene = "entity_explanation"
         if scene == "formula_relation" and entity_type != "Formula":
             scene = "entity_explanation"
         return self.retrieve_graph(queries.get(scene, queries["entity_explanation"]), {"entity_id": entity_id})
+
+    def retrieve_product_flavor_candidate_graph(self, question: str) -> dict[str, Any]:
+        wants_sour = "酸" in (question or "")
+        wants_sweet = any(token in (question or "") for token in ["甜", "甘"])
+        if not wants_sour and not wants_sweet:
+            return self._empty_graph()
+        query = """
+MATCH (h:Herb)
+WHERE h.food_homology = $food_homology
+  AND (
+    ($wants_sour AND coalesce(h.sour_contribution, 0) >= 0.5)
+    OR ($wants_sweet AND coalesce(h.sweet_contribution, 0) >= 0.7)
+  )
+WITH
+    h,
+    CASE WHEN $wants_sour THEN coalesce(h.sour_contribution, 0) ELSE 0 END
+    + CASE WHEN $wants_sweet THEN coalesce(h.sweet_contribution, 0) ELSE 0 END
+    + coalesce(h.overall_flavor_acceptance, 0) * 0.5
+    - coalesce(h.bitter_risk, 0) * 0.35 AS score
+ORDER BY score DESC, h.herb_name
+LIMIT 8
+RETURN h AS n, null AS r, null AS m, null AS r2, null AS n2
+"""
+        return self.retrieve_graph(
+            query,
+            {
+                "food_homology": "是",
+                "wants_sour": wants_sour,
+                "wants_sweet": wants_sweet,
+                "entity_id": None,
+            },
+        )
 
     def retrieve_recommendation_graph(self, question: str, scene: str) -> dict[str, Any]:
         terms = self._expand_recommendation_terms(question, scene)

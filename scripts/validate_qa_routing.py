@@ -38,6 +38,17 @@ REQUIRED_ROUTE_FIELDS = {
     "missing_slots",
 }
 EXPECTED_AUDIENCES = {"enterprise", "personal", "general"}
+PRODUCT_DEVELOPMENT_REQUIRED_HEADINGS = {
+    "核心结论",
+    "产品定位",
+    "配方方案",
+    "体质与人群适配",
+    "功效逻辑",
+    "风味与剂型设计",
+    "合规与风险边界",
+    "研发验证",
+    "追问建议",
+}
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -102,6 +113,12 @@ def validate_rules(rules: dict[str, Any]) -> list[str]:
             failures.append(f"{task_key}: answer_outline must include 核心结论")
         if "追问建议" not in (route.get("answer_outline") or []):
             failures.append(f"{task_key}: answer_outline must include 追问建议")
+        if task_key == "product_development":
+            missing_headings = PRODUCT_DEVELOPMENT_REQUIRED_HEADINGS - set(route.get("answer_outline") or [])
+            if missing_headings:
+                failures.append(
+                    f"{task_key}: answer_outline missing product formula headings {', '.join(sorted(missing_headings))}"
+                )
         match = route.get("match") or {}
         if not isinstance(match, dict) or "any" not in match:
             failures.append(f"{task_key}: match.any must be defined")

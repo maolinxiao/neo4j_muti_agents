@@ -26,6 +26,18 @@ const SECTION_ALIASES = {
   "研发或产品建议": "研发或产品建议",
   "风味与剂型判断": "风味与剂型判断",
   "下一步验证": "下一步验证",
+  产品定位: "产品定位",
+  配方设计: "配方方案",
+  产品配方: "配方方案",
+  配方方案: "配方方案",
+  "体质与人群适配": "体质与人群适配",
+  "人群与体质适配": "体质与人群适配",
+  功效逻辑: "功效逻辑",
+  "功效与配伍逻辑": "功效逻辑",
+  "风味与剂型设计": "风味与剂型设计",
+  "合规与风险边界": "合规与风险边界",
+  研发验证: "研发验证",
+  小试验证: "研发验证",
   "风味与人群适配": "风味与人群适配",
   "风味和人群适配": "风味与人群适配",
   "人群与风味适配": "风味与人群适配",
@@ -50,7 +62,11 @@ const SECTION_ALIASES = {
 export const SECTION_ORDER = [
   "核心结论",
   "任务路由",
+  "产品定位",
+  "配方方案",
   "体质或人群判断依据",
+  "体质与人群适配",
+  "功效逻辑",
   "原方依据",
   "替代依据",
   "方剂组成与剂量",
@@ -66,14 +82,17 @@ export const SECTION_ORDER = [
   "替代对比",
   "重组配方建议",
   "风味与剂型判断",
+  "风味与剂型设计",
   "风味与剂型优化",
   "风味与人群适配",
   "合规边界",
+  "合规与风险边界",
   "知识依据",
   "风险与禁忌",
   "注意事项",
   "证据边界",
   "总结建议",
+  "研发验证",
   "追问建议",
 ];
 
@@ -100,7 +119,9 @@ export const sectionMeta = (title) => {
     normalized === "任务路由" ||
     normalized === "原方依据" ||
     normalized === "方剂组成与剂量" ||
-    normalized === "体质或人群判断依据"
+    normalized === "体质或人群判断依据" ||
+    normalized === "产品定位" ||
+    normalized === "功效逻辑"
   ) {
     return { tone: "info", icon: "evidence" };
   }
@@ -116,6 +137,8 @@ export const sectionMeta = (title) => {
     normalized === "推荐理由" ||
     normalized === "食养或产品适配建议" ||
     normalized === "研发或产品建议" ||
+    normalized === "配方方案" ||
+    normalized === "体质与人群适配" ||
     normalized === "替代对比" ||
     normalized === "保留与替代分流" ||
     normalized === "替代候选排序" ||
@@ -123,16 +146,21 @@ export const sectionMeta = (title) => {
     normalized === "动态替代对比" ||
     normalized === "重组配方建议" ||
     normalized === "风味与剂型判断" ||
+    normalized === "风味与剂型设计" ||
     normalized === "风味与剂型优化" ||
     normalized === "风味与人群适配" ||
     normalized === "替代依据"
   ) {
     return { tone: "success", icon: "plan" };
   }
-  if (normalized === "合规边界" || normalized === "不能完全替代点") {
+  if (
+    normalized === "合规边界" ||
+    normalized === "合规与风险边界" ||
+    normalized === "不能完全替代点"
+  ) {
     return { tone: "warning", icon: "caution" };
   }
-  if (normalized === "总结建议" || normalized === "追问建议") {
+  if (normalized === "总结建议" || normalized === "研发验证" || normalized === "追问建议") {
     return { tone: "muted", icon: "summary" };
   }
   return { tone: "default", icon: "default" };
@@ -186,13 +214,47 @@ export const cleanAnswerText = (value) =>
 
 const cleanInlineMarkdown = cleanAnswerText;
 
+const normalizeFormulaRoleText = (value) =>
+  (value || "").replace(/^(君|臣|佐|使)\s*[。．.:：]\s*/, "$1：");
+
+const FORMULA_ROLE_TONES = {
+  君: "primary",
+  臣: "success",
+  佐: "warning",
+  使: "muted",
+};
+
+const parseFormulaGroupLine = (line) => {
+  const match = line
+    .trim()
+    .match(/^(\d+[.)、]\s*[^（(\n]*配方)\s*[（(]\s*(?:主攻|侧重)\s*[：:]?\s*(.+?)\s*[）)]$/);
+  if (!match) return null;
+  return {
+    title: cleanInlineMarkdown(match[1]),
+    meta: cleanInlineMarkdown(match[2]),
+  };
+};
+
+const parseIngredientLine = (line) => {
+  const match = line
+    .trim()
+    .match(/^(?:[-*•]\s*)?(?:原料[：:]\s*)?([^：:\n]{1,24})[：:]\s*(君|臣|佐|使)\s*[。．.:：]\s*(.+)$/);
+  if (!match) return null;
+  return {
+    name: cleanInlineMarkdown(match[1]),
+    role: match[2],
+    roleTone: FORMULA_ROLE_TONES[match[2]] || "muted",
+    text: cleanInlineMarkdown(match[3]),
+  };
+};
+
 const parseDefinitionLine = (line) => {
   const trimmed = line.trim();
   const definition = trimmed.match(/^(?:[-*•]\s*)?\*{2,3}(.+?)\*{2,3}\s*[：:]\s*(.*)$/);
   if (definition) {
     return {
       term: cleanInlineMarkdown(definition[1]),
-      text: cleanInlineMarkdown(definition[2]),
+      text: normalizeFormulaRoleText(cleanInlineMarkdown(definition[2])),
     };
   }
   const boldOnly = trimmed.match(/^(?:[-*•]\s*)?\*{2,3}(.+?)\*{2,3}\s*$/);
@@ -200,6 +262,13 @@ const parseDefinitionLine = (line) => {
     return {
       term: cleanInlineMarkdown(boldOnly[1]),
       text: "",
+    };
+  }
+  const plainDefinition = trimmed.match(/^(?:[-*•]\s*)?([^：:\n]{1,24})[：:]\s*(.+)$/);
+  if (plainDefinition) {
+    return {
+      term: cleanInlineMarkdown(plainDefinition[1]),
+      text: normalizeFormulaRoleText(cleanInlineMarkdown(plainDefinition[2])),
     };
   }
   return null;
@@ -236,11 +305,29 @@ export const formatSectionBody = (body) => {
       flushParagraph();
       return;
     }
+    const formulaGroup = parseFormulaGroupLine(trimmed);
+    if (formulaGroup) {
+      flushList();
+      flushParagraph();
+      blocks.push({ type: "formula-group", ...formulaGroup });
+      return;
+    }
+    const ingredient = parseIngredientLine(trimmed);
+    if (ingredient) {
+      flushList();
+      flushParagraph();
+      blocks.push({ type: "ingredient", ...ingredient });
+      return;
+    }
     const definition = parseDefinitionLine(trimmed);
     if (definition) {
       flushList();
       flushParagraph();
-      blocks.push({ type: "definition", ...definition });
+      if (definition.term === "配方角色说明") {
+        blocks.push({ type: "note", text: definition.text });
+      } else {
+        blocks.push({ type: "definition", ...definition });
+      }
       return;
     }
     if (isListLine(trimmed)) {

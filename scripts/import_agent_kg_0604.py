@@ -37,6 +37,13 @@ from neo4j import GraphDatabase
 
 
 DEFAULT_DATA_ROOT = Path(r"D:\工作\多智能体-宋\最新数据\6-4\药食同源agent项目")
+DEFAULT_REGULATORY_OVERRIDES_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "backend"
+    / "app"
+    / "data"
+    / "ingredient_regulatory_overrides.json"
+)
 DEFAULT_NEO4J_URI = os.getenv("NEO4J_URI", "neo4j://localhost:7687")
 DEFAULT_NEO4J_USERNAME = os.getenv("NEO4J_USERNAME", "neo4j")
 DEFAULT_NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD", "")
@@ -1300,7 +1307,49 @@ def build_kb8_constitution(graph: GraphBuild, kb_root: Path) -> None:
                 )
 
 
-def build_graph(data_root: Path) -> GraphBuild:
+def apply_regulatory_overrides(
+    graph: GraphBuild,
+    overrides_path: Path = DEFAULT_REGULATORY_OVERRIDES_PATH,
+) -> None:
+    if not overrides_path.exists():
+        return
+    payload = json.loads(overrides_path.read_text(encoding="utf-8"))
+    for item in payload.get("herbs", []):
+        herb_name = clean_text(item.get("herb_name"))
+        if not herb_name:
+            continue
+        record = graph.nodes["Herb"].setdefault(herb_name, {"herb_name": herb_name})
+        for key, value in compact_props(item.get("properties") or {}).items():
+            if key == "herb_name":
+                continue
+            record[key] = value
+        for rule in item.get("compliance_rules", []):
+            rule_id = clean_text(rule.get("rule_id"))
+            if not rule_id:
+                continue
+            graph.add_node(
+                "ComplianceRule",
+                rule_id,
+                {
+                    "rule_id": rule_id,
+                    **(rule.get("properties") or {}),
+                    "data_sources": ["ingredient_regulatory_overrides"],
+                },
+            )
+            graph.add_edge(
+                "Herb",
+                herb_name,
+                "LISTED_IN_COMPLIANCE_RULE",
+                "ComplianceRule",
+                rule_id,
+                {"source": "ingredient_regulatory_overrides"},
+            )
+
+
+def build_graph(
+    data_root: Path,
+    regulatory_overrides_path: Path = DEFAULT_REGULATORY_OVERRIDES_PATH,
+) -> GraphBuild:
     kb_root = data_root / KB_DIR_NAME
     graph = GraphBuild()
     build_kb1_to_kb3(graph, kb_root)
@@ -1314,6 +1363,7 @@ def build_graph(data_root: Path) -> GraphBuild:
     build_consumer_personas(graph, data_root)
     build_consumer_aware_substitutes(graph, data_root)
     build_meandqi_formulas(graph, data_root)
+    apply_regulatory_overrides(graph, regulatory_overrides_path)
     return graph
 
 
@@ -1399,7 +1449,7 @@ SET r += row.props
 
 
 def run_import(args: argparse.Namespace) -> dict[str, Any]:
-    graph = build_graph(args.data_root)
+    graph = build_graph(args.data_root, args.regulatory_overrides_path)
     result: dict[str, Any] = {
         "dry_run": args.dry_run,
         "data_root": str(args.data_root),
@@ -1433,6 +1483,11 @@ def run_import(args: argparse.Namespace) -> dict[str, Any]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Rebuild the 0604 KB1-KB8 Neo4j graph without Compound nodes.")
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument(
+        "--regulatory-overrides-path",
+        type=Path,
+        default=DEFAULT_REGULATORY_OVERRIDES_PATH,
+    )
     parser.add_argument("--dry-run", action="store_true", help="Only parse source files and print planned stats.")
     parser.add_argument("--clear", action="store_true", help="Clear the target Neo4j database before import.")
     parser.add_argument("--backup-dir", type=Path, default=Path("neo4j_backups"))

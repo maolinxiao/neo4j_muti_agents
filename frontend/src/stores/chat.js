@@ -14,7 +14,11 @@ const mergeText = (...parts) => {
   return merged.join("\n\n");
 };
 
-const preserveThinkLine = (line) => /^([-*]|\d+[.)]|[A-Za-z]+[.)])\s+/.test(line) || /^【.+】$/.test(line);
+const preserveThinkLine = (line) =>
+  /^([-*]|\d+[.)]|[A-Za-z]+[.)])\s+/.test(line) ||
+  /^【.+】$/.test(line) ||
+  /^▌\s*阶段\s*\d+\/\d+/.test(line) ||
+  /^·\s*/.test(line);
 
 const sentenceEnded = (text) => /[。！？.!?；;]$/.test(text || "");
 
@@ -372,8 +376,12 @@ export const useChatStore = defineStore("chat", {
               const msg = self.messages.find((m) => m.id === assistantMsg.id);
               if (!msg || !data || !data.text) return;
               appendThinkContent(msg, data.text);
-              const state = msg.stream_state || { buffer: "", inThink: true };
-              msg.stream_state = { buffer: "", inThink: true };
+            },
+            onAnswerReset() {
+              const msg = self.messages.find((m) => m.id === assistantMsg.id);
+              if (!msg) return;
+              msg.content = "";
+              msg.stream_state = { buffer: "", inThink: false };
             },
             onEvidence(data) {
               const msg = self.messages.find((m) => m.id === assistantMsg.id);

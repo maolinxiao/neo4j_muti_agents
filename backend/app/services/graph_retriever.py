@@ -25,6 +25,19 @@ class GraphRetriever:
             return template_key, self._finalize_graph(graph, selected_entities), selected_entities
         if template_key == "product_recommendation":
             graph = self._retrieve_recommendation_graph(question, template_key, qa_route=qa_route)
+            if qa_route == "product_development":
+                for entity in selected_entities[:2]:
+                    if entity.get("entity_type") != "Herb":
+                        continue
+                    herb_graph = self.neo4j_repository.retrieve_graph_for_entity(entity, "product_development")
+                    graph = self._merge_graphs(graph, herb_graph)
+                flavor_retriever = getattr(
+                    self.neo4j_repository,
+                    "retrieve_product_flavor_candidate_graph",
+                    None,
+                )
+                if callable(flavor_retriever):
+                    graph = self._merge_graphs(graph, flavor_retriever(question))
             graph = self._attach_question_node(question, graph, selected_entities)
             return template_key, self._finalize_graph(graph, selected_entities), selected_entities
         if selected_entities:
@@ -63,6 +76,17 @@ class GraphRetriever:
             ),
         )
 
+        if qa_route == "product_development":
+            explicit_herbs = [
+                entity
+                for entity in ranked
+                if entity.get("entity_type") == "Herb"
+                and (entity.get("name") or "").strip()
+                and (entity.get("name") or "").strip() in question
+            ]
+            if explicit_herbs:
+                return explicit_herbs[:4]
+
         selected: list[dict] = []
         seen_ids: set[str] = set()
         seen_names: set[tuple[str, str]] = set()
@@ -99,6 +123,8 @@ class GraphRetriever:
         expand_terms = getattr(self.neo4j_repository, "_expand_recommendation_terms", None)
         terms = expand_terms(question, scene, qa_route=qa_route) if callable(expand_terms) else [question]
         if scene == "product_recommendation":
+            if qa_route == "product_development":
+                return self._retrieve_product_development_audience_graph(terms)
             query = """
 CALL () {
     MATCH (p:Product)
@@ -395,6 +421,56 @@ LIMIT 260
             for token in ["\u4f53\u8d28", "\u91cf\u8868", "\u95ee\u5377", "\u6d4b\u8bd5", "\u6d4b\u8bc4"]
         )
         return self.neo4j_repository.retrieve_graph(query, {"terms": terms, "allow_fallback": allow_fallback, "entity_id": None})
+
+    def _retrieve_product_development_audience_graph(self, terms: list[str]) -> dict:
+        query = """
+CALL () {
+    MATCH (cp:ConsumerProfile)
+    WITH cp, [term IN $terms WHERE term <> ''] AS terms
+    WITH
+        cp,
+        reduce(score = 0, term IN terms |
+            score
+            + CASE WHEN coalesce(cp.crowd_type, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cp.core_need, '') CONTAINS term THEN 7 ELSE 0 END
+            + CASE WHEN coalesce(cp.preferred_dosage, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cp.preferred_flavor, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cp.disliked_flavor, '') CONTAINS term THEN 7 ELSE 0 END
+            + CASE WHEN coalesce(cp.primary_age_group, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cp.effect_category, '') CONTAINS term THEN 6 ELSE 0 END
+        ) AS score
+    WHERE score > 0
+    WITH cp, score
+    ORDER BY score DESC, coalesce(cp.positive_rate, 0) DESC, coalesce(cp.review_count, 0) DESC
+    LIMIT 4
+    RETURN cp AS n, null AS r, null AS m, null AS r2, null AS n2, score
+
+UNION ALL
+
+    MATCH (cs:ConsumerSegment)
+    WITH cs, [term IN $terms WHERE term <> ''] AS terms
+    WITH
+        cs,
+        reduce(score = 0, term IN terms |
+            score
+            + CASE WHEN coalesce(cs.segment_label, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cs.crowd_tags, '') CONTAINS term THEN 7 ELSE 0 END
+            + CASE WHEN coalesce(cs.scenario_tags, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cs.effect_tags, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cs.top_flavor_tags, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cs.top_dosage_tags, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cs.top_complaint_tags, '') CONTAINS term THEN 6 ELSE 0 END
+        ) AS score
+    WHERE score > 0
+    WITH cs, score
+    ORDER BY score DESC, coalesce(cs.positive_rate, 0) DESC, coalesce(cs.review_count, 0) DESC
+    LIMIT 3
+    RETURN cs AS n, null AS r, null AS m, null AS r2, null AS n2, score
+}
+RETURN n, r, m, r2, n2
+ORDER BY score DESC
+"""
+        return self.neo4j_repository.retrieve_graph(query, {"terms": terms, "entity_id": None})
 
     def _retrieve_constitution_scale_graph(self) -> dict:
         query = """

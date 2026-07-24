@@ -28,13 +28,29 @@ RECOMMENDATION_SECTION_ORDER = [
 
 PRODUCT_SECTION_ORDER = [
     "核心结论",
-    "任务路由",
-    "推荐理由",
-    "研发或产品建议",
-    "风味与剂型判断",
-    "合规边界",
-    "下一步验证",
+    "产品定位",
+    "配方方案",
+    "体质与人群适配",
+    "功效逻辑",
+    "风味与剂型设计",
+    "合规与风险边界",
+    "研发验证",
     "追问建议",
+]
+
+PRODUCT_DEVELOPMENT_RULES = [
+    "产品研发问题必须交付研发方案，不能把正文写成竞品、价格带或市场概览。",
+    "【配方方案】至少给出一个可执行草案；每味原料直接使用“党参：君：作用说明，建议小试范围”这类短行，不要重复添加“原料：”前缀，也不要在逐味说明后重复汇总一遍君臣佐使。图谱没有成品比例时，只能标成研发小试起始范围和待验证假设。",
+    "多个目标人群必须逐类分流，分别说明体质、功效、口味、剂型和风险；不得把同一配方默认套用于全部人群。",
+    "企业产品研发中的目标消费者画像不得引用当前登录用户的个人体质档案；只有个人端且问题明确询问本人时，才可带入该用户已保存的体质结果。",
+    "儿童/青少年、孕妇、慢病、过敏和正在用药人群不得套用成人用量；缺少安全证据时应写明不作为默认目标人群或需专业复核。",
+    "核心原料必须先做 KB1/KB7 合规闸门；“非药食同源或未匹配”只能说明当前知识库尚不支持直接按普通食品使用，不能直接推断唯一监管路径。",
+    "不得把 food_homology 当作唯一食品准入结论。同一原料可能同时具有食药物质、新食品原料、保健食品原料或中药材身份，必须按用户拟定的产品类型分别核对使用条件。",
+    "涉及人参时必须分轨表达：普通食品仅限5年及5年以下人工种植人参的根及根茎且每日不超过3克；5年以上人参不能直接按普通食品原料放行。人参虽已进入保健食品原料目录，但按目录备案时仅可单方使用，不可把复配草案直接表述为可备案产品。",
+    "如果核心原料尚未通过普通食品合规核验，必须区分待核验研发版与合规替代方向，不能在同一回答中自相矛盾。",
+    "CDB1 中只因年龄、人群或口味命中的商品只能作为画像偏好参考；没有 Product-USES_HERB-Herb 直接证据时，不得称为含核心原料的竞品或配方依据。",
+    "配方角色说明统一使用“具体原料名：君：说明 / 具体原料名：臣：说明 / 具体原料名：佐：说明 / 具体原料名：使：说明”，君臣佐使后使用冒号，不使用句号。",
+    "核心信息缺失时先声明研发假设并给有限草案，再把目标功效、剂型、原料规格等缺口集中放入【追问建议】，不能只追问不回答。",
 ]
 
 FORMULA_REPLACEMENT_SECTION_ORDER = [
@@ -100,6 +116,18 @@ SECTION_ALIASES: dict[str, str] = {
     "产品建议": "研发或产品建议",
     "风味与剂型判断": "风味与剂型判断",
     "下一步验证": "下一步验证",
+    "产品定位": "产品定位",
+    "配方设计": "配方方案",
+    "产品配方": "配方方案",
+    "配方方案": "配方方案",
+    "体质与人群适配": "体质与人群适配",
+    "人群与体质适配": "体质与人群适配",
+    "功效逻辑": "功效逻辑",
+    "功效与配伍逻辑": "功效逻辑",
+    "风味与剂型设计": "风味与剂型设计",
+    "合规与风险边界": "合规与风险边界",
+    "研发验证": "研发验证",
+    "小试验证": "研发验证",
     "风味与人群适配": "风味与人群适配",
     "风味和人群适配": "风味与人群适配",
     "人群与风味适配": "风味与人群适配",
@@ -146,6 +174,8 @@ def evidence_header_for_question_type(question_type: str, qa_route: str | None =
     route = get_qa_route_resolver().by_key(qa_route)
     if route and route.audience == "personal":
         return "判断依据"
+    if route and route.task_key == "product_development":
+        return "功效逻辑"
     if route and route.task_key == "herb_replacement":
         return "评分拆解"
     mapping = {
@@ -213,6 +243,8 @@ def context_answer_rules(question_type: str, qa_route: str | None = None) -> lis
                     "【判断依据】要整合年龄、症状、发热、寒热未明、方剂/剂量缺失、禁忌和配伍风险，不要逐条朗读药材属性。",
                 ]
             )
+        if route.task_key == "product_development":
+            rules.extend(PRODUCT_DEVELOPMENT_RULES)
     if question_type in {"constitution_recommendation", "product_recommendation"}:
         rules.extend(
             [
@@ -221,12 +253,11 @@ def context_answer_rules(question_type: str, qa_route: str | None = None) -> lis
             ]
         )
     if question_type == "product_recommendation":
-        rules.extend(
-            [
-                "企业端产品、风味、剂型、市场和合规问题必须先说明任务路由，再给研发或产品建议。",
-                "涉及普通食品上市或宣传时，必须列出合规边界，不能使用治疗化表述。",
-            ]
-        )
+        if route and route.task_key == "product_development":
+            rules.append("产品研发正文直接交付产品定位和配方草案，业务路由由界面徽标呈现，不必在正文重复解释。")
+        else:
+            rules.append("企业端风味、剂型、市场和合规问题必须先说明任务路由，再给研发或产品建议。")
+        rules.append("涉及普通食品上市或宣传时，必须列出合规边界，不能使用治疗化表述。")
     if question_type == "constitution_recommendation":
         rules.extend(
             [
@@ -349,6 +380,11 @@ def compose_constraints_block(question_type: str, qa_route: str | None = None) -
         if route.task_key == "risk_boundary":
             route_constraints += (
                 "\n15. 个人端高风险问题必须先给图谱支持的辅助方向和取舍；不得以“无法直接推荐任何药方/我不能推荐”作为第一句。儿童、孕妇、慢病、过敏、正在用药等场景不得给家庭完整处方或剂量，安全提醒后置。药食同源合法候选、谨慎候选、非药食同源/禁忌排除线索必须分层表达。"
+            )
+        if route.task_key == "product_development":
+            route_constraints += "".join(
+                f"\n{index}. {rule}"
+                for index, rule in enumerate(PRODUCT_DEVELOPMENT_RULES, start=15)
             )
     return (
         "补充约束：\n"

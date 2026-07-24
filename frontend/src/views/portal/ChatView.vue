@@ -119,6 +119,18 @@
                             <span class="answer-definition-term">{{ block.term }}</span>
                             <span v-if="block.text" class="answer-definition-text">{{ block.text }}</span>
                           </div>
+                          <div v-else-if="block.type === 'formula-group'" class="answer-formula-group">
+                            <span class="answer-formula-group-title">{{ block.title }}</span>
+                            <span class="answer-formula-group-meta">{{ block.meta }}</span>
+                          </div>
+                          <div v-else-if="block.type === 'ingredient'" class="answer-ingredient">
+                            <span class="answer-ingredient-name">{{ block.name }}</span>
+                            <span :class="['answer-role', `is-${block.roleTone}`]">{{ block.role }}</span>
+                            <span class="answer-ingredient-text">{{ block.text }}</span>
+                          </div>
+                          <p v-else-if="block.type === 'note'" class="answer-note">
+                            {{ block.text }}
+                          </p>
                           <ul
                             v-else-if="block.type === 'list' && !block.ordered"
                             class="answer-list"
@@ -714,30 +726,30 @@ onMounted(async () => {
   display: block;
 }
 .answer-panel {
-  background: #fff;
-  border: 1px solid #e4e7ed;
-  border-radius: 6px;
-  overflow: hidden;
+  background: transparent;
+  border: none;
+  border-top: 1px solid #e4e7ed;
+  overflow: visible;
 }
 .answer-section {
-  padding: 12px 14px 14px;
+  padding: 14px 2px 16px;
   border-bottom: 1px solid #ebeef5;
-  background: #fff;
+  background: transparent;
 }
 .answer-section.is-primary {
-  background: #fff;
+  background: transparent;
 }
 .answer-section.is-info {
-  background: #fff;
+  background: transparent;
 }
 .answer-section.is-warning {
-  background: #fffaf2;
+  background: transparent;
 }
 .answer-section.is-plan {
-  background: #fff;
+  background: transparent;
 }
 .answer-section.is-summary {
-  background: #fafafa;
+  background: transparent;
 }
 .answer-section:last-child {
   border-bottom: none;
@@ -753,9 +765,9 @@ onMounted(async () => {
 }
 .answer-section-title::before {
   content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  width: 3px;
+  height: 16px;
+  border-radius: 1px;
   background: #909399;
   flex: 0 0 auto;
 }
@@ -785,28 +797,102 @@ onMounted(async () => {
   margin-bottom: 0;
 }
 .answer-definition {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  margin: 0 0 8px;
-  padding-left: 10px;
-  border-left: 2px solid #dcdfe6;
+  display: grid;
+  grid-template-columns: minmax(104px, 144px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  margin: 0;
+  padding: 7px 0;
+  border-bottom: 1px dashed #ebeef5;
 }
 .answer-definition:last-child {
-  margin-bottom: 0;
+  border-bottom: none;
 }
 .answer-definition-term {
-  flex: 0 0 auto;
-  max-width: 34%;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 500;
+  color: #4e5969;
   overflow-wrap: anywhere;
 }
 .answer-definition-text {
-  flex: 1 1 auto;
   min-width: 0;
   color: #606266;
   overflow-wrap: anywhere;
+}
+.answer-formula-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 14px 0 4px;
+  padding: 10px 0 7px;
+  border-top: 1px solid #ebeef5;
+}
+.answer-formula-group:first-child {
+  margin-top: 2px;
+  padding-top: 0;
+  border-top: none;
+}
+.answer-formula-group-title {
+  font-weight: 600;
+  color: #303133;
+}
+.answer-formula-group-meta {
+  color: #7a8494;
+  font-size: 13px;
+}
+.answer-ingredient {
+  display: grid;
+  grid-template-columns: minmax(72px, 112px) 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 7px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+.answer-ingredient-name {
+  color: #303133;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.answer-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  color: #606266;
+  background: #f5f7fa;
+}
+.answer-role.is-primary {
+  color: #337ecc;
+  border-color: #a0cfff;
+  background: #ecf5ff;
+}
+.answer-role.is-success {
+  color: #529b2e;
+  border-color: #b3e19d;
+  background: #f0f9eb;
+}
+.answer-role.is-warning {
+  color: #b88230;
+  border-color: #f3d19e;
+  background: #fdf6ec;
+}
+.answer-ingredient-text {
+  min-width: 0;
+  color: #606266;
+  overflow-wrap: anywhere;
+}
+.answer-note {
+  margin: 6px 0 2px;
+  padding: 6px 10px;
+  border-left: 2px solid #dcdfe6;
+  color: #7a8494;
+  font-size: 13px;
+  background: #fafafa;
 }
 .answer-list {
   margin: 0 0 8px;
@@ -820,6 +906,16 @@ onMounted(async () => {
 }
 .answer-list-ordered {
   list-style-type: decimal;
+}
+@media (max-width: 640px) {
+  .answer-definition {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .answer-ingredient {
+    grid-template-columns: minmax(64px, 92px) 24px minmax(0, 1fr);
+    gap: 6px;
+  }
 }
 .streaming-cursor {
   display: inline;

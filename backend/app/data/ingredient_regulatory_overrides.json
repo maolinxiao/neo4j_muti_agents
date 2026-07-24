@@ -1,0 +1,73 @@
+{
+  "version": "2026-07-24",
+  "description": "用于补充同一原料在食药物质、新食品原料、保健食品原料和中药材路径下的多重监管身份。覆盖项在 KB1-KB8 导入完成后应用。",
+  "herbs": [
+    {
+      "herb_name": "人参",
+      "properties": {
+        "food_homology": "否",
+        "is_food_homology": "否",
+        "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+        "regulatory_categories": [
+          "中药材",
+          "新食品原料（条件使用）",
+          "保健食品原料目录原料"
+        ],
+        "ordinary_food_status": "条件可用",
+        "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+        "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+        "ordinary_food_daily_limit_g": 3,
+        "ordinary_food_edible_parts": "根及根茎",
+        "health_food_status": "可作为保健食品原料",
+        "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+        "health_food_daily_range_g": "1-3",
+        "health_food_allowed_functions": [
+          "有助于增强免疫力",
+          "缓解体力疲劳"
+        ],
+        "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。",
+        "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+        "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+        "data_sources": [
+          "KB1_药食同源原料合法性库",
+          "卫生部公告2012年第17号",
+          "市场监管总局等三部门2023年第57号公告",
+          "人参监管知识覆盖_20260724"
+        ],
+        "regulatory_source_urls": [
+          "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+          "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+          "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+        ]
+      },
+      "compliance_rules": [
+        {
+          "rule_id": "CR-GINSENG-NFI-2012-17",
+          "properties": {
+            "rule_name": "人参（人工种植）新食品原料使用条件",
+            "rule_type": "新食品原料",
+            "applicable_scope": "普通食品",
+            "rule_content": "仅限5年及5年以下人工种植人参的根及根茎，食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用。",
+            "agent_check_point": "先核对人工种植、参龄、食用部位、每日总量和标签不适宜人群；5年以上人参不得直接按普通食品原料放行。",
+            "source_file": "卫生部公告2012年第17号",
+            "source_url": "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+            "effective_date": "2012-08-29"
+          }
+        },
+        {
+          "rule_id": "CR-GINSENG-HF-2023-57",
+          "properties": {
+            "rule_name": "保健食品原料目录 人参",
+            "rule_type": "保健食品原料目录",
+            "applicable_scope": "保健食品",
+            "rule_content": "人参已纳入保健食品原料目录，自2024年5月1日起施行；目录未限定参龄，用量范围为1-3克，可用于有助于增强免疫力、缓解体力疲劳的保健功能。",
+            "agent_check_point": "不得把保健食品原料资格等同于普通食品资格；按目录备案时仅可使用单方人参，不可与其他原料复配。",
+            "source_file": "市场监管总局等三部门2023年第57号公告",
+            "source_url": "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+            "effective_date": "2024-05-01"
+          }
+        }
+      ]
+    }
+  ]
+}

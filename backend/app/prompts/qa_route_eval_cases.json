@@ -9,6 +9,24 @@
       "expected_audience": "enterprise"
     },
     {
+      "question": "我想研发一款可以改善长老年睡眠的饮品，价格可以做到中等价位，需要细致到工艺 炮制等方面",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "product_development",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "基于人参针对体质、功效、口味和消费者画像人群（20-30女性/青少年/老年），帮我生成一个食谱/产品配方",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "product_development",
+      "expected_audience": "enterprise"
+    },
+    {
+      "question": "以人参药材为主向60岁以上的老年人提供一种口感微酸偏甜的食药两用的配方",
+      "expected_question_type": "product_recommendation",
+      "expected_qa_route": "product_development",
+      "expected_audience": "enterprise"
+    },
+    {
       "question": "把四君子汤改造成药食同源代餐粉",
       "expected_question_type": "formula_replacement",
       "expected_qa_route": "formula_foodification",

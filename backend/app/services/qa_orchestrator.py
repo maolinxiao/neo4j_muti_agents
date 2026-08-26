@@ -75,7 +75,7 @@ class QAOrchestrator:
 
         qa_route = self.classifier.classify_route(question)
         question_type = qa_route.question_type
-        constitution_profile = self._get_constitution_profile(current_user)
+        constitution_profile = self._relevant_constitution_profile(question, current_user, qa_route)
         need_constitution_panel = self._should_offer_constitution_panel(
             question, question_type, constitution_profile, qa_route.task_key
         )
@@ -141,22 +141,36 @@ class QAOrchestrator:
                 "constitution_assessment": constitution_assessment_payload,
             }
         started = perf_counter()
+        initial_product_development = qa_route.task_key == "product_development"
         skip_broad_entity_resolution = self._should_skip_broad_entity_resolution(qa_route.task_key)
-        entities = (
-            []
-            if skip_broad_entity_resolution
-            else self.entity_resolver.resolve(question, preferred_types=self._preferred_types(question_type, qa_route.task_key))
-        )
+        if initial_product_development:
+            entities = self.entity_resolver.resolve_product_core_ingredients(
+                question,
+                preferred_types=self._preferred_types(question_type, qa_route.task_key),
+            )
+        elif skip_broad_entity_resolution:
+            entities = []
+        else:
+            entities = self.entity_resolver.resolve(
+                question,
+                preferred_types=self._preferred_types(question_type, qa_route.task_key),
+            )
         if self._should_use_llm_analysis(question, entities, question_type):
             question_analysis, analysis_ms = self.llm_client.analyze_question(question, entities)
         else:
             question_analysis = self.llm_client.local_analyze_question(question)
             analysis_ms = 0
         question_type = self._refine_question_type(question_type, question_analysis)
-        qa_route = self.route_resolver.resolve(question, fallback_question_type=question_type)
+        qa_route = self._resolve_refined_route(question, question_type)
         question_type = qa_route.question_type
         question_analysis = {**question_analysis, "qa_route": qa_route.task_key, "audience": qa_route.audience}
-        if skip_broad_entity_resolution or self._should_skip_broad_entity_resolution(qa_route.task_key):
+        if qa_route.task_key == "product_development":
+            if not initial_product_development:
+                entities = self.entity_resolver.resolve_product_core_ingredients(
+                    question,
+                    preferred_types=self._preferred_types(question_type, qa_route.task_key),
+                )
+        elif skip_broad_entity_resolution or self._should_skip_broad_entity_resolution(qa_route.task_key):
             entities = []
         else:
             entities = self.entity_resolver.resolve_terms(
@@ -168,7 +182,7 @@ class QAOrchestrator:
         )
         retrieval_ms = int((perf_counter() - started) * 1000)
 
-        constitution_profile = self._get_constitution_profile(current_user)
+        constitution_profile = self._relevant_constitution_profile(question, current_user, qa_route)
         need_constitution_panel = self._should_offer_constitution_panel(
             question, question_type, constitution_profile, qa_route.task_key
         )
@@ -176,12 +190,6 @@ class QAOrchestrator:
             self._build_constitution_assessment_payload(constitution_profile)
             if need_constitution_panel
             else None
-        )
-        context = self._build_llm_context(
-            question, question_type, entities, selected_entities, graph, question_analysis,
-            chat_history=self._recent_chat_history(session_id),
-            constitution_profile=constitution_profile,
-            qa_route=qa_route,
         )
         llm_payload: dict = {}
         retrieval_summary = self._build_retrieval_summary(
@@ -194,7 +202,25 @@ class QAOrchestrator:
                 retrieval_summary,
                 self._build_constitution_scale_think(graph),
             )
+        elif qa_route.task_key == "product_development":
+            answer_payload = self._build_local_answer(
+                question,
+                question_type,
+                selected_entities,
+                graph,
+                "",
+                constitution_profile=constitution_profile,
+                qa_route=qa_route.task_key,
+            )
+            llm_ms = 0
+            think_content = retrieval_summary
         else:
+            context = self._build_llm_context(
+                question, question_type, entities, selected_entities, graph, question_analysis,
+                chat_history=self._recent_chat_history(session_id),
+                constitution_profile=constitution_profile,
+                qa_route=qa_route,
+            )
             prompt = self.postgres_repository.get_prompt_template_by_key("qa_default")
             system_prompt = self._compose_system_prompt(
                 prompt.system_prompt if prompt is not None else self._default_system_prompt(),
@@ -214,7 +240,12 @@ class QAOrchestrator:
                 constitution_profile=constitution_profile,
                 qa_route=qa_route.task_key,
             )
-            answer_payload = self._finalize_answer_payload(answer_payload, question_type, qa_route.task_key)
+            answer_payload = self._finalize_answer_payload(
+                answer_payload,
+                question_type,
+                qa_route.task_key,
+                graph=graph,
+            )
             if answer_payload.get("_fallback") or not self._has_substantive_evidence(graph):
                 local_error = llm_payload.get("cautions", "") if answer_payload.get("_fallback") else ""
                 answer_payload = self._build_local_answer(
@@ -237,8 +268,24 @@ class QAOrchestrator:
                     graph_metrics=graph.get("metrics", {}),
                 )
                 answer_payload["conclusion"] = rewritten_conclusion
-                answer_payload = self._finalize_answer_payload(answer_payload, question_type, qa_route.task_key)
+                answer_payload = self._finalize_answer_payload(
+                    answer_payload,
+                    question_type,
+                    qa_route.task_key,
+                    graph=graph,
+                )
                 llm_ms += rewrite_llm_ms
+                if answer_payload.get("_fallback"):
+                    answer_payload = self._build_local_answer(
+                        question,
+                        question_type,
+                        selected_entities,
+                        graph,
+                        "",
+                        constitution_profile=constitution_profile,
+                        qa_route=qa_route.task_key,
+                    )
+                    llm_ms = 0
 
             answer_payload, extracted_think = self._separate_answer_thinking(answer_payload)
             think_content = self._compose_user_facing_think(
@@ -247,6 +294,13 @@ class QAOrchestrator:
                 extracted_think,
             )
 
+        answer_mode = (
+            "graph_grounded"
+            if qa_route.task_key == "product_development"
+            else "llm_grounded"
+            if llm_ms > 0
+            else "graph_fallback"
+        )
         snapshot = self.postgres_repository.create_graph_snapshot(session_id, question, graph)
         missing_slots = self._missing_core_questions(
             question, question_type, graph, constitution_profile=constitution_profile, qa_route=qa_route.task_key
@@ -267,7 +321,7 @@ class QAOrchestrator:
                 "related_entities": answer_payload.get("related_entities", []),
                 "follow_up_questions": answer_payload.get("follow_up_questions", []),
                 "graph_snapshot_id": snapshot.id,
-                "answer_mode": "llm_grounded" if llm_ms > 0 else "graph_fallback",
+                "answer_mode": answer_mode,
                 "question_analysis": question_analysis,
                 "think_content": think_content,
                 "qa_route": qa_route.to_context(),
@@ -303,7 +357,7 @@ class QAOrchestrator:
             "trace_summary": trace_summary,
             "cautions": answer_payload.get("cautions", ""),
             "follow_up_questions": answer_payload.get("follow_up_questions", []),
-            "answer_mode": "llm_grounded" if llm_ms > 0 else "graph_fallback",
+            "answer_mode": answer_mode,
             "qa_route": qa_route.to_context(),
             "process_summary": retrieval_summary,
             "missing_slots": missing_slots,
@@ -316,7 +370,7 @@ class QAOrchestrator:
             # Phase 1: Fast preprocessing
             qa_route = self.classifier.classify_route(question)
             question_type = qa_route.question_type
-            constitution_profile = self._get_constitution_profile(current_user)
+            constitution_profile = self._relevant_constitution_profile(question, current_user, qa_route)
             need_constitution_panel = self._should_offer_constitution_panel(
                 question, question_type, constitution_profile, qa_route.task_key
             )
@@ -386,19 +440,29 @@ class QAOrchestrator:
             started = perf_counter()
             yield self._sse(
                 "think",
-                {"text": f"▌ 阶段 1/4：解析问题类型（{question_type}）\n"},
+                {"text": f"▌ 阶段 1/5：完成任务分流（{qa_route.task_key}）\n"},
             )
             skip_broad_entity_resolution = self._should_skip_broad_entity_resolution(qa_route.task_key)
-            if skip_broad_entity_resolution:
+            initial_product_development = qa_route.task_key == "product_development"
+            if initial_product_development:
                 yield self._sse(
                     "think",
-                    {"text": "▌ 阶段 2/4：按高风险人群、症状和风味偏好直接组织图谱检索词，跳过泛实体扫描…\n"},
+                    {"text": "▌ 阶段 2/5：识别核心原料并准备精确图谱检索…\n"},
+                )
+                entities = self.entity_resolver.resolve_product_core_ingredients(
+                    question,
+                    preferred_types=self._preferred_types(question_type, qa_route.task_key),
+                )
+            elif skip_broad_entity_resolution:
+                yield self._sse(
+                    "think",
+                    {"text": "▌ 阶段 2/5：按高风险人群、症状和风味偏好整理检索词，跳过泛实体扫描…\n"},
                 )
                 entities = []
             else:
                 yield self._sse(
                     "think",
-                    {"text": "▌ 阶段 2/4：解析候选实体并准备图谱检索…\n"},
+                    {"text": "▌ 阶段 2/5：解析候选实体并准备图谱检索…\n"},
                 )
                 entities = self.entity_resolver.resolve(
                     question,
@@ -407,7 +471,7 @@ class QAOrchestrator:
             if self._should_use_llm_analysis(question, entities, question_type):
                 yield self._sse(
                     "think",
-                    {"text": "▌ 阶段 2/4：调用大模型做问题分析，识别核心实体、追问方向与检索词…\n"},
+                    {"text": "▌ 阶段 3/5：分析需求约束，识别核心实体、追问方向与检索词…\n"},
                 )
                 question_analysis, analysis_ms = self.llm_client.analyze_question(question, entities)
                 yield self._sse(
@@ -415,13 +479,23 @@ class QAOrchestrator:
                     {"text": f"  · 问题分析完成（{analysis_ms} ms）\n"},
                 )
             else:
+                yield self._sse(
+                    "think",
+                    {"text": "▌ 阶段 3/5：按业务规则整理需求约束与检索重点…\n"},
+                )
                 question_analysis = self.llm_client.local_analyze_question(question)
                 analysis_ms = 0
             question_type = self._refine_question_type(question_type, question_analysis)
-            qa_route = self.route_resolver.resolve(question, fallback_question_type=question_type)
+            qa_route = self._resolve_refined_route(question, question_type)
             question_type = qa_route.question_type
             question_analysis = {**question_analysis, "qa_route": qa_route.task_key, "audience": qa_route.audience}
-            if skip_broad_entity_resolution or self._should_skip_broad_entity_resolution(qa_route.task_key):
+            if qa_route.task_key == "product_development":
+                if not initial_product_development:
+                    entities = self.entity_resolver.resolve_product_core_ingredients(
+                        question,
+                        preferred_types=self._preferred_types(question_type, qa_route.task_key),
+                    )
+            elif skip_broad_entity_resolution or self._should_skip_broad_entity_resolution(qa_route.task_key):
                 entities = []
             else:
                 entities = self.entity_resolver.resolve_terms(
@@ -432,7 +506,7 @@ class QAOrchestrator:
                 "think",
                 {
                     "text": (
-                        f"▌ 阶段 3/4：调用知识图谱检索（{len(entities)} 个候选实体）…\n"
+                        f"▌ 阶段 4/5：调用知识图谱检索（{len(entities)} 个候选实体）…\n"
                     )
                 },
             )
@@ -450,13 +524,18 @@ class QAOrchestrator:
                 "think",
                 {
                     "text": (
-                        f"  · 图谱查询完成（{graph_ms} ms；前置解析 {pre_graph_ms} ms），开始让大模型生成回答…\n\n"
+                        f"  · 图谱查询完成（{graph_ms} ms；前置解析 {pre_graph_ms} ms），"
+                        f"{'开始生成图谱证据回答' if qa_route.task_key == 'product_development' else '开始让大模型生成回答'}…\n\n"
                     )
                 },
             )
             yield self._sse("think", {"text": retrieval_summary})
+            yield self._sse(
+                "think",
+                {"text": "\n\n▌ 阶段 5/5：校验回答结构并生成正文，内容将在下方持续输出…\n"},
+            )
 
-            constitution_profile = self._get_constitution_profile(current_user)
+            constitution_profile = self._relevant_constitution_profile(question, current_user, qa_route)
             need_constitution_panel = self._should_offer_constitution_panel(
                 question, question_type, constitution_profile, qa_route.task_key
             )
@@ -464,12 +543,6 @@ class QAOrchestrator:
                 self._build_constitution_assessment_payload(constitution_profile)
                 if need_constitution_panel
                 else None
-            )
-            context = self._build_llm_context(
-                question, question_type, entities, selected_entities, graph, question_analysis,
-                chat_history=self._recent_chat_history(session_id),
-                constitution_profile=constitution_profile,
-                qa_route=qa_route,
             )
             if self._should_use_constitution_scale_answer(question, question_type, graph):
                 answer_payload = self._build_constitution_scale_answer(question, graph, constitution_profile)
@@ -485,7 +558,31 @@ class QAOrchestrator:
                     emitted_answer = True
                     yield self._sse("token", {"text": answer_payload["conclusion"]})
                 answer_mode = "graph_fallback"
+            elif qa_route.task_key == "product_development":
+                answer_payload = self._build_local_answer(
+                    question,
+                    question_type,
+                    selected_entities,
+                    graph,
+                    "",
+                    constitution_profile=constitution_profile,
+                    qa_route=qa_route.task_key,
+                )
+                full_think = retrieval_summary
+                emitted_answer = False
+                for answer_chunk in self._direct_answer_chunks(
+                    answer_payload.get("conclusion", "")
+                ):
+                    emitted_answer = True
+                    yield self._sse("token", {"text": answer_chunk})
+                answer_mode = "graph_grounded"
             else:
+                context = self._build_llm_context(
+                    question, question_type, entities, selected_entities, graph, question_analysis,
+                    chat_history=self._recent_chat_history(session_id),
+                    constitution_profile=constitution_profile,
+                    qa_route=qa_route,
+                )
                 prompt = self.postgres_repository.get_prompt_template_by_key("qa_default")
                 system_prompt = self._compose_stream_system_prompt(
                     prompt.system_prompt if prompt is not None else self._default_system_prompt(),
@@ -509,6 +606,7 @@ class QAOrchestrator:
                             continue
                     else:
                         text = self._strip_stream_think_tags(text)
+                    text = self._professionalize_gap_language(text)
                     if not text:
                         continue
                     full_conclusion += text
@@ -543,6 +641,7 @@ class QAOrchestrator:
                 # Phase 3: Build evidence and persist
                 streamed_payload = self._parse_streamed_answer(full_conclusion)
                 has_streamed_conclusion = bool(streamed_payload.get("conclusion", "").strip())
+                reset_streamed_answer = False
                 if has_streamed_conclusion:
                     answer_payload = self._normalize_answer_payload(streamed_payload, selected_entities)
                     answer_payload = self._backfill_answer_payload(
@@ -554,7 +653,24 @@ class QAOrchestrator:
                         constitution_profile=constitution_profile,
                         qa_route=qa_route.task_key,
                     )
-                    answer_payload = self._finalize_answer_payload(answer_payload, question_type, qa_route.task_key)
+                    answer_payload = self._finalize_answer_payload(
+                        answer_payload,
+                        question_type,
+                        qa_route.task_key,
+                        graph=graph,
+                    )
+                    if answer_payload.get("_fallback"):
+                        reset_streamed_answer = emitted_answer
+                        answer_payload = self._build_local_answer(
+                            question,
+                            question_type,
+                            selected_entities,
+                            graph,
+                            "",
+                            constitution_profile=constitution_profile,
+                            qa_route=qa_route.task_key,
+                        )
+                        has_streamed_conclusion = False
                 else:
                     answer_payload = self._build_local_answer(
                         question,
@@ -567,8 +683,15 @@ class QAOrchestrator:
                     )
                 answer_payload, _extracted_think = self._separate_answer_thinking(answer_payload)
                 answer_mode = "llm_grounded" if has_streamed_conclusion else "graph_fallback"
-                if not emitted_answer and answer_payload.get("conclusion", "").strip():
-                    yield self._sse("token", {"text": answer_payload["conclusion"]})
+                final_conclusion = answer_payload.get("conclusion", "").strip()
+                language_reset_needed = emitted_answer and self._contains_system_gap_language(full_conclusion)
+                if (reset_streamed_answer or language_reset_needed) and final_conclusion:
+                    yield self._sse("answer_reset", {})
+                    emitted_answer = True
+                    yield self._sse("token", {"text": final_conclusion})
+                elif not emitted_answer and final_conclusion:
+                    emitted_answer = True
+                    yield self._sse("token", {"text": final_conclusion})
             snapshot = self.postgres_repository.create_graph_snapshot(session_id, question, graph)
             missing_slots = self._missing_core_questions(
                 question, question_type, graph, constitution_profile=constitution_profile, qa_route=qa_route.task_key
@@ -664,6 +787,12 @@ class QAOrchestrator:
     @staticmethod
     def _sse(event: str, data: dict) -> str:
         return f"event: {event}\ndata: {json_module.dumps(data, ensure_ascii=False)}\n\n"
+
+    @staticmethod
+    def _direct_answer_chunks(conclusion: str) -> Generator[str, None, None]:
+        for chunk in re.split(r"(?=【[^】]+】)", conclusion or ""):
+            if chunk:
+                yield chunk
 
     def _parse_streamed_answer(self, raw_text: str) -> dict:
         """Normalize streamed model text into the same payload shape as non-stream answers."""
@@ -816,6 +945,18 @@ class QAOrchestrator:
                     "herb_name": props.get("herb_name"),
                     "food_homology": props.get("food_homology"),
                     "directory_source": props.get("directory_source"),
+                    "regulatory_categories": props.get("regulatory_categories"),
+                    "ordinary_food_status": props.get("ordinary_food_status"),
+                    "ordinary_food_conditions": props.get("ordinary_food_conditions"),
+                    "ordinary_food_growth_year_limit": props.get("ordinary_food_growth_year_limit"),
+                    "ordinary_food_daily_limit_g": props.get("ordinary_food_daily_limit_g"),
+                    "health_food_status": props.get("health_food_status"),
+                    "health_food_growth_year_limit": props.get("health_food_growth_year_limit"),
+                    "health_food_daily_range_g": props.get("health_food_daily_range_g"),
+                    "health_food_allowed_functions": props.get("health_food_allowed_functions"),
+                    "health_food_filing_compound_policy": props.get("health_food_filing_compound_policy"),
+                    "regulatory_summary": props.get("regulatory_summary"),
+                    "regulatory_source_urls": props.get("regulatory_source_urls"),
                     "effect_level1": props.get("effect_level1"),
                     "effect_level2": props.get("effect_level2"),
                     "efficacy": props.get("efficacy"),
@@ -891,6 +1032,8 @@ class QAOrchestrator:
                     "rule_content": props.get("rule_content"),
                     "agent_check_point": props.get("agent_check_point"),
                     "source_file": props.get("source_file"),
+                    "source_url": props.get("source_url"),
+                    "effective_date": props.get("effective_date"),
                 }
             elif etype == "RiskExpression":
                 ep = {
@@ -912,19 +1055,20 @@ class QAOrchestrator:
                 }
             )
 
+        route_key = qa_route.task_key if qa_route else ""
         return {
             "question": question,
             "question_type": question_type,
-            "qa_route": qa_route.task_key if qa_route else "",
+            "qa_route": route_key,
             "qa_route_context": qa_route.to_context() if qa_route else {},
-            "reasoning_steps": self.route_resolver.reasoning_steps_for(qa_route.task_key if qa_route else None),
+            "reasoning_steps": self.route_resolver.reasoning_steps_for(route_key or None),
             "required_kbs": qa_route.required_kbs if qa_route else [],
             "missing_slots": self._missing_core_questions(
                 question,
                 question_type,
                 graph,
                 constitution_profile=constitution_profile,
-                qa_route=qa_route.task_key if qa_route else None,
+                qa_route=route_key or None,
             ),
             "question_analysis": question_analysis,
             "chat_history": chat_history or [],
@@ -943,6 +1087,7 @@ class QAOrchestrator:
             "evidence_edges": edge_summaries,
             "focus_paths": graph.get("focus_paths", [])[:8],
             "formula_details": self._build_formula_details(selected_entities, graph),
+            "formula_provenance_context": self._build_formula_provenance_context(graph),
             "recommendation_context": self._build_recommendation_context(graph),
             "flavor_population_context": self._build_flavor_population_context(
                 graph,
@@ -950,15 +1095,15 @@ class QAOrchestrator:
                 constitution_profile=constitution_profile,
             ),
             "user_constitution_profile": constitution_profile or {},
-            "answer_outline": outline_for_question_type(question_type, qa_route.task_key if qa_route else None),
+            "answer_outline": outline_for_question_type(question_type, route_key or None),
             "answer_style_policy": {
                 "mode": "expert_judgement_first",
                 "markdown": "正文只使用【】小标题、标准编号列表和 - 无序列表；禁止 **/*** 伪标题。",
-                "score_display": "正文用高/中/低、优先/慎用/不建议等定性表达，不直接展示 0.xxx 原始评分或评分字段名。",
-                "evidence_style": "先整合判断，再说明关键证据和缺口；避免反复复读知识图谱中检索到/图谱提供/图谱未提供。",
+                "score_display": "不展示0.xxx原始小数或内部字段名；产品研发/替代问题可展示换算后的整数百分制，并另列高/中/低、证据性质和评分依据。",
+                "evidence_style": "先整合判断，再把待验证项改写成核验、小试或专业复核建议；不使用系统视角措辞。",
                 "risk_boundary": "儿童、孕妇、慢病、过敏、正在用药等高风险个人问题先给图谱支持的辅助方向和取舍；不输出家庭完整处方或儿童剂量，安全提醒后置；药食同源合法候选、谨慎候选、非药食同源/禁忌排除线索必须分层表达。",
             },
-            "answer_rules": context_answer_rules(question_type, qa_route.task_key if qa_route else None),
+            "answer_rules": context_answer_rules(question_type, route_key or None),
         }
 
     def _build_recommendation_context(self, graph: dict) -> dict:
@@ -1048,6 +1193,295 @@ class QAOrchestrator:
             "constitution_questions": constitution_questions[:30],
             "replacement_options": replacements[:12],
         }
+
+    def _build_formula_provenance_context(self, graph: dict) -> dict:
+        node_lookup = {str(node.get("id")): node for node in graph.get("nodes", [])}
+        formula_ingredients: dict[str, list[str]] = {}
+        formula_roles: dict[str, list[dict]] = {}
+        replacements: list[dict] = []
+
+        def append_unique(bucket: dict[str, list], key: str, value: object) -> None:
+            if value in (None, "", {}):
+                return
+            bucket.setdefault(key, [])
+            if value not in bucket[key]:
+                bucket[key].append(value)
+
+        for edge in graph.get("edges", []):
+            source = node_lookup.get(str(edge.get("source")), {})
+            target = node_lookup.get(str(edge.get("target")), {})
+            edge_type = edge.get("type")
+            if edge_type == "IN_FORMULA":
+                if source.get("type") == "Herb" and target.get("type") == "Formula":
+                    append_unique(formula_ingredients, str(target.get("id")), source.get("label"))
+                elif source.get("type") == "Formula" and target.get("type") == "Herb":
+                    append_unique(formula_ingredients, str(source.get("id")), target.get("label"))
+            elif edge_type in {"MONARCH_HERB", "MINISTER_HERB", "ASSISTANT_HERB", "GUIDE_HERB"}:
+                if source.get("type") == "Formula" and target.get("type") == "Herb":
+                    append_unique(
+                        formula_roles,
+                        str(source.get("id")),
+                        {
+                            "herb_name": target.get("label"),
+                            "role": ROLE_DISPLAY.get(edge_type, edge_type),
+                        },
+                    )
+            elif edge_type == "CAN_REPLACE":
+                props = edge.get("props", {}) or {}
+                kb4_score = (
+                    props.get("final_score")
+                    if props.get("final_score") is not None
+                    else props.get("score")
+                    if props.get("score") is not None
+                    else props.get("consumer_final_score")
+                )
+                composite_score = self._replacement_composite_confidence(props)
+                replacements.append(
+                    {
+                        "source_herb": source.get("label") or edge.get("source"),
+                        "target_herb": target.get("label") or edge.get("target"),
+                        "rank": props.get("rank"),
+                        "recommendation_status": props.get("recommendation_status"),
+                        "kb4_original_score_100": self._score_to_100(kb4_score),
+                        "consumer_aware_score_100": self._score_to_100(props.get("consumer_final_score")),
+                        "system_composite_confidence_100": composite_score,
+                        "confidence_level": self._confidence_level(composite_score),
+                        "professional_score_100": self._score_to_100(props.get("professional_score")),
+                        "effect_similarity_100": self._score_to_100(
+                            props.get("effect_similarity")
+                            if props.get("effect_similarity") is not None
+                            else props.get("effect_level2_similarity")
+                            if props.get("effect_level2_similarity") is not None
+                            else props.get("effect_level1_similarity")
+                        ),
+                        "flavor_acceptance_100": self._score_to_100(props.get("flavor_acceptance")),
+                        "safety_score_100": self._score_to_100(props.get("safety_score")),
+                        "formula_context_score_100": self._score_to_100(props.get("formula_context_similarity")),
+                        "source_type": props.get("source_type"),
+                        "candidate_source": props.get("candidate_source"),
+                        "contraindication": props.get("contraindication"),
+                        "evidence_type": "KB4图谱直接评分＋系统综合评估",
+                    }
+                )
+
+        prototypes: list[dict] = []
+        for node in graph.get("nodes", []):
+            if node.get("type") != "Formula":
+                continue
+            props = node.get("props", {}) or {}
+            rank = props.get("prototype_rank")
+            if rank is None:
+                continue
+            formula_id = str(node.get("id"))
+            sources = [
+                str(item)
+                for item in (props.get("prototype_sources") or [])
+                if str(item).strip()
+            ]
+            if not sources and props.get("source"):
+                sources = [str(props.get("source"))]
+            ingredients = formula_ingredients.get(formula_id, [])
+            property_ingredients = self._split_herb_names(props.get("ingredients"))
+            if len(property_ingredients) > len(ingredients):
+                ingredients = property_ingredients
+            match_score = self._score_to_100(props.get("prototype_match_score"), already_percent=True)
+            prototypes.append(
+                {
+                    "rank": int(rank),
+                    "formula_name": props.get("formula_name") or node.get("label"),
+                    "sources": sources,
+                    "ingredients": ingredients,
+                    "roles": formula_roles.get(formula_id, []),
+                    "efficacy": props.get("efficacy"),
+                    "crowd": props.get("crowd"),
+                    "taboo": props.get("taboo"),
+                    "match_type": props.get("prototype_match_type"),
+                    "evidence_type": props.get("prototype_evidence_type") or "系统推导",
+                    "prototype_match_score_100": match_score,
+                    "confidence_level": self._confidence_level(match_score),
+                    "match_reasons": props.get("prototype_match_reasons") or [],
+                }
+            )
+
+        prototypes.sort(key=lambda item: (item["rank"], -float(item.get("prototype_match_score_100") or 0)))
+        replacements.sort(
+            key=lambda item: (
+                str(item.get("source_herb") or ""),
+                int(item.get("rank") or 999),
+                -float(item.get("kb4_original_score_100") or 0),
+            )
+        )
+        return {
+            "formula_prototypes": prototypes[:3],
+            "replacement_options": replacements[:18],
+            "adjustment_actions": ["保留", "替换", "新增", "删除"],
+            "display_policy": (
+                "名方直接关联与系统相似匹配必须分开标识；最终配方逐味标注保留、替换、新增、删除。"
+                "KB4原始分按100分制展示，系统综合可信度另列，均不得表述为临床有效率。"
+            ),
+        }
+
+    def _format_formula_provenance_lines(self, provenance_context: dict) -> list[str]:
+        prototypes = provenance_context.get("formula_prototypes") or []
+        if not prototypes:
+            return [
+                "建议在定稿前补充核对可直接关联的经典方剂；当前草案只保留功效、风味与合规研发逻辑，不标注未经核实的名方来源。"
+            ]
+        primary = prototypes[0]
+        source_text = self._join_names(primary.get("sources") or []) or "出处需在定稿前进一步核对"
+        ingredient_text = self._join_names(primary.get("ingredients") or []) or "原方组成需进一步核对"
+        reason_text = self._join_names(primary.get("match_reasons") or []) or "按核心原料与目标需求综合匹配"
+        score = primary.get("prototype_match_score_100")
+        score_text = (
+            f"{score}/100（{primary.get('confidence_level') or '待核验'}）"
+            if score is not None
+            else "待核验"
+        )
+        evidence_type = primary.get("evidence_type") or "系统推导"
+        relation_text = (
+            "核心原料与原方存在直接图谱关系"
+            if primary.get("match_type") == "direct_core_herb"
+            else "依据功效、人群和风味相似性自动筛选"
+        )
+        return [
+            f"- 参考原型：{primary.get('formula_name')}；出处：{source_text}。",
+            f"- 证据性质：{evidence_type}；{relation_text}。最终产品是研发改方，不等同于原方。",
+            f"- 原型组成：{ingredient_text}。",
+            f"- 原型匹配度：{score_text}；依据：{reason_text}。该分值表示研发匹配程度，不是临床有效率。",
+        ]
+
+    def _build_formula_adjustment_lines(
+        self,
+        provenance_context: dict,
+        final_ingredient_names: list[str],
+    ) -> list[str]:
+        prototypes = provenance_context.get("formula_prototypes") or []
+        if not prototypes:
+            return [
+                f"- 新增：{name}；作为当前研发草案原料，需继续核验功效、风味、合规和人群适配。"
+                for name in list(dict.fromkeys(final_ingredient_names))
+            ] or ["- 待补充最终配方原料后，再逐味标注保留、替换、新增和删除。"]
+
+        original_names = list(dict.fromkeys(prototypes[0].get("ingredients") or []))
+        final_names = list(dict.fromkeys(name for name in final_ingredient_names if name))
+        replacements = provenance_context.get("replacement_options") or []
+        options_by_source: dict[str, list[dict]] = {}
+        for item in replacements:
+            source_name = str(item.get("source_herb") or "")
+            if source_name:
+                options_by_source.setdefault(source_name, []).append(item)
+
+        kept_names: list[str] = []
+        deleted_names: list[str] = []
+        added_names: list[str] = []
+        replacement_lines: list[str] = []
+        used_replacement_targets: set[str] = set()
+        for original_name in original_names:
+            if original_name in final_names:
+                kept_names.append(original_name)
+                continue
+            chosen = next(
+                (
+                    item
+                    for item in options_by_source.get(original_name, [])
+                    if item.get("target_herb") in final_names
+                ),
+                None,
+            )
+            if chosen:
+                target_name = str(chosen.get("target_herb"))
+                used_replacement_targets.add(target_name)
+                kb4_score = chosen.get("kb4_original_score_100")
+                confidence = chosen.get("system_composite_confidence_100")
+                replacement_lines.append(
+                    f"{original_name} → {target_name}；"
+                    f"KB4原始分{kb4_score if kb4_score is not None else '待核验'}/100，"
+                    f"系统综合可信度{confidence if confidence is not None else '待核验'}/100"
+                    f"（{chosen.get('confidence_level') or '待核验'}）。"
+                )
+                continue
+            deleted_names.append(original_name)
+
+        for final_name in final_names:
+            if final_name in original_names or final_name in used_replacement_targets:
+                continue
+            added_names.append(final_name)
+
+        lines = [
+            f"1. 保留：{self._join_names(kept_names) if kept_names else '无'}；延续参考原型中的核心配伍位置。",
+            (
+                "2. 替换：" + " ".join(replacement_lines)
+                if replacement_lines
+                else "2. 替换：当前定稿草案未采用直接替换；功能相近但缺少 CAN_REPLACE 关系的调整按“删除＋新增”处理。"
+            ),
+            f"3. 新增：{self._join_names(added_names) if added_names else '无'}；用于补足目标风味、剂型或人群适配，需通过小试验证。",
+            f"4. 删除：{self._join_names(deleted_names) if deleted_names else '无'}；当前产品草案暂不纳入，避免照搬原方全部药味和复杂度。",
+        ]
+        core_name = final_names[0] if final_names else ""
+        core_options = options_by_source.get(core_name, [])[:3]
+        if core_options:
+            lines.append("- 备选替代方案：")
+            for item in core_options:
+                kb4_score = item.get("kb4_original_score_100")
+                confidence = item.get("system_composite_confidence_100")
+                lines.append(
+                    f"- {core_name} → {item.get('target_herb')}："
+                    f"KB4原始分{kb4_score if kb4_score is not None else '待核验'}/100；"
+                    f"系统综合可信度{confidence if confidence is not None else '待核验'}/100"
+                    f"（{item.get('confidence_level') or '待核验'}）；"
+                    "仅作为备选，不代表当前方案已替换核心原料。"
+                )
+        return lines
+
+    @staticmethod
+    def _score_to_100(value: object, *, already_percent: bool = False) -> int | None:
+        try:
+            score = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not already_percent and score <= 1:
+            score *= 100
+        return int(round(min(max(score, 0), 100)))
+
+    @classmethod
+    def _replacement_composite_confidence(cls, props: dict) -> int | None:
+        raw_score = (
+            props.get("final_score")
+            if props.get("final_score") is not None
+            else props.get("score")
+            if props.get("score") is not None
+            else props.get("consumer_final_score")
+        )
+        weighted_values = [
+            (raw_score, 0.55),
+            (props.get("safety_score"), 0.15),
+            (props.get("flavor_acceptance"), 0.15),
+            (props.get("formula_context_similarity"), 0.15),
+        ]
+        numerator = 0.0
+        denominator = 0.0
+        for value, weight in weighted_values:
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                continue
+            if numeric > 1:
+                numeric /= 100
+            numerator += min(max(numeric, 0), 1) * weight
+            denominator += weight
+        if denominator == 0:
+            return None
+        return int(round((numerator / denominator) * 100))
+
+    @staticmethod
+    def _confidence_level(score: int | None) -> str:
+        if score is None:
+            return "待核验"
+        if score >= 75:
+            return "高"
+        if score >= 55:
+            return "中"
+        return "低"
 
     def _build_flavor_population_context(
         self,
@@ -1366,7 +1800,7 @@ class QAOrchestrator:
                 f"   当前核心线索：{self._join_names(core_entities)}。"
             )
         else:
-            lines.append("   当前尚未稳定命中明确实体，会先说明证据不足并追问。")
+            lines.append("   建议补充明确的药材、方剂或产品名称；回答将先给出有限判断并集中追问。")
 
         risk_notes: list[str] = []
         if evidence_gaps:
@@ -1374,7 +1808,7 @@ class QAOrchestrator:
         if route and route.evidence_requirements:
             risk_notes.append(f"需覆盖：{'、'.join(route.evidence_requirements[:4])}")
         if data_gaps and question_type == "product_recommendation" and route and route.audience == "enterprise":
-            risk_notes.append("工艺/电子鼻/行业报告等暂无正式源数据，不会用模型常识补全")
+            risk_notes.append("工艺、电子鼻和行业报告建议在下一阶段开展专项验证")
         if risk_notes:
             lines.append(f"4. 风险/合规边界：{self._join_names(risk_notes)}。")
         else:
@@ -1388,7 +1822,7 @@ class QAOrchestrator:
     @staticmethod
     def _analysis_focus(question_type: str, qa_route: str | None = None) -> str:
         route_focus = {
-            "product_development": "先给研发方向、剂型与合规边界，再列实验验证与追问。",
+            "product_development": "先做核心原料合规闸门，再交付产品定位、配方草案、分人群适配、风味剂型与研发验证。",
             "formula_foodification": "先保留 KB5 原方依据，再逐味替代、复核风味与食品化边界。",
             "herb_replacement": "先给替代排序与不能完全替代点，并同步检查配伍禁忌。",
             "flavor_form_factor": "先判断好不好喝、适合什么剂型，再谈工艺验证指标。",
@@ -1458,13 +1892,13 @@ class QAOrchestrator:
         edge_types = {edge.get("type") for edge in graph.get("edges", [])}
         gaps: list[str] = []
         if question_type in {"formula_relation", "formula_replacement"} and "Formula" not in node_types:
-            gaps.append("未命中 KB5 方剂节点")
+            gaps.append("建议补充核对 KB5 原方名称、组成和出处")
         if question_type == "formula_replacement" and "CAN_REPLACE" not in edge_types:
-            gaps.append("未命中 KB4 单味替代评分关系")
+            gaps.append("建议补充核对 KB4 单味替代评分")
         if question_type in {"formula_replacement", "herb_efficacy", "constitution_recommendation"} and any(
             token in (question or "") for token in ("替代", "替换", "组成", "配伍", "改造", "食品化")
         ) and "INCOMPATIBLE_WITH" not in edge_types:
-            gaps.append("未检索到十八反/十九畏配伍禁忌关系；若组合多种药材，仍需人工复核配伍安全")
+            gaps.append("组合多种药材前建议人工复核十八反、十九畏及其他配伍安全")
         if question_type in {"herb_efficacy", "formula_relation", "formula_replacement", "product_recommendation"}:
             has_flavor_evidence = "Flavor" in node_types or "HAS_FLAVOR" in edge_types or any(
                 (node.get("props") or {}).get(field) is not None
@@ -1479,7 +1913,7 @@ class QAOrchestrator:
                 )
             )
             if not has_flavor_evidence:
-                gaps.append("未命中 KB3 风味评价证据")
+                gaps.append("建议开展 KB3 风味评价与感官小试")
         if question_type in {"formula_relation", "formula_replacement", "product_recommendation"}:
             has_population_evidence = "ConstitutionType" in node_types or any(
                 (node.get("props") or {}).get(field)
@@ -1487,15 +1921,15 @@ class QAOrchestrator:
                 for field in ("crowd", "scenario", "applicable_group", "diet_direction", "risk_control")
             )
             if not has_population_evidence:
-                gaps.append("未命中目标人群/体质画像证据")
+                gaps.append("建议补充目标人群试食与体质分层验证")
         if question_type == "constitution_recommendation" and "ConstitutionType" not in node_types:
-            gaps.append("未命中 KB8 体质类型证据")
+            gaps.append("建议先完成 KB8 体质量表或确认已知体质")
         if question_type == "product_recommendation" and "Product" not in node_types:
-            gaps.append("未命中 KB6 产品/市场证据")
+            gaps.append("建议补充 KB6 竞品、剂型和市场定位核验")
         if any(token in (question or "") for token in ["合规", "宣传", "标签", "孕妇", "儿童", "禁忌"]) and "ComplianceRule" not in node_types:
-            gaps.append("未命中 KB7 合规规则节点")
+            gaps.append("定稿前建议专项核验 KB7 合规、标签和宣传规则")
         if "LACKS_DIRECT_EVIDENCE" in edge_types:
-            gaps.append("存在图谱直接证据不足提示")
+            gaps.append("建议对关键结论补充专项来源与人工复核")
         return gaps[:4]
 
     def _missing_core_questions(
@@ -1559,7 +1993,7 @@ class QAOrchestrator:
 
         if question_type == "formula_replacement":
             if has_formula_word and "Formula" not in node_types:
-                add("如果图谱未命中原方，请补充原方组成，便于读取 KB5 原方依据。")
+                add("请补充原方名称或组成，便于核对 KB5 原方依据。")
             if has_replacement_word and "CAN_REPLACE" not in edge_types:
                 if is_single_herb_replacement:
                     add("候选替代是否必须药食同源，并优先低苦味、低成本或某个剂型适配？")
@@ -1626,6 +2060,25 @@ class QAOrchestrator:
             "last_assessment_id": profile.last_assessment_id,
             "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
         }
+
+    def _relevant_constitution_profile(
+        self,
+        question: str,
+        current_user: AppUser | dict | None,
+        qa_route: QARoute,
+    ) -> dict | None:
+        if qa_route.audience != "personal":
+            return None
+
+        compact = re.sub(r"\s+", "", question or "")
+        third_party_pattern = re.compile(
+            r"(?:我家|家里|给|送给).{0,10}(?:老人|老年人|父母|爸爸|妈妈|孩子|儿童|青少年|孕妇|朋友)"
+        )
+        if third_party_pattern.search(compact):
+            return None
+        if not any(token in compact for token in ["我", "本人", "自己"]):
+            return None
+        return self._get_constitution_profile(current_user)
 
     def _build_constitution_assessment_payload(self, constitution_profile: dict | None) -> dict:
         neo4j_repository = self.graph_retriever.neo4j_repository
@@ -1911,10 +2364,15 @@ class QAOrchestrator:
             )
 
         if not selected_entities and question_type == "product_recommendation":
+            preferred_types = (
+                ["Formula"]
+                if qa_route == "product_development"
+                else ["Product", "ConsumerProfile", "ConsumerSegment", "ConsumerReview", "Flavor"]
+            )
             selected_entities = self._selected_entities_from_graph(
                 graph,
-                preferred_types=["Product", "ConsumerProfile", "ConsumerSegment", "ConsumerReview", "Flavor"],
-                limit=8,
+                preferred_types=preferred_types,
+                limit=3 if qa_route == "product_development" else 8,
             )
 
         if not selected_entities:
@@ -1976,23 +2434,33 @@ class QAOrchestrator:
         effect_candidates = selected_groups["Effect"] + related_groups["Effect"]
 
         formula_detail_lines = self._build_formula_detail_lines(selected_entities, graph)
+        formula_provenance_context = self._build_formula_provenance_context(graph)
         flavor_population_context = self._build_flavor_population_context(
             graph,
             selected_entities,
             constitution_profile=constitution_profile,
         )
+        if qa_route == "product_development":
+            flavor_population_context = {
+                **flavor_population_context,
+                "herb_flavor_profiles": [
+                    item
+                    for item in flavor_population_context.get("herb_flavor_profiles", [])
+                    if item.get("is_selected")
+                ],
+            }
         flavor_population_lines = self._format_flavor_population_lines(flavor_population_context)
         flavor_population_text = (
             "\n".join(flavor_population_lines)
             if flavor_population_lines
-            else "图谱未提供足够的 KB3 风味评价或目标人群画像，建议补充剂型、口味偏好、目标人群/体质后再判断。"
+            else "建议补充剂型、口味偏好和目标人群/体质信息，并通过 KB3 感官小试进一步确认风味适配。"
         )
 
         evidence_parts: list[str] = []
         if related_groups["Formula"]:
             evidence_parts.append(f"当前命中的相关方剂包括：{self._join_names(related_groups['Formula'])}。")
         else:
-            evidence_parts.append("当前图谱中没有检索到与这些命中实体直接连通的方剂证据。")
+            evidence_parts.append("建议在定稿前补充核对相关方剂的组成、剂量、出处与配伍依据。")
 
         if related_groups["Product"]:
             evidence_parts.append(f"当前命中的相关产品包括：{self._join_names(related_groups['Product'])}。")
@@ -2058,14 +2526,346 @@ class QAOrchestrator:
             )
         else:
             cautions = llm_error or "当前回答已退回到本地图谱证据总结模式。"
-            cautions += "\n知识图谱缺少直接证据时，不会自行补充疾病、证候、方剂或监管结论。"
+            cautions += "\n疾病、证候、方剂和监管结论应以专项来源与专业审核为准。"
         if not related_groups["Formula"] and any(token in question for token in ["方剂", "方子", "方"]):
             cautions += "\n知识图谱目前没有给出这些命中实体到方剂的直接连接证据。"
 
         route_label = self._route_label(question, question_type, qa_route)
         route_text = f"{route_label}；{self._kb_route(question, question_type, qa_route)}。"
         route = self.route_resolver.by_key(qa_route)
-        if question_type == "product_recommendation" and route and route.audience == "personal":
+        product_development_candidate_ids: set[str] = set()
+        if qa_route == "product_development":
+            selected_herb_ids = {
+                entity["id"]
+                for entity in selected_entities
+                if entity.get("entity_type") == "Herb"
+            }
+            incompatible_herbs: list[str] = []
+            for edge in graph.get("edges", []):
+                if edge.get("type") != "INCOMPATIBLE_WITH":
+                    continue
+                source = node_lookup.get(edge.get("source"), {})
+                target = node_lookup.get(edge.get("target"), {})
+                if source.get("id") in selected_herb_ids and target.get("type") == "Herb":
+                    self._append_unique(incompatible_herbs, str(target.get("label") or target.get("id") or ""))
+                elif target.get("id") in selected_herb_ids and source.get("type") == "Herb":
+                    self._append_unique(incompatible_herbs, str(source.get("label") or source.get("id") or ""))
+
+            selected_category_ids: set[str] = set()
+            for edge in graph.get("edges", []):
+                if edge.get("type") != "BELONGS_TO_EFFECT_CATEGORY":
+                    continue
+                source = node_lookup.get(edge.get("source"), {})
+                target = node_lookup.get(edge.get("target"), {})
+                if source.get("id") in selected_herb_ids and target.get("type") == "EffectCategory":
+                    selected_category_ids.add(str(target.get("id")))
+                elif target.get("id") in selected_herb_ids and source.get("type") == "EffectCategory":
+                    selected_category_ids.add(str(source.get("id")))
+            for edge in graph.get("edges", []):
+                if edge.get("type") != "BELONGS_TO_EFFECT_CATEGORY":
+                    continue
+                source = node_lookup.get(edge.get("source"), {})
+                target = node_lookup.get(edge.get("target"), {})
+                herb_node = source if source.get("type") == "Herb" else target if target.get("type") == "Herb" else {}
+                category_node = source if source.get("type") == "EffectCategory" else target if target.get("type") == "EffectCategory" else {}
+                herb_props = herb_node.get("props", {}) or {}
+                if (
+                    category_node.get("id") in selected_category_ids
+                    and herb_node.get("id") not in selected_herb_ids
+                    and str(herb_props.get("food_homology") or "").strip() == "是"
+                ):
+                    product_development_candidate_ids.add(str(herb_node.get("id")))
+
+            restricted_herbs: list[str] = []
+            conditional_regulatory_notes: list[str] = []
+            for node in graph.get("nodes", []):
+                if node.get("type") != "Herb" or node.get("id") not in selected_herb_ids:
+                    continue
+                props = node.get("properties") or node.get("props") or {}
+                homology_status = str(props.get("food_homology") or props.get("is_food_homology") or "").strip()
+                directory_source = str(props.get("directory_source") or "").strip()
+                ordinary_food_status = str(props.get("ordinary_food_status") or "").strip()
+                health_food_status = str(props.get("health_food_status") or "").strip()
+                regulatory_summary = str(props.get("regulatory_summary") or "").strip()
+                if ordinary_food_status in {"可用", "条件可用"} or health_food_status:
+                    self._append_unique(
+                        conditional_regulatory_notes,
+                        regulatory_summary
+                        or str(props.get("ordinary_food_conditions") or health_food_status),
+                    )
+                elif homology_status == "否" or "非药食同源" in directory_source or "未匹配" in directory_source:
+                    self._append_unique(restricted_herbs, str(node.get("label") or node.get("id") or ""))
+
+            wants_sour = "酸" in question
+            wants_sweet = any(token in question for token in ["甜", "甘"])
+            flavor_candidate_nodes = []
+            for node in graph.get("nodes", []):
+                if node.get("type") != "Herb" or node.get("id") in selected_herb_ids:
+                    continue
+                props = node.get("properties") or node.get("props") or {}
+                if str(props.get("food_homology") or "").strip() != "是":
+                    continue
+                sour_score = float(props.get("sour_contribution") or 0)
+                sweet_score = float(props.get("sweet_contribution") or 0)
+                if (wants_sour and sour_score >= 0.5) or (wants_sweet and sweet_score >= 0.7):
+                    flavor_candidate_nodes.append(node)
+                    product_development_candidate_ids.add(str(node.get("id")))
+            flavor_candidate_nodes.sort(
+                key=lambda node: (
+                    -float((node.get("properties") or node.get("props") or {}).get("sour_contribution") or 0),
+                    -float((node.get("properties") or node.get("props") or {}).get("sweet_contribution") or 0),
+                    str(node.get("label") or ""),
+                )
+            )
+
+            core_ingredients = [
+                str(entity.get("name") or entity.get("id"))
+                for entity in selected_entities
+                if entity.get("entity_type") == "Herb"
+            ]
+            alternative_ingredients = [
+                str(node.get("label") or node.get("id"))
+                for node in graph.get("nodes", [])
+                if node.get("id") in product_development_candidate_ids
+            ][:5]
+            core_name = core_ingredients[0] if core_ingredients else ""
+            core_node = next(
+                (
+                    node
+                    for node in graph.get("nodes", [])
+                    if node.get("type") == "Herb" and node.get("id") in selected_herb_ids
+                ),
+                {},
+            )
+            core_props = core_node.get("properties") or core_node.get("props") or {}
+            ordinary_conditions = str(core_props.get("ordinary_food_conditions") or "").strip()
+            trial_doses: list[dict] = []
+            formula_lines = [
+                "- 计量口径：以下按干基原料、成人基础版单份粉体估算，默认1份/日；均为研发小试值，不是临床剂量或成品标签定稿量。",
+            ]
+            proposed_ingredient_names: list[str] = []
+            if core_name:
+                core_dose = self._product_trial_dose(core_name, core_props, role="君")
+                trial_doses.append(core_dose)
+                proposed_ingredient_names.append(core_name)
+                formula_lines.append(
+                    f"- {core_name}：君：作为配方核心；{self._format_product_trial_dose(core_dose)}；"
+                    f"{ordinary_conditions or '具体品种、来源、加工规格和食品合规身份需在定稿前核验。'}"
+                )
+            else:
+                primary_prototype = (formula_provenance_context.get("formula_prototypes") or [{}])[0]
+                prototype_name = str(primary_prototype.get("formula_name") or "参考原型")
+                prototype_ingredients = list(primary_prototype.get("ingredients") or [])
+                formula_lines.append(
+                    f"- 本次未指定核心原料，先以 {prototype_name} 的原方组成为借鉴范围；"
+                    "原方不直接等同于食品配方，每味原料仍需分别通过 KB1/KB7 合规核验。"
+                )
+                development_roles = ("君", "臣", "佐", "使")
+                for ingredient_name in prototype_ingredients:
+                    ingredient_node = next(
+                        (
+                            node
+                            for node in graph.get("nodes", [])
+                            if node.get("type") == "Herb"
+                            and str(node.get("label") or node.get("id") or "") == ingredient_name
+                        ),
+                        {},
+                    )
+                    ingredient_props = ingredient_node.get("properties") or ingredient_node.get("props") or {}
+                    food_homology = str(ingredient_props.get("food_homology") or "").strip()
+                    ordinary_status = str(ingredient_props.get("ordinary_food_status") or "").strip()
+                    if food_homology != "是" and ordinary_status not in {"可用", "条件可用"}:
+                        formula_lines.append(
+                            f"- {ingredient_name}：待核验：保留为原方组成证据，"
+                            "在食品原料身份与加工规格核验完成前不纳入本版定量草案。"
+                        )
+                        continue
+                    role = development_roles[min(len(proposed_ingredient_names), len(development_roles) - 1)]
+                    dose = self._product_trial_dose(ingredient_name, ingredient_props, role=role)
+                    trial_doses.append(dose)
+                    proposed_ingredient_names.append(ingredient_name)
+                    formula_lines.append(
+                        f"- {ingredient_name}：{role}（研发暂定）：承接 {prototype_name} 的组方逻辑；"
+                        f"{self._format_product_trial_dose(dose)}。"
+                    )
+                if not proposed_ingredient_names:
+                    formula_lines.append(
+                        "- 定量草案：需先完成原方各味食品原料身份核验，再确定可进入饮品小试的原料与用量。"
+                    )
+            used_flavor_ids: set[str] = set()
+            if wants_sour:
+                sour_node = next(
+                    (
+                        node
+                        for node in flavor_candidate_nodes
+                        if float((node.get("properties") or node.get("props") or {}).get("sour_contribution") or 0)
+                        >= 0.5
+                    ),
+                    None,
+                )
+                if sour_node:
+                    used_flavor_ids.add(str(sour_node.get("id")))
+                    proposed_ingredient_names.append(str(sour_node.get("label") or sour_node.get("id")))
+                    sour_props = sour_node.get("properties") or sour_node.get("props") or {}
+                    sour_dose = self._product_trial_dose(
+                        str(sour_node.get("label") or sour_node.get("id")),
+                        sour_props,
+                        role="臣",
+                    )
+                    trial_doses.append(sour_dose)
+                    formula_lines.append(
+                        f"- {sour_node.get('label')}：臣：提供微酸主体并压低人参苦味、药味；"
+                        f"{self._format_product_trial_dose(sour_dose)}。"
+                    )
+            if wants_sweet:
+                sweet_preference = {
+                    name: index
+                    for index, name in enumerate(["大枣", "桑椹", "枸杞子", "桂圆", "龙眼肉"])
+                }
+                sweet_candidates = [
+                    node
+                    for node in flavor_candidate_nodes
+                    if str(node.get("id")) not in used_flavor_ids
+                    and float((node.get("properties") or node.get("props") or {}).get("sweet_contribution") or 0)
+                    >= 0.7
+                ]
+                sweet_candidates.sort(
+                    key=lambda node: (
+                        sweet_preference.get(str(node.get("label") or node.get("id") or ""), 99),
+                        float((node.get("properties") or node.get("props") or {}).get("sour_contribution") or 0),
+                        -float((node.get("properties") or node.get("props") or {}).get("sweet_contribution") or 0),
+                        str(node.get("label") or ""),
+                    )
+                )
+                sweet_node = sweet_candidates[0] if sweet_candidates else None
+                if sweet_node:
+                    used_flavor_ids.add(str(sweet_node.get("id")))
+                    proposed_ingredient_names.append(str(sweet_node.get("label") or sweet_node.get("id")))
+                    sweet_props = sweet_node.get("properties") or sweet_node.get("props") or {}
+                    sweet_dose = self._product_trial_dose(
+                        str(sweet_node.get("label") or sweet_node.get("id")),
+                        sweet_props,
+                        role="佐",
+                    )
+                    trial_doses.append(sweet_dose)
+                    formula_lines.append(
+                        f"- {sweet_node.get('label')}：佐：补充自然甜感和圆润度；"
+                        f"{self._format_product_trial_dose(sweet_dose)}；老年人版本优先控制添加糖总量。"
+                    )
+            if trial_doses:
+                baseline_total = sum(float(item["baseline_g"]) for item in trial_doses)
+                baseline_formula = " + ".join(
+                    f"{item['name']} {self._format_gram_value(item['baseline_g'])}g"
+                    for item in trial_doses
+                )
+                formula_lines.append(
+                    f"- 单份基准配方：{baseline_formula}，合计约 {self._format_gram_value(baseline_total)}g/份；建议先按1份/日开展小试。"
+                )
+            formula_lines.extend(
+                [
+                    (
+                        f"- 风味协同候选：{self._join_names(alternative_ingredients)}。候选通过药食同源与风味属性初筛，不代表可直接定稿，仍需复核体质、慢病用药、禁忌和工艺。"
+                        if alternative_ingredients
+                        else "- 风味协同候选：建议继续筛选同时满足合规、目标风味和人群适配的原料。"
+                    ),
+                    "- 小试设计：对通过合规复核的原料建立低、中、高梯度，验证酸甜比、苦味遮蔽、后味、稳定性和目标人群接受度。",
+                ]
+            )
+            compliance_text = (
+                f"合规初筛显示，{self._join_names(restricted_herbs[:4])} 的普通食品原料身份仍需专项核验。"
+                "在完成具体品种、来源、加工规格和适用法规核验前，不得将其写入普通食品定稿配方，也不能据此推断唯一监管路径。"
+                if restricted_herbs
+                else (
+                    "\n".join(conditional_regulatory_notes)
+                    + "\n必须区分普通食品与保健食品路径；保健食品原料资格不能自动替代普通食品原料资格，复配产品也不能直接套用单方备案路径。"
+                    if conditional_regulatory_notes
+                    else (
+                        f"可参考已命中的合规规则：{self._join_names(related_groups['ComplianceRule'][:8])}。"
+                        if related_groups["ComplianceRule"]
+                        else "建议继续核验 KB1/KB7 适用规则；当前配方仅作为待验证研发草案。"
+                    )
+                )
+            )
+            if incompatible_herbs:
+                compliance_text += (
+                    f"\n图谱配伍禁忌证据：{self._join_names(core_ingredients)}不应与"
+                    f"{self._join_names(incompatible_herbs[:6])}作为协同原料使用；这些节点只进入风险排除，不进入配方候选。"
+                )
+            audience_lines: list[str] = []
+            if "女性" in question:
+                audience_lines.append("- 20-30 岁女性：可作为成人基础版的目标画像，但仍需按气虚、阴虚、湿热等体质倾向和孕哺状态继续分层。")
+            if any(token in question for token in ["青少年", "儿童", "学生"]):
+                audience_lines.append("- 青少年：不作为当前核心原料配方的默认适用人群，不输出成人用量；需先补充年龄边界和专项安全/合规证据。")
+            if any(token in question for token in ["60岁", "老年", "老人", "中老年"]):
+                audience_lines.append("- 60岁以上老年人：建议采用低糖、易冲调或小容量饮品形态；先核对高血压、糖代谢异常、睡眠情况、胃食管反流、过敏和正在用药，再确定核心原料梯度、糖度与单次饮用量。")
+            if not audience_lines:
+                audience_lines.append("- 目标人群：需按年龄、体质、慢病/用药和口味偏好分别判断，不能默认共用同一配方。")
+            flavor_design_lines = [line for line in flavor_population_lines if line.startswith("风味证据")]
+            flavor_design_text = (
+                "\n".join(flavor_design_lines)
+                if flavor_design_lines
+                else "建议按低、中、高三个核心原料梯度开展苦味、药味、后味和整体接受度测试。"
+            )
+            if wants_sour or wants_sweet:
+                flavor_design_text += (
+                    "\n目标设为微酸偏甜：酸味用于缩短人参苦味和药味后味，甜味用于圆润口感；"
+                    "老年人版本优先采用自然风味协同并控制添加糖，不以高甜掩盖苦味。"
+                )
+            provenance_lines = self._format_formula_provenance_lines(formula_provenance_context)
+            adjustment_lines = self._build_formula_adjustment_lines(
+                formula_provenance_context,
+                proposed_ingredient_names,
+            )
+            elderly_target = any(token in question for token in ["60岁", "老年", "老人", "中老年"])
+            primary_formula_name = str(
+                (formula_provenance_context.get("formula_prototypes") or [{}])[0].get("formula_name")
+                or ""
+            )
+            needs_process_detail = any(token in question for token in ["饮品", "饮料", "工艺", "炮制"])
+            process_validation_text = (
+                "1. 原料验收：逐味确认品种、来源、批次、食品合规身份、水分及污染物指标；原方组成证据与食品投料资格分开审核。\n"
+                "2. 净制与炮制对照：分别记录净选、去核/切制、干燥和必要的炒制条件；涉及辅料炮制时单独核验辅料与食品路径，不把研发炮制样直接视为定稿原料。\n"
+                "3. 水提小试：以料液比 1:8、1:10、1:12，温度 85、90、95℃，时间 30、45、60 分钟建立参数矩阵；比较一次提取与二次提取的风味、可溶性固形物和目标成分保留情况。\n"
+                "4. 调配与稳定性：过滤后分别做原饮液、浓缩液和冲调粉方向；验证糖度、pH、沉淀、色泽、后味及加速稳定性，老年人版本优先低糖、小容量和易开启包装。\n"
+                "5. 杀菌与灌装：依据最终 pH、包装和微生物挑战结果确定巴氏、热灌装或其他工艺，不预设未经验证的商业灭菌参数。\n"
+                "6. 中等价位控制：优先使用常规食品级原料和水提工艺，按单份原料、能耗、包材、损耗与检测成本核算，再决定是否采用提取物或复杂炮制工艺。"
+                if needs_process_detail
+                else (
+                    "1. 核验核心原料品种、来源、规格和食品合规身份。\n"
+                    "2. 确定主功效与剂型后做配比梯度、感官、稳定性和相容性小试。\n"
+                    "3. 按目标人群分别验证风味接受度、食用场景和风险排除条件。"
+                )
+            )
+            conclusion_parts = [
+                (
+                    "【核心结论】\n可以形成一版面向60岁以上人群、微酸偏甜的人参复配研发草案，但必须先锁定产品监管路径和人参参龄。普通食品路径仅可使用符合公告条件的5年及以下人工种植人参；5年以上人参不能直接据此进入普通食品复配方。"
+                    if elderly_target and core_name == "人参"
+                    else (
+                        f"【核心结论】\n可将数据库中的 {primary_formula_name} 作为首要借鉴方剂，研发一版面向60岁以上人群、中等价位的晚间舒缓饮品。方剂用于解释组方来源，最终食品配方仍需逐味通过合规、慢病用药、风味和工艺验证；普通食品宣传不得直接作疾病治疗或睡眠改善承诺。"
+                        if elderly_target and primary_formula_name
+                        else "【核心结论】\n当前问题应按产品研发处理，并先形成一个成人基础版，再按目标人群拆分；不同年龄与体质人群不能直接套用同一配方与用量。"
+                    )
+                ),
+                (
+                    "【产品定位】\n以指定核心原料为研发起点，围绕目标功效、体质适配和低苦低药味体验设计；以下为待验证研发草案。"
+                    if core_name
+                    else f"【产品定位】\n以 {primary_formula_name or 'KB5参考原型'} 为借鉴，定位为老年人晚间饮用、低糖易入口的中等价位饮品；围绕目标功效、人群、剂型、价格与工艺约束形成待验证草案，不把研发改方表述为原方复刻。"
+                ),
+                f"【名方溯源与借鉴】\n{chr(10).join(provenance_lines)}",
+                f"【配方方案】\n{chr(10).join(formula_lines)}",
+                f"【配方调整与替换依据】\n{chr(10).join(adjustment_lines)}",
+                f"【体质与人群适配】\n{chr(10).join(audience_lines)}",
+                "【功效逻辑】\n"
+                + (
+                    f"当前可用于配方取舍的功效线索包括：{self._join_names(effect_candidates[:8])}。"
+                    if effect_candidates
+                    else "当前图谱未形成足够稳定的目标功效链，需先明确主功效和消费场景。"
+                ),
+                f"【风味与剂型设计】\n{flavor_design_text}",
+                f"【合规与风险边界】\n{compliance_text}",
+                f"【研发验证】\n{process_validation_text}",
+            ]
+        elif question_type == "product_recommendation" and route and route.audience == "personal":
             conclusion_parts = [
                 "【核心结论】\n"
                 + (
@@ -2093,13 +2893,13 @@ class QAOrchestrator:
                 ),
                 f"【任务路由】\n{route_text}",
                 "【推荐理由】\n"
-                + (f"已命中相关产品、原料或功效线索：{self._join_names((product_candidates + herb_candidates + effect_candidates)[:8])}。" if product_candidates or herb_candidates or effect_candidates else "当前图谱没有形成足够稳定的推荐理由链条。"),
+                + (f"可参考的相关产品、原料或功效线索：{self._join_names((product_candidates + herb_candidates + effect_candidates)[:8])}。" if product_candidates or herb_candidates or effect_candidates else "建议补充产品配料、目标人群和使用场景后再确定推荐理由。"),
                 "【研发或产品建议】\n"
-                + (f"可优先查看命中的相关产品：{self._join_names(product_candidates)}。" if product_candidates else "图谱未命中直接产品节点，建议补充产品名、剂型或目标场景。"),
+                + (f"可优先查看相关产品：{self._join_names(product_candidates)}。" if product_candidates else "建议补充产品名、剂型或目标场景，再做产品化判断。"),
                 "【风味与剂型判断】\n"
-                + (f"已命中风味相关证据：{self._join_names(product_candidates + herb_candidates[:6])}。\n{flavor_population_text}" if product_candidates or herb_candidates or flavor_population_lines else "图谱未提供足够的风味或剂型直接证据。"),
+                + (f"可参考的风味相关线索：{self._join_names(product_candidates + herb_candidates[:6])}。\n{flavor_population_text}" if product_candidates or herb_candidates or flavor_population_lines else "建议通过感官小试和剂型适配试验进一步确认。"),
                 "【合规边界】\n"
-                + (f"可参考合规规则：{self._join_names(related_groups['ComplianceRule'][:8])}。" if related_groups["ComplianceRule"] else "图谱未命中直接合规规则；普通食品宣传仍需避免治疗化表达。"),
+                + (f"可参考合规规则：{self._join_names(related_groups['ComplianceRule'][:8])}。" if related_groups["ComplianceRule"] else "定稿前需专项核验适用法规；普通食品宣传仍需避免治疗化表达。"),
                 "【下一步验证】\n建议补充目标剂型、风味偏好、适用人群、成本区间和宣传卖点，再做感官评价、稳定性和合规文案验证。",
             ]
         elif question_type == "constitution_recommendation":
@@ -2118,7 +2918,7 @@ class QAOrchestrator:
                 "【追问建议】\n可以继续补充体质问卷得分、年龄、人群状态、过敏史和想改善的具体场景。",
             ]
         elif question_type == "formula_replacement":
-            formula_lines = formula_detail_lines or ["图谱未提供可直接展开的 KB5 方剂组成或剂量。"]
+            formula_lines = formula_detail_lines or ["建议补充原方名称、组成和剂量，便于核对 KB5 原方依据。"]
             conclusion_parts = [
                 "【核心结论】\n当前回答会先保留原方依据，再给出可替代和不可替代的边界，不把动态替代说成现成成方。",
                 f"【原方依据】\n{chr(10).join(formula_lines)}",
@@ -2151,10 +2951,26 @@ class QAOrchestrator:
             }
             for entity in selected_entities[:12]
         ]
+        if qa_route == "product_development":
+            for node in graph.get("nodes", []):
+                if node.get("id") not in product_development_candidate_ids:
+                    continue
+                related_entities.append(
+                    {"id": node["id"], "name": node["label"], "entity_type": node.get("type", "Herb")}
+                )
         for edge in graph.get("edges", [])[:12]:
             for node_id in [edge["source"], edge["target"]]:
                 node = node_lookup.get(node_id)
                 if node is None or node["type"] in {"Question", "Attribute", "EvidenceNote"}:
+                    continue
+                if qa_route == "product_development" and node["type"] == "Herb" and node["id"] not in (
+                    {
+                        entity["id"]
+                        for entity in selected_entities
+                        if entity.get("entity_type") == "Herb"
+                    }
+                    | product_development_candidate_ids
+                ):
                     continue
                 item = {"id": node["id"], "name": node["label"], "entity_type": node.get("type", "Entity")}
                 if item not in related_entities:
@@ -2352,7 +3168,7 @@ class QAOrchestrator:
         if node_groups["Product"]:
             candidate_pieces.append(f"产品线索可继续按配料、剂型和适用人群核验：{self._join_names(node_groups['Product'][:5])}。")
         if not candidate_pieces:
-            candidate_pieces.append("当前图谱没有稳定筛出可优先考虑的药食同源原料或产品，因此先给方向性筛选逻辑。")
+            candidate_pieces.append("建议先按药食同源合法性、症状相关性、风味接受度和人群风险完成方向性筛选。")
         candidate_line = " ".join(candidate_pieces)
         suggestion = (
             f"1. {candidate_line}\n"
@@ -2376,7 +3192,7 @@ class QAOrchestrator:
             "【判断依据】\n"
             f"1. 当前问题同时包含{risk_person}、{symptom_text}和药方/推荐意图，业务上走个人端风险边界，但仍需要基于图谱先给辅助食养方向。\n"
             f"2. 本次图谱核心命中：{evidence_target}。这些证据可用于筛选候选方向、风味和禁忌，不应直接扩展成儿童剂量或处方。\n"
-            f"3. 原料分层判断：{' '.join(piece for piece in [preferred_line, cautious_line, excluded_line] if piece) or '当前还缺少可稳定分层的原料证据。'}\n"
+            f"3. 原料分层判断：{' '.join(piece for piece in [preferred_line, cautious_line, excluded_line] if piece) or '建议补充明确原料名称、配料表和风险信息后再分层。'}\n"
             "4. 发热伴咳嗽多痰需要区分寒热、病程、体温、精神状态、既往病史和用药情况，因此完整方剂和剂量需要留在专业判断之后。\n\n"
             f"【食养或产品适配建议】\n{suggestion}\n\n"
             f"【风味与人群适配】\n{flavor_context}\n\n"
@@ -2450,7 +3266,7 @@ class QAOrchestrator:
                 if not herbs:
                     continue
                 herb_items = [
-                    f"{item['name']}：{item.get('dosage') or '图谱未提供剂量'}"
+                    f"{item['name']}：{item.get('dosage') or '剂量建议结合原方出处与专业规范进一步核定'}"
                     for item in herbs
                 ]
                 role_lines.append(f"{role_label}：" + "；".join(herb_items))
@@ -2462,7 +3278,10 @@ class QAOrchestrator:
                 detail_parts.append(f"功效：{detail['efficacy']}")
             if detail.get("crowd"):
                 detail_parts.append(f"适用/主治：{detail['crowd']}")
-            detail_parts.append("组成明细：" + ("；".join(role_lines) if role_lines else "图谱未提供药材剂量明细"))
+            detail_parts.append(
+                "组成明细："
+                + ("；".join(role_lines) if role_lines else "建议补充原方组成和剂量，便于进一步核定")
+            )
             if detail.get("taboo"):
                 detail_parts.append(f"禁忌：{detail['taboo']}")
             formula_lines.append("\n".join(detail_parts))
@@ -2645,7 +3464,7 @@ class QAOrchestrator:
                     {
                         "name": name,
                         "role": role_label,
-                        "dosage": dosage_map.get(name) or "图谱未提供剂量",
+                        "dosage": dosage_map.get(name) or "剂量建议结合原方出处与专业规范进一步核定",
                     }
                     for name in names
                 ]
@@ -2757,6 +3576,80 @@ class QAOrchestrator:
             dosage_map[herb_name.strip()] = re.sub(r"\s+", "", dosage.strip())
         return dosage_map
 
+    @classmethod
+    def _product_trial_dose(cls, herb_name: str, props: dict, *, role: str) -> dict:
+        name = (herb_name or "原料").strip()
+        if name == "人参":
+            try:
+                daily_limit = float(props.get("ordinary_food_daily_limit_g") or 3)
+            except (TypeError, ValueError):
+                daily_limit = 3.0
+            return {
+                "name": name,
+                "baseline_g": 1.0,
+                "gradient_g": [0.5, 1.0, min(1.5, daily_limit)],
+                "daily_limit_g": daily_limit,
+                "basis": "法规上限内的研发小试估算",
+            }
+
+        sour_score = cls._safe_float(props.get("sour_contribution"))
+        astringent_risk = cls._safe_float(props.get("astringent_risk"))
+        sweet_score = cls._safe_float(props.get("sweet_contribution"))
+        if role == "臣" and sour_score >= 0.5:
+            baseline = 1.5 if astringent_risk >= 0.6 else 2.0
+            return {
+                "name": name,
+                "baseline_g": baseline,
+                "gradient_g": [max(0.5, baseline - 0.5), baseline, baseline + 0.5],
+                "daily_limit_g": None,
+                "basis": "酸涩强度驱动的风味小试估算",
+            }
+        if role == "佐" and sweet_score >= 0.7:
+            baseline = 3.0 if name in {"大枣", "桑椹", "桂圆", "龙眼肉"} else 2.5
+            return {
+                "name": name,
+                "baseline_g": baseline,
+                "gradient_g": [max(0.5, baseline - 1.0), baseline, baseline + 1.0],
+                "daily_limit_g": None,
+                "basis": "甜味与口感协同的小试估算",
+            }
+        return {
+            "name": name,
+            "baseline_g": 2.0,
+            "gradient_g": [1.0, 2.0, 3.0],
+            "daily_limit_g": None,
+            "basis": "配方角色驱动的小试估算",
+        }
+
+    @classmethod
+    def _format_product_trial_dose(cls, dose: dict) -> str:
+        gradient = "/".join(cls._format_gram_value(value) for value in dose.get("gradient_g", []))
+        text = (
+            f"建议小试用量：{cls._format_gram_value(dose.get('baseline_g'))}g/份"
+            f"（低/中/高梯度：{gradient}g/份，{dose.get('basis')}）"
+        )
+        daily_limit = dose.get("daily_limit_g")
+        if daily_limit is not None:
+            text += f"；每日总量不超过{cls._format_gram_value(daily_limit)}g"
+        return text
+
+    @staticmethod
+    def _format_gram_value(value: object) -> str:
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return str(value or "")
+        if number.is_integer():
+            return str(int(number))
+        return f"{number:.1f}".rstrip("0").rstrip(".")
+
+    @staticmethod
+    def _safe_float(value: object) -> float:
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
     @staticmethod
     def _append_unique(items: list[str], value: str) -> None:
         cleaned = (value or "").strip()
@@ -2802,11 +3695,17 @@ class QAOrchestrator:
 
     @classmethod
     def _sanitize_user_facing_answer_text(cls, text: str) -> str:
-        cleaned = str(text or "")
+        cleaned = cls._professionalize_gap_language(str(text or ""))
         cleaned = re.sub(r"(?m)^(\s*)\*\s+", r"\1- ", cleaned)
         cleaned = re.sub(r"\*{2,3}([^*\n]+?)\*{2,3}\s*[：:]", r"\1：", cleaned)
         cleaned = re.sub(r"\*{2,3}([^*\n]+?)\*{2,3}", r"\1", cleaned)
         cleaned = re.sub(r"\*{2,3}", "", cleaned)
+        cleaned = re.sub(r"(?m)([：:]\s*)(君|臣|佐|使)[。．.]\s*", r"\1\2：", cleaned)
+        cleaned = re.sub(
+            r"(?m)^(\s*[-*•]\s*)原料[：:]\s*(?=[^：:\n]{1,24}[：:]\s*[君臣佐使][：:])",
+            r"\1",
+            cleaned,
+        )
         cleaned = re.sub(
             r"\b(final_score|professional_score|flavor_acceptance|consumer_final_score|overall_flavor_acceptance|safety_score)\b",
             "评分维度",
@@ -2815,14 +3714,129 @@ class QAOrchestrator:
         )
 
         def replace_decimal(match: re.Match[str]) -> str:
-            score = cls._coerce_score(match.group(0))
+            score = cls._coerce_score(match.group(2))
             if score is None:
                 return match.group(0)
-            return cls._score_band(score, positive=True)
+            return f"{match.group(1)}{cls._score_band(score, positive=True)}"
 
-        cleaned = re.sub(r"(?<![\d×])(?:0\.\d+|1\.0+)(?![\d×])", replace_decimal, cleaned)
+        cleaned = re.sub(
+            r"(^|[^\d×])(0\.\d+|1\.0+)"
+            r"(?![\d×/]|\s*(?:mg|g|kg|克|毫克|千克|ml|mL|毫升|%))",
+            replace_decimal,
+            cleaned,
+        )
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
         return cleaned.strip()
+
+    @staticmethod
+    def _professionalize_gap_language(text: str) -> str:
+        cleaned = str(text or "")
+        replacements = [
+            (
+                "当前知识图谱未提供您指定的具体目标功效和剂型",
+                "建议先明确具体目标功效和剂型",
+            ),
+            (
+                "当前知识图谱未提供您指定的目标功效和剂型",
+                "建议先明确目标功效和剂型",
+            ),
+            (
+                "图谱未提供足够的 KB3 风味评价或目标人群/体质画像",
+                "建议补充 KB3 感官小试、目标人群试食和体质分层验证",
+            ),
+            (
+                "图谱未提供足够的风味或剂型直接证据",
+                "建议通过感官小试和剂型适配试验进一步确认",
+            ),
+            (
+                "图谱未提供可直接展开的 KB5 方剂组成或剂量",
+                "建议补充原方名称、组成和剂量，便于核对 KB5 原方依据",
+            ),
+            (
+                "图谱未提供药材剂量明细",
+                "建议补充原方组成和剂量，便于进一步核定",
+            ),
+            (
+                "图谱未提供剂量",
+                "剂量建议结合原方出处与专业规范进一步核定",
+            ),
+            (
+                "图谱未命中直接产品节点",
+                "建议补充产品名、配料表、剂型和目标场景",
+            ),
+            (
+                "当前图谱没有形成足够稳定的推荐理由链条",
+                "建议补充产品配料、目标人群和使用场景后再确定推荐理由",
+            ),
+            (
+                "当前知识库尚未支持直接按普通食品原料使用",
+                "在完成品种、来源、加工规格和适用法规核验前，不建议直接按普通食品原料使用",
+            ),
+            (
+                "当前知识库不支持直接按普通食品原料使用",
+                "在完成品种、来源、加工规格和适用法规核验前，不建议直接按普通食品原料使用",
+            ),
+            (
+                "当前知识库尚不支持直接给出完整方剂出处",
+                "建议在定稿前补充核对原方出处",
+            ),
+        ]
+        for source, target in replacements:
+            cleaned = cleaned.replace(source, target)
+
+        def replace_gap(match: re.Match[str]) -> str:
+            topic = (match.group("topic") or "").strip()
+            topic = re.sub(r"^(?:足够的|直接的|直接给出|直接|给出)", "", topic).strip()
+            topic = re.sub(r"(?:节点|关系|证据)$", "", topic).strip()
+            if not topic:
+                return "建议在下一阶段补充专项核验"
+            separator = " " if topic[:1].isascii() else ""
+            return f"建议在下一阶段补充核验{separator}{topic}"
+
+        cleaned = re.sub(
+            r"(?:当前)?(?:知识)?图谱(?:中)?(?:尚未|未|没有)(?:提供|形成|命中|检索到)"
+            r"(?P<topic>[^，。；！？\n]*)",
+            replace_gap,
+            cleaned,
+        )
+        cleaned = re.sub(
+            r"(?:当前|现有)?知识库(?:中)?(?:尚未|尚不|未|不|没有)(?:提供|形成|支持|命中|检索到)"
+            r"(?P<topic>[^，。；！？\n]*)",
+            replace_gap,
+            cleaned,
+        )
+        cleaned = re.sub(
+            r"(?:当前)?未命中(?P<topic>[^，。；！？\n]*)",
+            replace_gap,
+            cleaned,
+        )
+        cleaned = re.sub(
+            r"(?:当前)?没有检索到(?P<topic>[^，。；！？\n]*)",
+            replace_gap,
+            cleaned,
+        )
+        cleaned = re.sub(
+            r"建议补充产品名、配料表、剂型和目标场景，建议补充产品名[^。！？\n]*",
+            "建议补充产品名、配料表、剂型和目标场景后再判断",
+            cleaned,
+        )
+        return cleaned
+
+    @staticmethod
+    def _contains_system_gap_language(text: str) -> bool:
+        banned_phrases = (
+            "图谱未提供",
+            "知识图谱未提供",
+            "图谱未命中",
+            "未命中",
+            "没有检索到",
+            "知识库尚不支持",
+            "知识库不支持",
+            "知识库尚未提供",
+            "知识库未提供",
+            "现有知识库尚不支持",
+        )
+        return any(phrase in str(text or "") for phrase in banned_phrases)
 
     def _build_follow_ups(
         self,
@@ -2934,13 +3948,15 @@ class QAOrchestrator:
             "孕妇、儿童、慢病、过敏等高风险人群问题优先走风险边界，但仍要先基于图谱给出可考虑/不建议/需补充的辅助食养或产品方向。"
             "儿童咳嗽、多痰、发热、高热并索要药方时，核心结论先给图谱支持的辅助方向、候选原料类型和风味取舍；不要以“无法直接推荐任何药方/我不能推荐”作为第一句。"
             "个人高风险推荐必须区分药食同源合法候选、需专业确认的谨慎候选、非药食同源或禁忌排除线索，后两类不能写成可直接推荐。"
+            "food_homology 只表示食药物质目录身份，不能覆盖新食品原料、保健食品原料和中药材路径；必须按实体的多轨监管属性与关联合规规则判断。"
+            "涉及人参时，普通食品路径仅限5年及5年以下人工种植人参根及根茎且每日不超过3克；5年以上人参不得直接按普通食品放行。保健食品原料资格不能自动替代普通食品资格，复配草案不能直接套用单方备案路径。"
             "如果某类证据缺失，要明确指出缺失的是方剂、功效、风味、替代、体质、产品还是合规证据。"
-            "如果图谱没有给出直接证据，不要自行补充可能的疾病、证候、疗法或方剂。"
+            "疾病、证候、疗法或方剂缺乏专项依据时不要自行补充，统一转成下一步核验建议。"
             "conclusion 必须写成用户可直接阅读的结构化答案，使用随问题类型提供的【】小标题。"
             "正文中的业务依据必须解释为什么这样判断，不要重复图谱证据摘要和证据子图里的节点数、关系数、关系类型清单。"
-            "正文不要高频复读“知识图谱中检索到”“图谱提供了”“图谱未提供”，只在关键证据缺口处说明缺少的数据类型。"
+            "正文禁止出现“知识图谱中检索到”“图谱提供了”“图谱未提供”“知识库尚不支持”“知识库未提供”“未命中”“没有检索到”等系统视角措辞；待验证项必须转成专业行动建议。"
             "正文 Markdown 只允许【】小标题、标准编号列表和 - 无序列表；禁止 **标题**、***标题*** 或多星号层级。"
-            "正文不得裸露 final_score、professional_score、flavor_acceptance 等评分字段名或 0.xxx 原始评分，必须转成高/中/低、优先/慎用/不建议等定性判断。"
+            "正文不得裸露 final_score、professional_score、flavor_acceptance 等字段名或0.xxx原始小数；产品研发/替代问题可展示换算后的整数百分制，并另列高/中/低、证据性质和评分依据。"
             "【核心结论】必须直接回答用户问题，不能写成“本次命中了哪些实体”。"
             "conclusion 必须包含【追问建议】，当体质、人群、方剂、原料、产品、剂型、风味、成本、合规或验证信息缺失时主动问清楚，并至少追问一次用户的风味/口味偏好。"
             "如果用户询问企业端方剂、方剂食品化或方剂替换，且图谱提供组成或剂量，必须列出药材和剂量；高风险个人端可以给辅助方向和筛选结论，但不能给家庭完整处方或儿童剂量，安全提醒放在风险与禁忌或证据边界。"
@@ -3026,9 +4042,9 @@ class QAOrchestrator:
             f"{compose_constraints_block(question_type, qa_route)}\n"
             "流式回答模式下，只输出可直接展示给用户的自然语言正文。\n"
             "正文必须按任务分流、核心信息检查、KB 路由、风险/合规边界、回答与追问的顺序组织，先给专家判断，不要只罗列图谱命中结果。\n"
-            "正文不要高频复读“知识图谱中检索到/图谱提供/图谱未提供”；只在关键边界处说明缺少哪类数据。\n"
+            "正文禁止出现“知识图谱中检索到/图谱提供/图谱未提供/知识库尚不支持/知识库未提供/未命中/没有检索到”等系统视角措辞；待验证项必须转成专业行动建议。\n"
             "正文 Markdown 只允许【】小标题、标准编号列表和 - 无序列表；禁止 **标题**、***标题*** 或多星号层级。\n"
-            "正文不得裸露 0.xxx 原始评分或 final_score、professional_score、flavor_acceptance 等字段名，评分要转成高/中/低、优先/慎用/不建议。\n"
+            "正文不得裸露0.xxx原始小数或 final_score、professional_score、flavor_acceptance 等字段名；产品研发/替代问题可展示换算后的整数百分制，并另列高/中/低、证据性质和评分依据。\n"
             "正文必须包含【追问建议】，用具体问题补齐缺失的体质、人群、方剂、原料、产品、剂型、风味、成本、合规或验证信息；其中至少一问要询问用户偏好的口味方向，以及是否需要避开苦味、涩感或药味。\n"
             "若需要过程说明，只能写成图谱检索与证据整理摘要，不要讨论提示词、系统设定、字段名、JSON 或格式冲突。"
         )
@@ -3085,6 +4101,7 @@ class QAOrchestrator:
         cleaned = self.llm_client._remove_think_blocks(raw)
         cleaned = self.llm_client._sanitize_reasoning_text(cleaned)
         cleaned = self._remove_internal_leak_lines(cleaned)
+        cleaned = self._professionalize_gap_language(cleaned)
         cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
         if not cleaned:
             return ""
@@ -3127,12 +4144,25 @@ class QAOrchestrator:
             return True
         return False
 
+    def _resolve_refined_route(self, question: str, refined_question_type: str) -> QARoute:
+        explicit_route = self.route_resolver.resolve(question)
+        if explicit_route.question_type == refined_question_type:
+            return explicit_route
+        return self.route_resolver.resolve(question, fallback_question_type=refined_question_type)
+
     @staticmethod
     def _should_skip_broad_entity_resolution(qa_route: str | None) -> bool:
         """Routes with their own recommendation queries should not scan the full graph for every n-gram."""
         return qa_route in {"risk_boundary"}
 
-    def _finalize_answer_payload(self, payload: dict, question_type: str, qa_route: str | None = None) -> dict:
+    def _finalize_answer_payload(
+        self,
+        payload: dict,
+        question_type: str,
+        qa_route: str | None = None,
+        *,
+        graph: dict | None = None,
+    ) -> dict:
         result = dict(payload)
         follow_ups = result.get("follow_up_questions", [])
         if isinstance(follow_ups, str):
@@ -3159,16 +4189,24 @@ class QAOrchestrator:
                 structured_conclusion,
                 qa_route,
             )
+            structured_conclusion = self._append_follow_up_section(
+                structured_conclusion,
+                result["follow_up_questions"],
+            )
+            structured_conclusion = enforce_conclusion_structure(
+                structured_conclusion,
+                question_type,
+                qa_route,
+            )
             result["conclusion"] = self._sanitize_user_facing_answer_text(
-                self._append_follow_up_section(
-                    structured_conclusion,
-                    result["follow_up_questions"],
-                )
+                structured_conclusion
             )
         evidence = result.get("evidence_summary", "")
         if isinstance(evidence, str) and isinstance(conclusion, str):
             result["evidence_summary"] = self._dedupe_evidence_summary(
-                self._remove_internal_leak_lines(evidence),
+                self._sanitize_user_facing_answer_text(
+                    self._remove_internal_leak_lines(evidence),
+                ),
                 result["conclusion"],
             )
         cautions = result.get("cautions", "")
@@ -3179,7 +4217,99 @@ class QAOrchestrator:
                     result["conclusion"],
                 )
             )
+        if qa_route == "product_development":
+            route = self.route_resolver.by_key(qa_route)
+            required_sections = route.answer_outline if route else []
+            conclusion_text = result.get("conclusion", "")
+            if any(f"【{title}】" not in conclusion_text for title in required_sections):
+                result["_fallback"] = True
+            grounding_errors = self._product_development_grounding_errors(
+                conclusion_text,
+                graph or {},
+            )
+            if grounding_errors:
+                logger.warning(
+                    "Product-development answer failed graph grounding: %s",
+                    "; ".join(grounding_errors),
+                )
+                result["_fallback"] = True
         return result
+
+    def _product_development_grounding_errors(self, conclusion: str, graph: dict) -> list[str]:
+        if not graph:
+            return []
+        provenance = self._build_formula_provenance_context(graph)
+        prototypes = provenance.get("formula_prototypes") or []
+        if not prototypes:
+            return ["missing formula prototype evidence"]
+
+        primary = prototypes[0]
+        formula_name = str(primary.get("formula_name") or "").strip()
+        provenance_section = self._answer_section_body(conclusion, "名方溯源与借鉴")
+        adjustment_section = self._answer_section_body(conclusion, "配方调整与替换依据")
+        errors: list[str] = []
+
+        if not formula_name or formula_name not in provenance_section:
+            errors.append("primary formula name mismatch")
+        sources = [str(item).strip() for item in (primary.get("sources") or []) if str(item).strip()]
+        if sources and not any(source in provenance_section for source in sources):
+            errors.append("formula source mismatch")
+        evidence_type = str(primary.get("evidence_type") or "").strip()
+        if evidence_type and evidence_type not in provenance_section:
+            errors.append("formula evidence type missing")
+        match_score = primary.get("prototype_match_score_100")
+        if match_score is not None and f"{match_score}/100" not in provenance_section:
+            errors.append("formula match score missing")
+
+        for action in ("保留", "替换", "新增", "删除"):
+            if action not in adjustment_section:
+                errors.append(f"adjustment action missing: {action}")
+        replacement_options = provenance.get("replacement_options") or []
+        if replacement_options:
+            if "KB4原始分" not in adjustment_section:
+                errors.append("KB4 original score missing")
+            if "系统综合可信度" not in adjustment_section:
+                errors.append("composite confidence missing")
+
+        allowed_pairs = {
+            (
+                str(item.get("source_herb") or "").strip(),
+                str(item.get("target_herb") or "").strip(),
+            )
+            for item in replacement_options
+            if item.get("source_herb") and item.get("target_herb")
+        }
+        for source_name, target_name in re.findall(
+            r"([\u4e00-\u9fff]{1,12})\s*(?:→|->|⇒)\s*([\u4e00-\u9fff]{1,12})",
+            conclusion or "",
+        ):
+            if (source_name, target_name) not in allowed_pairs:
+                errors.append(f"unsupported replacement: {source_name}->{target_name}")
+
+        for marker in ("名方原型", "参考原型"):
+            start = 0
+            while True:
+                marker_index = (conclusion or "").find(marker, start)
+                if marker_index < 0:
+                    break
+                window = conclusion[max(0, marker_index - 30): marker_index + len(marker) + 20]
+                if formula_name and formula_name not in window:
+                    errors.append(f"formula alias mismatch near {marker}")
+                    break
+                start = marker_index + len(marker)
+        return list(dict.fromkeys(errors))
+
+    @staticmethod
+    def _answer_section_body(conclusion: str, title: str) -> str:
+        marker = f"【{title}】"
+        text = conclusion or ""
+        start = text.find(marker)
+        if start < 0:
+            return ""
+        body_start = start + len(marker)
+        next_section = re.search(r"\n\s*【[^】]+】", text[body_start:])
+        body_end = body_start + next_section.start() if next_section else len(text)
+        return text[body_start:body_end].strip()
 
     @staticmethod
     def _rebalance_risk_boundary_conclusion(conclusion: str, qa_route: str | None = None) -> str:
@@ -3441,7 +4571,7 @@ class QAOrchestrator:
         )
         lines = self._format_flavor_population_lines(context)
         if not lines:
-            lines = ["图谱未提供足够的 KB3 风味评价或目标人群/体质画像，建议补充剂型、口味偏好和目标人群后再判断。"]
+            lines = ["建议补充剂型、口味偏好和目标人群信息，并通过 KB3 感官小试与人群验证进一步确认。"]
         payload["conclusion"] = self._merge_text_blocks(
             conclusion,
             "【风味与人群适配】\n" + "\n".join(lines),

@@ -41,7 +41,7 @@ export const api = {
   sendQuestion: (sessionId, question) =>
     client.post(`/chat/sessions/${sessionId}/messages`, { question }),
   sendQuestionStream(sessionId, question, callbacks) {
-    const { onToken, onThink, onEvidence, onGraph, onDone, onError } = callbacks;
+    const { onToken, onThink, onAnswerReset, onEvidence, onGraph, onDone, onError } = callbacks;
     return fetch(`/api/chat/sessions/${sessionId}/messages/stream`, {
       method: "POST",
       headers: {
@@ -68,6 +68,7 @@ export const api = {
             const data = JSON.parse(ev.data || "{}");
             if (ev.event === "token") onToken(data);
             else if (ev.event === "think") onThink && onThink(data);
+            else if (ev.event === "answer_reset") onAnswerReset && onAnswerReset(data);
             else if (ev.event === "evidence") onEvidence(data);
             else if (ev.event === "graph") onGraph(data);
             else if (ev.event === "done") {

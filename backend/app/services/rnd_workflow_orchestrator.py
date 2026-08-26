@@ -507,7 +507,7 @@ class RnDWorkflowOrchestrator:
             value = snapshot.get(key)
             if value is not None and value != "":
                 parts.append(f"{label}:{value}")
-        return "；".join(parts) if parts else "图谱未提供明确风味字段"
+        return "；".join(parts) if parts else "建议通过感官小试确认风味特征"
 
     @staticmethod
     def _population_fit_note(entity: dict[str, Any]) -> str:
@@ -609,7 +609,7 @@ class RnDWorkflowOrchestrator:
                         "name": herb.get("name"),
                         "herb_key": herb.get("name"),
                         "role": role,
-                        "dose_range": herb.get("dosage") or "图谱未提供剂量",
+                        "dose_range": herb.get("dosage") or "剂量待结合原方出处与专业规范核定",
                         "rationale": "KB5 原方组成，需经 KB1 合法性判断和 KB4 单味替代复核",
                     }
                 )
@@ -646,7 +646,7 @@ class RnDWorkflowOrchestrator:
                     ),
                     "ingredients": ingredients,
                     "classic_reference": (
-                        f"KB5 原方：{original_formula.get('formula_name')}；来源：{'、'.join(original_formula.get('sources', [])) or '图谱未提供来源'}。"
+                        f"KB5 原方：{original_formula.get('formula_name')}；来源：{'、'.join(original_formula.get('sources', [])) or '建议在定稿前核对原方文献'}。"
                         if original_formula
                         else "基于图谱候选药食同源药材组合，建议参照经典名方进一步优化配伍。"
                     ),
@@ -914,7 +914,7 @@ class RnDWorkflowOrchestrator:
             first_context = kb5_contexts[0]
             kb5_text = (
                 f"KB5 原方依据：{first_context.get('formula_name')}；"
-                f"来源：{'、'.join(first_context.get('sources', [])) or '图谱未提供来源'}。"
+                f"来源：{'、'.join(first_context.get('sources', [])) or '建议在定稿前核对原方文献'}。"
             )
 
         recommendation = (

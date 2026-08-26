@@ -25,6 +25,24 @@ class GraphRetriever:
             return template_key, self._finalize_graph(graph, selected_entities), selected_entities
         if template_key == "product_recommendation":
             graph = self._retrieve_recommendation_graph(question, template_key, qa_route=qa_route)
+            if qa_route == "product_development":
+                for entity in selected_entities[:2]:
+                    if entity.get("entity_type") != "Herb":
+                        continue
+                    herb_graph = self.neo4j_repository.retrieve_graph_for_entity(entity, "product_development")
+                    graph = self._merge_graphs(graph, herb_graph)
+                flavor_retriever = getattr(
+                    self.neo4j_repository,
+                    "retrieve_product_flavor_candidate_graph",
+                    None,
+                )
+                if callable(flavor_retriever):
+                    graph = self._merge_graphs(graph, flavor_retriever(question))
+                graph = self._augment_product_development_provenance(
+                    question,
+                    selected_entities,
+                    graph,
+                )
             graph = self._attach_question_node(question, graph, selected_entities)
             return template_key, self._finalize_graph(graph, selected_entities), selected_entities
         if selected_entities:
@@ -63,6 +81,17 @@ class GraphRetriever:
             ),
         )
 
+        if qa_route == "product_development":
+            explicit_herbs = [
+                entity
+                for entity in ranked
+                if entity.get("entity_type") == "Herb"
+                and (entity.get("name") or "").strip()
+                and (entity.get("name") or "").strip() in question
+            ]
+            if explicit_herbs:
+                return explicit_herbs[:4]
+
         selected: list[dict] = []
         seen_ids: set[str] = set()
         seen_names: set[tuple[str, str]] = set()
@@ -99,6 +128,8 @@ class GraphRetriever:
         expand_terms = getattr(self.neo4j_repository, "_expand_recommendation_terms", None)
         terms = expand_terms(question, scene, qa_route=qa_route) if callable(expand_terms) else [question]
         if scene == "product_recommendation":
+            if qa_route == "product_development":
+                return self._retrieve_product_development_audience_graph(terms)
             query = """
 CALL () {
     MATCH (p:Product)
@@ -395,6 +426,246 @@ LIMIT 260
             for token in ["\u4f53\u8d28", "\u91cf\u8868", "\u95ee\u5377", "\u6d4b\u8bd5", "\u6d4b\u8bc4"]
         )
         return self.neo4j_repository.retrieve_graph(query, {"terms": terms, "allow_fallback": allow_fallback, "entity_id": None})
+
+    def _retrieve_product_development_audience_graph(self, terms: list[str]) -> dict:
+        query = """
+CALL () {
+    MATCH (cp:ConsumerProfile)
+    WITH cp, [term IN $terms WHERE term <> ''] AS terms
+    WITH
+        cp,
+        reduce(score = 0, term IN terms |
+            score
+            + CASE WHEN coalesce(cp.crowd_type, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cp.core_need, '') CONTAINS term THEN 7 ELSE 0 END
+            + CASE WHEN coalesce(cp.preferred_dosage, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cp.preferred_flavor, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cp.disliked_flavor, '') CONTAINS term THEN 7 ELSE 0 END
+            + CASE WHEN coalesce(cp.primary_age_group, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cp.effect_category, '') CONTAINS term THEN 6 ELSE 0 END
+        ) AS score
+    WHERE score > 0
+    WITH cp, score
+    ORDER BY score DESC, coalesce(cp.positive_rate, 0) DESC, coalesce(cp.review_count, 0) DESC
+    LIMIT 4
+    RETURN cp AS n, null AS r, null AS m, null AS r2, null AS n2, score
+
+UNION ALL
+
+    MATCH (cs:ConsumerSegment)
+    WITH cs, [term IN $terms WHERE term <> ''] AS terms
+    WITH
+        cs,
+        reduce(score = 0, term IN terms |
+            score
+            + CASE WHEN coalesce(cs.segment_label, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cs.crowd_tags, '') CONTAINS term THEN 7 ELSE 0 END
+            + CASE WHEN coalesce(cs.scenario_tags, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cs.effect_tags, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cs.top_flavor_tags, '') CONTAINS term THEN 8 ELSE 0 END
+            + CASE WHEN coalesce(cs.top_dosage_tags, '') CONTAINS term THEN 6 ELSE 0 END
+            + CASE WHEN coalesce(cs.top_complaint_tags, '') CONTAINS term THEN 6 ELSE 0 END
+        ) AS score
+    WHERE score > 0
+    WITH cs, score
+    ORDER BY score DESC, coalesce(cs.positive_rate, 0) DESC, coalesce(cs.review_count, 0) DESC
+    LIMIT 3
+    RETURN cs AS n, null AS r, null AS m, null AS r2, null AS n2, score
+}
+RETURN n, r, m, r2, n2
+ORDER BY score DESC
+"""
+        return self.neo4j_repository.retrieve_graph(query, {"terms": terms, "entity_id": None})
+
+    def _augment_product_development_provenance(
+        self,
+        question: str,
+        selected_entities: list[dict],
+        graph: dict,
+    ) -> dict:
+        core_herb_names = [
+            str(entity.get("name") or entity.get("id") or "").strip()
+            for entity in selected_entities
+            if entity.get("entity_type") == "Herb"
+            and str(entity.get("name") or entity.get("id") or "").strip()
+        ]
+        prototype_finder = getattr(self.neo4j_repository, "find_formula_prototypes", None)
+        formula_graph_retriever = getattr(self.neo4j_repository, "retrieve_formula_graph", None)
+        if not callable(prototype_finder) or not callable(formula_graph_retriever):
+            return graph
+
+        effect_terms = list(
+            dict.fromkeys(
+                self._formula_prototype_effect_terms(graph, selected_entities)
+                + self._formula_prototype_question_terms(question)
+            )
+        )
+        audience_terms = self._formula_prototype_audience_terms(question)
+        if not core_herb_names and not effect_terms and not audience_terms:
+            return graph
+
+        prototypes = prototype_finder(
+            core_herb_names,
+            effect_terms,
+            audience_terms,
+            wants_sour="酸" in (question or ""),
+            wants_sweet=any(token in (question or "") for token in ("甜", "甘")),
+            limit=3,
+        )
+        if not prototypes:
+            return graph
+
+        prototype_graph = formula_graph_retriever(
+            [str(item.get("formula_name") or "") for item in prototypes]
+        )
+        prototype_map = {
+            str(item.get("formula_name") or ""): item
+            for item in prototypes
+            if item.get("formula_name")
+        }
+        for node in prototype_graph.get("nodes", []):
+            if node.get("type") != "Formula":
+                continue
+            metadata = prototype_map.get(str(node.get("label") or node.get("id") or ""))
+            if not metadata:
+                continue
+            props = node.setdefault("props", {})
+            props.update(
+                {
+                    "prototype_rank": metadata.get("rank"),
+                    "prototype_match_score": metadata.get("match_score"),
+                    "prototype_match_type": metadata.get("match_type"),
+                    "prototype_evidence_type": metadata.get("evidence_type"),
+                    "prototype_match_reasons": metadata.get("match_reasons") or [],
+                    "prototype_sources": metadata.get("sources") or [],
+                    "prototype_core_matches": metadata.get("core_matches") or [],
+                    "prototype_effect_hits": metadata.get("effect_hits") or [],
+                    "prototype_audience_hits": metadata.get("audience_hits") or [],
+                }
+            )
+            node["score"] = max(float(node.get("score") or 0), float(metadata.get("match_score") or 0))
+        graph = self._merge_graphs(graph, prototype_graph)
+
+        primary_ingredients = [
+            str(item.get("name") or "").strip()
+            for item in (prototypes[0].get("ingredients") or [])
+            if str(item.get("name") or "").strip()
+        ]
+        replacement_retriever = getattr(self.neo4j_repository, "retrieve_replacement_graph", None)
+        if callable(replacement_retriever):
+            replacement_sources = list(
+                dict.fromkeys((core_herb_names + primary_ingredients)[:12])
+            )
+            graph = self._merge_graphs(
+                graph,
+                replacement_retriever(replacement_sources, limit_per_source=3),
+            )
+        return graph
+
+    @staticmethod
+    def _formula_prototype_effect_terms(graph: dict, selected_entities: list[dict]) -> list[str]:
+        selected_ids = {
+            str(entity.get("id"))
+            for entity in selected_entities
+            if entity.get("entity_type") == "Herb" and entity.get("id")
+        }
+        node_lookup = {str(node.get("id")): node for node in graph.get("nodes", [])}
+        terms: list[str] = []
+
+        def add(value: object) -> None:
+            text = str(value or "").strip()
+            if len(text) >= 2 and text not in terms:
+                terms.append(text)
+
+        for entity in selected_entities:
+            if entity.get("entity_type") != "Herb":
+                continue
+            props = entity.get("props", {}) or {}
+            add(props.get("effect_level2"))
+            for part in GraphRetriever._split_terms(props.get("efficacy")):
+                add(part)
+
+        for edge in graph.get("edges", []):
+            if edge.get("type") != "HAS_EFFECT":
+                continue
+            source = node_lookup.get(str(edge.get("source")), {})
+            target = node_lookup.get(str(edge.get("target")), {})
+            if str(source.get("id")) in selected_ids and target.get("type") == "Effect":
+                add(target.get("label"))
+            elif str(target.get("id")) in selected_ids and source.get("type") == "Effect":
+                add(source.get("label"))
+
+        synonym_rules = {
+            "补气": ("补气", "益气", "元气"),
+            "益气": ("补气", "益气", "元气"),
+            "生津": ("生津", "养阴"),
+            "安神": ("安神", "养心"),
+            "养血": ("养血", "补血"),
+            "健脾": ("健脾", "补脾"),
+            "祛湿": ("祛湿", "利湿"),
+        }
+        joined = "、".join(terms)
+        for hint, aliases in synonym_rules.items():
+            if hint in joined:
+                for alias in aliases:
+                    add(alias)
+        return terms[:16]
+
+    @staticmethod
+    def _formula_prototype_question_terms(question: str) -> list[str]:
+        compact = question or ""
+        mappings = (
+            (
+                ("睡眠", "助眠", "失眠", "不寐", "多梦", "入睡", "夜寐"),
+                ("睡眠", "睡眠不安", "失眠", "不寐", "安神", "养心"),
+            ),
+            (("疲劳", "乏力", "熬夜"), ("疲劳", "补气", "益气")),
+            (("护肝", "养肝"), ("护肝", "养肝", "疏肝")),
+            (("祛湿", "湿气"), ("祛湿", "利湿", "健脾")),
+        )
+        terms: list[str] = []
+        for triggers, aliases in mappings:
+            if not any(trigger in compact for trigger in triggers):
+                continue
+            for alias in aliases:
+                if alias not in terms:
+                    terms.append(alias)
+        return terms
+
+    @staticmethod
+    def _formula_prototype_audience_terms(question: str) -> list[str]:
+        compact = question or ""
+        mapping = {
+            "老年": ("老年", "中老年", "老人"),
+            "老人": ("老年", "中老年", "老人"),
+            "中老年": ("老年", "中老年", "老人"),
+            "女性": ("女性", "妇女"),
+            "青少年": ("青少年", "儿童", "学生"),
+            "儿童": ("儿童", "小儿"),
+            "孕妇": ("孕妇", "孕期"),
+            "熬夜": ("熬夜", "疲劳", "失眠"),
+        }
+        terms: list[str] = []
+        for hint, aliases in mapping.items():
+            if hint not in compact:
+                continue
+            for alias in aliases:
+                if alias not in terms:
+                    terms.append(alias)
+        if "60岁" in compact:
+            for alias in ("老年", "中老年", "老人"):
+                if alias not in terms:
+                    terms.append(alias)
+        return terms
+
+    @staticmethod
+    def _split_terms(value: object) -> list[str]:
+        text = str(value or "").strip()
+        if not text:
+            return []
+        for separator in ("，", ",", "；", ";", "、", "/", "|"):
+            text = text.replace(separator, "\n")
+        return [part.strip() for part in text.splitlines() if len(part.strip()) >= 2]
 
     def _retrieve_constitution_scale_graph(self) -> dict:
         query = """

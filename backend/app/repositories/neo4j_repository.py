@@ -38,6 +38,10 @@ class Neo4jRepository:
         with self.driver.session() as session:
             return bool(session.run("RETURN 1 AS ok").single())
 
+    @staticmethod
+    def _empty_graph() -> dict[str, list]:
+        return {"nodes": [], "edges": [], "focus_paths": []}
+
     def label_counts(self) -> list[dict[str, Any]]:
         query = """
 MATCH (n)
@@ -553,94 +557,84 @@ ORDER BY ct.constitution_type_name
             rows = session.run(query, {"names": clean_names})
             return [dict(record) for record in rows]
 
+    def find_herbs_exact(self, names: list[str]) -> list[dict[str, Any]]:
+        clean_names = [name.strip() for name in names if name and name.strip()]
+        if not clean_names:
+            return []
+        query = """
+UNWIND range(0, size($names) - 1) AS position
+WITH position, $names[position] AS requested_name
+MATCH (h:Herb {herb_name: requested_name})
+RETURN h.herb_name AS id,
+       h.herb_name AS name,
+       'Herb' AS entity_type,
+       properties(h) AS props,
+       130 AS score,
+       [] AS aliases,
+       position
+ORDER BY position
+"""
+        with self.driver.session() as session:
+            rows = session.run(query, {"names": clean_names})
+            return [
+                {key: value for key, value in dict(record).items() if key != "position"}
+                for record in rows
+            ]
+
     def get_entity(self, entity_id: str) -> dict[str, Any] | None:
         query = """
-CALL {
+CALL () {
     MATCH (h:Herb {herb_name: $entity_id})
     RETURN h.herb_name AS id, 'Herb' AS entity_type, properties(h) AS props
-}
 UNION ALL
-CALL {
     MATCH (e:Effect {effect_name: $entity_id})
     RETURN e.effect_name AS id, 'Effect' AS entity_type, properties(e) AS props
-}
 UNION ALL
-CALL {
     MATCH (f:Flavor {flavor_name: $entity_id})
     RETURN f.flavor_name AS id, 'Flavor' AS entity_type, properties(f) AS props
-}
 UNION ALL
-CALL {
     MATCH (f:Formula {formula_name: $entity_id})
     RETURN f.formula_name AS id, 'Formula' AS entity_type, properties(f) AS props
-}
 UNION ALL
-CALL {
     MATCH (s:Symptom {symptom_name: $entity_id})
     RETURN s.symptom_name AS id, 'Symptom' AS entity_type, properties(s) AS props
-}
 UNION ALL
-CALL {
     MATCH (t:Taboo {taboo_name: $entity_id})
     RETURN t.taboo_name AS id, 'Taboo' AS entity_type, properties(t) AS props
-}
 UNION ALL
-CALL {
     MATCH (s:Source {source_name: $entity_id})
     RETURN s.source_name AS id, 'Source' AS entity_type, properties(s) AS props
-}
 UNION ALL
-CALL {
     MATCH (n:NatureFlavor {nature_flavor_name: $entity_id})
     RETURN n.nature_flavor_name AS id, 'NatureFlavor' AS entity_type, properties(n) AS props
-}
 UNION ALL
-CALL {
     MATCH (m:Meridian {meridian_name: $entity_id})
     RETURN m.meridian_name AS id, 'Meridian' AS entity_type, properties(m) AS props
-}
 UNION ALL
-CALL {
     MATCH (ec:EffectCategory {effect_category_name: $entity_id})
     RETURN ec.effect_category_name AS id, 'EffectCategory' AS entity_type, properties(ec) AS props
-}
 UNION ALL
-CALL {
     MATCH (p:Product {product_id: $entity_id})
     RETURN p.product_id AS id, 'Product' AS entity_type, properties(p) AS props
-}
 UNION ALL
-CALL {
     MATCH (cp:ConsumerProfile {profile_id: $entity_id})
     RETURN cp.profile_id AS id, 'ConsumerProfile' AS entity_type, properties(cp) AS props
-}
 UNION ALL
-CALL {
     MATCH (cs:ConsumerSegment {segment_key: $entity_id})
     RETURN cs.segment_key AS id, 'ConsumerSegment' AS entity_type, properties(cs) AS props
-}
 UNION ALL
-CALL {
     MATCH (rv:ConsumerReview {review_id: $entity_id})
     RETURN rv.review_id AS id, 'ConsumerReview' AS entity_type, properties(rv) AS props
-}
 UNION ALL
-CALL {
     MATCH (ct:ConstitutionType {constitution_type_name: $entity_id})
     RETURN ct.constitution_type_name AS id, 'ConstitutionType' AS entity_type, properties(ct) AS props
-}
 UNION ALL
-CALL {
     MATCH (cq:ConstitutionQuestion {question_code: $entity_id})
     RETURN cq.question_code AS id, 'ConstitutionQuestion' AS entity_type, properties(cq) AS props
-}
 UNION ALL
-CALL {
     MATCH (cr:ComplianceRule {rule_id: $entity_id})
     RETURN cr.rule_id AS id, 'ComplianceRule' AS entity_type, properties(cr) AS props
-}
 UNION ALL
-CALL {
     MATCH (re:RiskExpression {expression: $entity_id})
     RETURN re.expression AS id, 'RiskExpression' AS entity_type, properties(re) AS props
 }
@@ -921,6 +915,299 @@ RETURN
             rows = session.run(query, {"terms": terms, "limit": limit})
             return [dict(record) for record in rows]
 
+    def find_formula_prototypes(
+        self,
+        core_herb_names: list[str],
+        effect_terms: list[str],
+        audience_terms: list[str],
+        *,
+        wants_sour: bool = False,
+        wants_sweet: bool = False,
+        limit: int = 3,
+    ) -> list[dict[str, Any]]:
+        core_names = list(dict.fromkeys(name.strip() for name in core_herb_names if name and name.strip()))
+        effects = list(dict.fromkeys(term.strip() for term in effect_terms if term and term.strip()))
+        audiences = list(dict.fromkeys(term.strip() for term in audience_terms if term and term.strip()))
+        if not core_names and not effects and not audiences:
+            return []
+
+        direct_query = """
+MATCH (core:Herb)-[:IN_FORMULA]->(f:Formula)
+WHERE core.herb_name IN $core_names
+WITH f, collect(DISTINCT core.herb_name) AS core_matches
+OPTIONAL MATCH (ingredient:Herb)-[ingredientRel:IN_FORMULA]->(f)
+WITH
+    f,
+    core_matches,
+    collect(DISTINCT ingredient) AS ingredient_nodes,
+    collect(DISTINCT {
+        name: ingredient.herb_name,
+        role: ingredientRel.role,
+        dosage: ingredientRel.dosage
+    }) AS ingredients
+OPTIONAL MATCH (f)-[roleRel:MONARCH_HERB|MINISTER_HERB|ASSISTANT_HERB|GUIDE_HERB]->(roleHerb:Herb)
+WITH
+    f,
+    core_matches,
+    ingredient_nodes,
+    ingredients,
+    collect(DISTINCT {
+        name: roleHerb.herb_name,
+        role_relation: type(roleRel)
+    }) AS role_herbs
+OPTIONAL MATCH (f)-[:FROM_SOURCE]->(src:Source)
+WITH
+    f,
+    core_matches,
+    ingredient_nodes,
+    ingredients,
+    role_herbs,
+    collect(DISTINCT src.source_name) AS sources,
+    [term IN $effect_terms
+        WHERE coalesce(f.efficacy, '') CONTAINS term
+           OR coalesce(f.crowd, '') CONTAINS term] AS effect_hits,
+    [term IN $audience_terms
+        WHERE coalesce(f.crowd, '') CONTAINS term
+           OR coalesce(f.efficacy, '') CONTAINS term] AS audience_hits
+WITH
+    f,
+    core_matches,
+    ingredient_nodes,
+    ingredients,
+    role_herbs,
+    [source IN sources WHERE source IS NOT NULL] AS sources,
+    effect_hits,
+    audience_hits,
+    any(item IN ingredient_nodes WHERE coalesce(item.sour_contribution, 0) >= 0.5) AS sour_match,
+    any(item IN ingredient_nodes WHERE coalesce(item.sweet_contribution, 0) >= 0.7) AS sweet_match,
+    any(item IN role_herbs
+        WHERE item.name IN $core_names AND item.role_relation = 'MONARCH_HERB') AS core_is_monarch
+WITH
+    f,
+    core_matches,
+    ingredients,
+    role_herbs,
+    sources,
+    effect_hits,
+    audience_hits,
+    sour_match,
+    sweet_match,
+    core_is_monarch,
+    40
+    + size(core_matches) * 6
+    + size(effect_hits) * 9
+    + size(audience_hits) * 5
+    + CASE WHEN size(sources) > 0 OR coalesce(f.source, '') <> '' THEN 5 ELSE 0 END
+    + CASE WHEN $wants_sour AND sour_match THEN 8 ELSE 0 END
+    + CASE WHEN $wants_sweet AND sweet_match THEN 6 ELSE 0 END
+    + CASE WHEN core_is_monarch THEN 6 ELSE 0 END
+    + CASE
+        WHEN size([item IN ingredients WHERE item.name IS NOT NULL]) >= 2
+         AND size([item IN ingredients WHERE item.name IS NOT NULL]) <= 6 THEN 8
+        WHEN size([item IN ingredients WHERE item.name IS NOT NULL]) >= 7
+         AND size([item IN ingredients WHERE item.name IS NOT NULL]) <= 10 THEN 4
+        ELSE 0
+      END AS match_score
+RETURN
+    f.formula_name AS formula_name,
+    properties(f) AS props,
+    [item IN ingredients WHERE item.name IS NOT NULL] AS ingredients,
+    [item IN role_herbs WHERE item.name IS NOT NULL] AS role_herbs,
+    sources,
+    core_matches,
+    effect_hits,
+    audience_hits,
+    sour_match,
+    sweet_match,
+    core_is_monarch,
+    match_score
+ORDER BY match_score DESC, size(effect_hits) DESC, size(audience_hits) DESC, f.formula_name
+LIMIT $limit
+"""
+        inferred_query = """
+MATCH (f:Formula)
+OPTIONAL MATCH (ingredient:Herb)-[ingredientRel:IN_FORMULA]->(f)
+WITH
+    f,
+    collect(DISTINCT ingredient) AS ingredient_nodes,
+    collect(DISTINCT {
+        name: ingredient.herb_name,
+        role: ingredientRel.role,
+        dosage: ingredientRel.dosage
+    }) AS ingredients
+OPTIONAL MATCH (f)-[roleRel:MONARCH_HERB|MINISTER_HERB|ASSISTANT_HERB|GUIDE_HERB]->(roleHerb:Herb)
+WITH
+    f,
+    ingredient_nodes,
+    ingredients,
+    collect(DISTINCT {
+        name: roleHerb.herb_name,
+        role_relation: type(roleRel)
+    }) AS role_herbs
+OPTIONAL MATCH (f)-[:FROM_SOURCE]->(src:Source)
+WITH
+    f,
+    ingredient_nodes,
+    ingredients,
+    role_herbs,
+    collect(DISTINCT src.source_name) AS sources,
+    [term IN $effect_terms
+        WHERE coalesce(f.efficacy, '') CONTAINS term
+           OR coalesce(f.crowd, '') CONTAINS term] AS effect_hits,
+    [term IN $audience_terms
+        WHERE coalesce(f.crowd, '') CONTAINS term
+           OR coalesce(f.efficacy, '') CONTAINS term] AS audience_hits
+WHERE size(effect_hits) > 0 OR size(audience_hits) > 0
+WITH
+    f,
+    ingredient_nodes,
+    ingredients,
+    role_herbs,
+    [source IN sources WHERE source IS NOT NULL] AS sources,
+    effect_hits,
+    audience_hits,
+    any(item IN ingredient_nodes WHERE coalesce(item.sour_contribution, 0) >= 0.5) AS sour_match,
+    any(item IN ingredient_nodes WHERE coalesce(item.sweet_contribution, 0) >= 0.7) AS sweet_match
+WITH
+    f,
+    ingredients,
+    role_herbs,
+    sources,
+    effect_hits,
+    audience_hits,
+    sour_match,
+    sweet_match,
+    size(effect_hits) * 10
+    + size(audience_hits) * 6
+    + CASE WHEN size(sources) > 0 OR coalesce(f.source, '') <> '' THEN 5 ELSE 0 END
+    + CASE WHEN $wants_sour AND sour_match THEN 8 ELSE 0 END
+    + CASE WHEN $wants_sweet AND sweet_match THEN 6 ELSE 0 END
+    + CASE
+        WHEN size([item IN ingredients WHERE item.name IS NOT NULL]) >= 2
+         AND size([item IN ingredients WHERE item.name IS NOT NULL]) <= 6 THEN 8
+        WHEN size([item IN ingredients WHERE item.name IS NOT NULL]) >= 7
+         AND size([item IN ingredients WHERE item.name IS NOT NULL]) <= 10 THEN 4
+        ELSE 0
+      END AS match_score
+RETURN
+    f.formula_name AS formula_name,
+    properties(f) AS props,
+    [item IN ingredients WHERE item.name IS NOT NULL] AS ingredients,
+    [item IN role_herbs WHERE item.name IS NOT NULL] AS role_herbs,
+    sources,
+    [] AS core_matches,
+    effect_hits,
+    audience_hits,
+    sour_match,
+    sweet_match,
+    false AS core_is_monarch,
+    match_score
+ORDER BY match_score DESC, size(effect_hits) DESC, size(audience_hits) DESC, f.formula_name
+LIMIT $limit
+"""
+        params = {
+            "core_names": core_names,
+            "effect_terms": effects,
+            "audience_terms": audiences,
+            "wants_sour": wants_sour,
+            "wants_sweet": wants_sweet,
+            "limit": max(1, limit),
+        }
+        with self.driver.session() as session:
+            rows = session.run(direct_query, params) if core_names else []
+            results = [dict(record) for record in rows]
+            match_type = "direct_core_herb"
+            if not results:
+                results = [dict(record) for record in session.run(inferred_query, params)]
+                match_type = "derived_similarity"
+
+        for rank, item in enumerate(results, start=1):
+            raw_score = float(item.get("match_score") or 0)
+            item["rank"] = rank
+            item["match_score"] = round(min(max(raw_score, 0), 100), 1)
+            item["match_type"] = match_type
+            item["evidence_type"] = (
+                "图谱直接证据"
+                if match_type == "direct_core_herb"
+                else "系统推导"
+            )
+            reasons: list[str] = []
+            if item.get("core_matches"):
+                reasons.append("核心原料直接见于原方")
+            if item.get("core_is_monarch"):
+                reasons.append("核心原料在原方中承担君药角色")
+            if item.get("effect_hits"):
+                reasons.append("功效匹配：" + "、".join(item["effect_hits"][:4]))
+            if item.get("audience_hits"):
+                reasons.append("人群/场景匹配：" + "、".join(item["audience_hits"][:3]))
+            if wants_sour and item.get("sour_match"):
+                reasons.append("原方含酸味贡献原料")
+            if wants_sweet and item.get("sweet_match"):
+                reasons.append("原方含甜味贡献原料")
+            if item.get("sources") or (item.get("props") or {}).get("source"):
+                reasons.append("原方出处可追溯")
+            item["match_reasons"] = reasons
+        return results
+
+    def retrieve_formula_graph(self, formula_names: list[str]) -> dict[str, Any]:
+        names = list(dict.fromkeys(name.strip() for name in formula_names if name and name.strip()))
+        if not names:
+            return self._empty_graph()
+        query = """
+CALL () {
+    MATCH (f:Formula)
+    WHERE f.formula_name IN $formula_names
+    OPTIONAL MATCH (ingredient:Herb)-[inRel:IN_FORMULA]->(f)
+    RETURN f AS n, inRel AS r, ingredient AS m, null AS r2, null AS n2
+
+    UNION ALL
+
+    MATCH (f:Formula)
+    WHERE f.formula_name IN $formula_names
+    OPTIONAL MATCH (f)-[outRel:FROM_SOURCE|MONARCH_HERB|MINISTER_HERB|ASSISTANT_HERB|GUIDE_HERB]->(related)
+    RETURN f AS n, outRel AS r, related AS m, null AS r2, null AS n2
+}
+RETURN n, r, m, r2, n2
+"""
+        return self.retrieve_graph(query, {"formula_names": names, "entity_id": names[0]})
+
+    def retrieve_replacement_graph(
+        self,
+        source_herb_names: list[str],
+        *,
+        limit_per_source: int = 3,
+    ) -> dict[str, Any]:
+        names = list(dict.fromkeys(name.strip() for name in source_herb_names if name and name.strip()))
+        if not names:
+            return self._empty_graph()
+        query = """
+UNWIND $source_names AS source_name
+MATCH (source:Herb {herb_name: source_name})-[rel:CAN_REPLACE]->(target:Herb)
+WHERE coalesce(rel.recommendation_status, '') <> '禁忌排除'
+  AND target.food_homology = '是'
+WITH source_name, source, rel, target
+ORDER BY
+    source_name,
+    coalesce(rel.rank, 999) ASC,
+    coalesce(rel.consumer_final_score, rel.final_score, 0) DESC
+WITH source_name, collect({source: source, rel: rel, target: target})[0..$limit_per_source] AS candidates
+UNWIND candidates AS candidate
+RETURN
+    candidate.source AS n,
+    candidate.rel AS r,
+    candidate.target AS m,
+    null AS r2,
+    null AS n2
+"""
+        return self.retrieve_graph(
+            query,
+            {
+                "source_names": names,
+                "limit_per_source": max(1, limit_per_source),
+                "entity_id": names[0],
+            },
+        )
+
     def get_replacement_candidates(self, herb_name: str, limit: int = 5) -> list[dict[str, Any]]:
         query = """
 MATCH (h:Herb {herb_name: $herb_name})-[r:CAN_REPLACE]->(target:Herb)
@@ -987,6 +1274,26 @@ OPTIONAL MATCH (n1)-[r2]-(n2)
 RETURN h AS n, r1 AS r, n1 AS m, r2, n2
 LIMIT 140
 """,
+            "product_development": """
+MATCH (h:Herb {herb_name: $entity_id})
+OPTIONAL MATCH (h)-[r1:HAS_EFFECT|BELONGS_TO_EFFECT_CATEGORY|TREATS|HAS_NATURE_FLAVOR|ENTERS_MERIDIAN|HAS_FLAVOR|HAS_TABOO|LISTED_IN_COMPLIANCE_RULE|RECOMMENDS_HERB|CAUTIONS_HERB|INCOMPATIBLE_WITH]-(n1)
+OPTIONAL MATCH (n1)-[r2:DERIVED_FROM_RULE]-(n2)
+RETURN h AS n, r1 AS r, n1 AS m, r2, n2
+LIMIT 180
+
+UNION ALL
+
+MATCH (h:Herb {herb_name: $entity_id})-[r1:BELONGS_TO_EFFECT_CATEGORY]->(ec:EffectCategory)<-[r2:BELONGS_TO_EFFECT_CATEGORY]-(candidate:Herb)
+WHERE candidate <> h
+  AND candidate.food_homology = '是'
+  AND NOT (h)-[:INCOMPATIBLE_WITH]-(candidate)
+WITH h, candidate, collect(DISTINCT ec) AS shared_categories
+ORDER BY size(shared_categories) DESC, coalesce(candidate.overall_flavor_acceptance, 0) DESC, candidate.herb_name
+LIMIT 6
+UNWIND shared_categories AS ec
+MATCH (h)-[r1:BELONGS_TO_EFFECT_CATEGORY]->(ec)<-[r2:BELONGS_TO_EFFECT_CATEGORY]-(candidate)
+RETURN h AS n, r1 AS r, ec AS m, r2, candidate AS n2
+""",
             "formula_relation": """
 MATCH (f:Formula {formula_name: $entity_id})
 OPTIONAL MATCH (f)-[r1]-(n1)
@@ -1020,11 +1327,43 @@ RETURN n, r1 AS r, n1 AS m, r2, n2
 LIMIT 140
 """,
         }
-        if scene == "herb_efficacy" and entity_type != "Herb":
+        if scene in {"herb_efficacy", "product_development"} and entity_type != "Herb":
             scene = "entity_explanation"
         if scene == "formula_relation" and entity_type != "Formula":
             scene = "entity_explanation"
         return self.retrieve_graph(queries.get(scene, queries["entity_explanation"]), {"entity_id": entity_id})
+
+    def retrieve_product_flavor_candidate_graph(self, question: str) -> dict[str, Any]:
+        wants_sour = "酸" in (question or "")
+        wants_sweet = any(token in (question or "") for token in ["甜", "甘"])
+        if not wants_sour and not wants_sweet:
+            return self._empty_graph()
+        query = """
+MATCH (h:Herb)
+WHERE h.food_homology = $food_homology
+  AND (
+    ($wants_sour AND coalesce(h.sour_contribution, 0) >= 0.5)
+    OR ($wants_sweet AND coalesce(h.sweet_contribution, 0) >= 0.7)
+  )
+WITH
+    h,
+    CASE WHEN $wants_sour THEN coalesce(h.sour_contribution, 0) ELSE 0 END
+    + CASE WHEN $wants_sweet THEN coalesce(h.sweet_contribution, 0) ELSE 0 END
+    + coalesce(h.overall_flavor_acceptance, 0) * 0.5
+    - coalesce(h.bitter_risk, 0) * 0.35 AS score
+ORDER BY score DESC, h.herb_name
+LIMIT 8
+RETURN h AS n, null AS r, null AS m, null AS r2, null AS n2
+"""
+        return self.retrieve_graph(
+            query,
+            {
+                "food_homology": "是",
+                "wants_sour": wants_sour,
+                "wants_sweet": wants_sweet,
+                "entity_id": None,
+            },
+        )
 
     def retrieve_recommendation_graph(self, question: str, scene: str) -> dict[str, Any]:
         terms = self._expand_recommendation_terms(question, scene)

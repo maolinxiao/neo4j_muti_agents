@@ -73,6 +73,22 @@ class EntityResolver:
             candidates = [question.strip()]
         return self.resolve_terms(candidates, preferred_types=preferred_types)
 
+    def resolve_product_core_ingredients(
+        self,
+        question: str,
+        preferred_types: list[str] | None = None,
+    ) -> list[dict]:
+        targets = self._extract_core_ingredient_targets(question)
+        if not targets:
+            return self.resolve(question, preferred_types=preferred_types)
+
+        exact_finder = getattr(self.neo4j_repository, "find_herbs_exact", None)
+        if callable(exact_finder):
+            exact_results = exact_finder(targets[:4])
+            if exact_results:
+                return exact_results
+        return self.resolve_terms(targets[:4], preferred_types=["Herb"])
+
     def resolve_terms(self, terms: list[str], preferred_types: list[str] | None = None) -> list[dict]:
         joined_terms = " ".join(terms or [])
         fast_results = self._resolve_fast_personal_constitution(joined_terms, preferred_types)
@@ -143,6 +159,8 @@ class EntityResolver:
         segments = [segment.strip() for segment in cleaned.split() if segment.strip()]
         candidates: list[str] = []
 
+        for target in self._extract_core_ingredient_targets(question):
+            self._append_candidate(candidates, target)
         self._append_candidate(candidates, question.strip())
         for target in self._extract_personal_risk_targets(question):
             self._append_candidate(candidates, target)
@@ -156,6 +174,20 @@ class EntityResolver:
                 self._append_candidate(candidates, piece)
 
         return candidates
+
+    def _extract_core_ingredient_targets(self, question: str) -> list[str]:
+        compact = re.sub(r"\s+", "", question or "")
+        patterns = [
+            r"(?:以|用)([A-Za-z0-9一-鿿·-]{2,12}?)(?:药材|原料|食材)为主",
+            r"(?:以|用)([A-Za-z0-9一-鿿·-]{2,12})为主",
+        ]
+        targets: list[str] = []
+        for pattern in patterns:
+            for match in re.findall(pattern, compact):
+                cleaned = re.sub(r"(?:药材|原料|食材)$", "", match.strip())
+                if cleaned and cleaned not in targets and not self._is_noise_candidate(cleaned):
+                    targets.append(cleaned)
+        return targets
 
     def _extract_personal_risk_targets(self, question: str) -> list[str]:
         compact = re.sub(r"\s+", "", question or "")

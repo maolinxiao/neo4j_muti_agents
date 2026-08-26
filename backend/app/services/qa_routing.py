@@ -79,6 +79,10 @@ class QARouteResolver:
         if high_risk_route:
             return high_risk_route
 
+        product_development_route = self._product_development_override(compact)
+        if product_development_route:
+            return product_development_route
+
         best_route: QARoute | None = None
         best_score = -1
         for route in self.routes:
@@ -297,6 +301,39 @@ class QARouteResolver:
         if has_high_risk_person and has_risk_intent:
             return self.by_key("risk_boundary")
         return None
+
+    def _product_development_override(self, compact_question: str) -> QARoute | None:
+        """Keep complete R&D briefs from being reduced to one constraint sub-route."""
+        if not compact_question:
+            return None
+
+        development_intent = (
+            "开发",
+            "研发",
+            "新品",
+            "新产品",
+            "产品开发",
+            "产品研发",
+            "配方设计",
+            "生成配方",
+        )
+        product_signals = (
+            "产品",
+            "配方",
+            "饮品",
+            "饮料",
+            "固体饮料",
+            "茶包",
+            "软糖",
+            "代餐粉",
+            "口服液",
+            "剂型",
+        )
+        if not any(token in compact_question for token in development_intent):
+            return None
+        if not any(token in compact_question for token in product_signals):
+            return None
+        return self.by_key("product_development")
 
     @staticmethod
     def _score(route: QARoute, compact_question: str, fallback_question_type: str | None) -> int:

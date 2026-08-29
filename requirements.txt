@@ -5,3 +5,5 @@ psycopg[binary]==3.2.9
 neo4j==5.28.1
 httpx==0.28.1
 pydantic==2.11.7
+# 图形验证码绘制（captcha_service.py）
+pillow>=10.4

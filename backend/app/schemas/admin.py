@@ -1,7 +1,44 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+
+class UserAdminRead(BaseModel):
+    id: str
+    username: str
+    display_name: str | None = None
+    email: str | None = None
+    role: str
+    is_active: bool
+    last_login_at: datetime | None = None
+    created_at: datetime | None = None
+
+
+class UserCreateAdmin(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=1, max_length=256)
+    display_name: str | None = Field(default=None, max_length=128)
+    email: str | None = Field(default=None, max_length=128)
+    role: str = Field(default="user", max_length=32)
+
+
+class UserUpdateAdmin(BaseModel):
+    display_name: str | None = Field(default=None, max_length=128)
+    email: str | None = Field(default=None, max_length=128)
+    role: str | None = Field(default=None, max_length=32)
+    is_active: bool | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=1, max_length=256)
+
+
+class UserPage(BaseModel):
+    items: list[UserAdminRead]
+    total: int
+    page: int
+    page_size: int
 
 
 class OverviewResponse(BaseModel):

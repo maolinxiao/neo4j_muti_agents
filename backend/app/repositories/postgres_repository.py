@@ -2,6 +2,7 @@ from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.db.models import (
+    AppUser,
     ChatMessage,
     ChatSession,
     ConstitutionAssessment,
@@ -21,8 +22,19 @@ class PostgresRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def create_chat_session(self) -> ChatSession:
-        chat_session = ChatSession()
+    def _default_user_id(self) -> str:
+        """未显式指定归属用户时的兜底：最早创建的 admin；无 admin 则最早任意用户。"""
+        user_id = self.session.scalar(
+            select(AppUser.id).where(AppUser.role == "admin").order_by(AppUser.created_at.asc()).limit(1)
+        )
+        if user_id is None:
+            user_id = self.session.scalar(select(AppUser.id).order_by(AppUser.created_at.asc()).limit(1))
+        if user_id is None:
+            raise RuntimeError("系统中不存在任何用户，无法创建会话")
+        return user_id
+
+    def create_chat_session(self, user_id: str | None = None) -> ChatSession:
+        chat_session = ChatSession(user_id=user_id or self._default_user_id())
         self.session.add(chat_session)
         self.session.flush()
         return chat_session
@@ -172,12 +184,19 @@ class PostgresRepository:
     def get_constitution_assessment(self, assessment_id: str) -> ConstitutionAssessment | None:
         return self.session.get(ConstitutionAssessment, assessment_id)
 
-    def create_workflow_session(self, title: str | None = None, last_brief: dict | None = None) -> WorkflowSession:
-        workflow_session = WorkflowSession(title=title, last_brief=last_brief)
+    def create_workflow_session(
+        self,
+        title: str | None = None,
+        last_brief: dict | None = None,
+        user_id: str | None = None,
+    ) -> WorkflowSession:
+        owner_id = user_id or self._default_user_id()
+        workflow_session = WorkflowSession(title=title, last_brief=last_brief, user_id=owner_id)
         self.session.add(workflow_session)
         self.session.flush()
         shadow_chat_session = ChatSession(
             id=workflow_session.id,
+            user_id=owner_id,
             title=title,
             status="workflow_shadow",
             last_question=None,

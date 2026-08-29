@@ -26,6 +26,7 @@ class ChatSession(Base, TimestampMixin):
     __tablename__ = "chat_session"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, nullable=False)
     title: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
     last_question: Mapped[str | None] = mapped_column(Text)
@@ -40,6 +41,7 @@ class AppUser(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(128))
+    email: Mapped[str | None] = mapped_column(String(128), index=True)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(String(32), default="admin", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -58,12 +60,26 @@ class AuthSession(Base, TimestampMixin):
     __tablename__ = "auth_session"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
-    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, unique=True, nullable=False)
+    # 多会话：user_id 非唯一索引（同一用户可有多台设备/多个会话）；token_hash 保持唯一
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, nullable=False)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     user: Mapped[AppUser] = relationship(back_populates="auth_sessions")
+
+
+class CaptchaCode(Base, TimestampMixin):
+    """图形验证码记录（DB 化预留，当前逻辑以内存 CaptchaStore 为准）。"""
+
+    __tablename__ = "captcha_code"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    code_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    ip: Mapped[str | None] = mapped_column(String(64))
 
 
 class ChatMessage(Base, TimestampMixin):
@@ -202,6 +218,7 @@ class WorkflowSession(Base, TimestampMixin):
     __tablename__ = "workflow_session"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("app_user.id"), index=True, nullable=False)
     title: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
     last_brief: Mapped[dict | None] = mapped_column(JSONB)

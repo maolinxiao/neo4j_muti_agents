@@ -41,6 +41,14 @@ class Settings:
     default_admin_username: str = os.getenv("DEFAULT_ADMIN_USERNAME", "admin")
     default_admin_password: str = os.getenv("DEFAULT_ADMIN_PASSWORD", "admin123456")
     auth_session_ttl_hours: int = int(os.getenv("AUTH_SESSION_TTL_HOURS", "24"))
+    # --- 认证/账号基座配置 ---
+    captcha_enabled: bool = _as_bool(os.getenv("CAPTCHA_ENABLED"), True)
+    captcha_length: int = int(os.getenv("CAPTCHA_LENGTH", "4"))
+    captcha_ttl_seconds: int = int(os.getenv("CAPTCHA_TTL_SECONDS", "300"))
+    captcha_fail_max: int = int(os.getenv("CAPTCHA_FAIL_MAX", "5"))
+    auth_max_sessions_per_user: int = int(os.getenv("AUTH_MAX_SESSIONS_PER_USER", "5"))
+    password_min_length: int = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
+    login_fail_lock_minutes: int = int(os.getenv("LOGIN_FAIL_LOCK_MINUTES", "15"))
 
     @property
     def minimax_api_base(self) -> str:

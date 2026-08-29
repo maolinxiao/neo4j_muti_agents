@@ -19,6 +19,7 @@ export const useAuthStore = defineStore("auth", {
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
+    isAdmin: (state) => state.user?.role === "admin",
     displayName: (state) => state.user?.display_name || state.user?.username || "管理员",
   },
   actions: {
@@ -34,10 +35,10 @@ export const useAuthStore = defineStore("auth", {
       localStorage.removeItem("ys_auth_token");
       localStorage.removeItem("ys_auth_user");
     },
-    async login(username, password) {
+    async login(username, password, captcha = {}) {
       this.loading = true;
       try {
-        const { data } = await api.login({ username, password });
+        const { data } = await api.login({ username, password, ...captcha });
         this.setSession(data.access_token, data.user);
         return data.user;
       } finally {

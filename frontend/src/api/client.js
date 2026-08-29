@@ -32,6 +32,9 @@ client.interceptors.response.use(
 
 export const api = {
   login: (payload) => client.post("/auth/login", payload),
+  getCaptcha: () => client.get("/auth/captcha"),
+  register: (payload) => client.post("/auth/register", payload),
+  changePassword: (payload) => client.post("/auth/change-password", payload),
   getCurrentUser: () => client.get("/auth/me"),
   logout: () => client.post("/auth/logout"),
   getHealth: () => client.get("/health"),
@@ -131,6 +134,12 @@ export const api = {
   searchEntities: (q) => client.get("/entities/search", { params: { q } }),
   getEntity: (id) => client.get(`/entities/${id}`),
   getOverview: () => client.get("/admin/overview"),
+  listUsers: (params) => client.get("/admin/users", { params }),
+  createUser: (payload) => client.post("/admin/users", payload),
+  updateUser: (id, payload) => client.put(`/admin/users/${id}`, payload),
+  resetUserPassword: (id, payload) => client.put(`/admin/users/${id}/password`, payload),
+  forceLogoutUser: (id) => client.post(`/admin/users/${id}/force-logout`),
+  deleteUser: (id) => client.delete(`/admin/users/${id}`),
   getChatLogs: () => client.get("/admin/chat-logs"),
   getWorkflowLogs: () => client.get("/admin/workflow-logs"),
   getPrompts: () => client.get("/admin/prompts"),

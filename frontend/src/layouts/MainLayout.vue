@@ -36,12 +36,13 @@
             <el-icon><Document /></el-icon>
             <template #title>历史记录</template>
           </el-menu-item>
-          <el-sub-menu index="/app/admin">
+          <el-sub-menu v-if="auth.isAdmin" index="/app/admin">
             <template #title>
               <el-icon><Setting /></el-icon>
               <span>管理后台</span>
             </template>
             <el-menu-item index="/app/admin/overview">数据概览</el-menu-item>
+            <el-menu-item index="/app/admin/users">用户管理</el-menu-item>
             <el-menu-item index="/app/admin/logs">运行日志</el-menu-item>
             <el-menu-item index="/app/admin/prompts">Prompt 管理</el-menu-item>
             <el-menu-item index="/app/admin/templates">Cypher 模板</el-menu-item>
@@ -66,7 +67,7 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item>个人中心</el-dropdown-item>
+                <el-dropdown-item @click="openChangePassword">修改密码</el-dropdown-item>
                 <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -77,12 +78,55 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <el-dialog
+      v-model="passwordDialogVisible"
+      title="修改密码"
+      width="440px"
+      :close-on-click-modal="false"
+      @closed="resetPasswordForm"
+    >
+      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="90px">
+        <el-form-item label="原密码" prop="oldPassword">
+          <el-input
+            v-model="passwordForm.oldPassword"
+            type="password"
+            show-password
+            placeholder="请输入原密码"
+          />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input
+            v-model="passwordForm.newPassword"
+            type="password"
+            show-password
+            placeholder="至少 8 位，须包含字母和数字"
+          />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input
+            v-model="passwordForm.confirmPassword"
+            type="password"
+            show-password
+            placeholder="请再次输入新密码"
+            @keyup.enter="submitChangePassword"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="passwordSubmitting" @click="submitChangePassword">
+          确认修改
+        </el-button>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
 import {
   House,
   ChatDotRound,
@@ -92,6 +136,8 @@ import {
   Setting,
   CaretBottom
 } from "@element-plus/icons-vue";
+
+import { api } from "../api/client";
 import { useAuthStore } from "../stores/auth";
 
 const route = useRoute();
@@ -106,6 +152,7 @@ const routeNameMap = {
   "/app/rnd": "研发协同",
   "/app/history": "历史记录",
   "/app/admin/overview": "数据概览",
+  "/app/admin/users": "用户管理",
   "/app/admin/logs": "运行日志",
   "/app/admin/prompts": "Prompt 管理",
   "/app/admin/templates": "Cypher 模板",
@@ -123,6 +170,87 @@ const currentRouteName = computed(() => {
 const handleLogout = async () => {
   await auth.logout();
   await router.replace({ name: "login" });
+};
+
+// ---------------------------------------------------------------------------
+// 修改密码
+// ---------------------------------------------------------------------------
+const PASSWORD_STRENGTH_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+const passwordDialogVisible = ref(false);
+const passwordSubmitting = ref(false);
+const passwordFormRef = ref(null);
+const passwordForm = reactive({
+  oldPassword: "",
+  newPassword: "",
+  confirmPassword: "",
+});
+
+const passwordRules = {
+  oldPassword: [{ required: true, message: "请输入原密码", trigger: "blur" }],
+  newPassword: [
+    { required: true, message: "请输入新密码", trigger: "blur" },
+    {
+      validator: (_rule, value, callback) => {
+        if (!PASSWORD_STRENGTH_RE.test(value || "")) {
+          callback(new Error("密码至少 8 位，且须同时包含字母和数字"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur",
+    },
+  ],
+  confirmPassword: [
+    { required: true, message: "请再次输入新密码", trigger: "blur" },
+    {
+      validator: (_rule, value, callback) => {
+        if (!value) {
+          callback(new Error("请再次输入新密码"));
+        } else if (value !== passwordForm.newPassword) {
+          callback(new Error("两次输入的密码不一致"));
+        } else {
+          callback();
+        }
+      },
+      trigger: "blur",
+    },
+  ],
+};
+
+const openChangePassword = () => {
+  resetPasswordForm();
+  passwordDialogVisible.value = true;
+};
+
+const resetPasswordForm = () => {
+  passwordForm.oldPassword = "";
+  passwordForm.newPassword = "";
+  passwordForm.confirmPassword = "";
+  passwordFormRef.value?.clearValidate();
+};
+
+const submitChangePassword = async () => {
+  try {
+    await passwordFormRef.value.validate();
+  } catch {
+    return;
+  }
+  passwordSubmitting.value = true;
+  try {
+    await api.changePassword({
+      old_password: passwordForm.oldPassword.trim(),
+      new_password: passwordForm.newPassword,
+    });
+    ElMessage.success("密码已修改，请重新登录");
+    passwordDialogVisible.value = false;
+    await handleLogout();
+  } catch (error) {
+    const detail = error?.response?.data?.detail || "修改密码失败，请稍后重试。";
+    ElMessage.error(detail);
+  } finally {
+    passwordSubmitting.value = false;
+  }
 };
 </script>
 

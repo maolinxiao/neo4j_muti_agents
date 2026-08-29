@@ -79,8 +79,10 @@ def ensure_auth_migration(session) -> None:
        再 SET NOT NULL 并补外键。
     4. captcha_code 表（与 ORM 定义一致）。
     """
-    # 1) auth_session 多会话：唯一约束 → 普通索引（先尝试删除同名字上的约束，兼容旧唯一索引库）
+    # 1) auth_session 多会话：唯一约束/唯一索引 → 普通索引
+    #    兼容两类残留：(a) 唯一约束（DROP CONSTRAINT）；(b) 唯一索引（DROP INDEX，IF EXISTS 幂等）
     session.execute(text("ALTER TABLE auth_session DROP CONSTRAINT IF EXISTS ix_auth_session_user_id"))
+    session.execute(text("DROP INDEX IF EXISTS ix_auth_session_user_id"))
     session.execute(text("CREATE INDEX IF NOT EXISTS ix_auth_session_user_id ON auth_session (user_id)"))
 
     # 2) app_user.email

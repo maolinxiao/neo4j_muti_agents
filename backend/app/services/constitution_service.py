@@ -76,8 +76,8 @@ class ConstitutionService:
     def list_assessments(self, user_id: str):
         return self.postgres_repository.list_constitution_assessments(user_id)
 
-    def get_assessment(self, assessment_id: str):
-        return self.postgres_repository.get_constitution_assessment(assessment_id)
+    def get_assessment(self, assessment_id: str, user_id: str | None = None):
+        return self.postgres_repository.get_constitution_assessment(assessment_id, user_id)
 
     def get_food_rule_summary(self, constitution_name: str) -> dict[str, Any] | None:
         return self.neo4j_repository.get_constitution_food_rules(constitution_name)

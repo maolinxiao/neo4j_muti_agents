@@ -1,6 +1,10 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+import secrets
+import threading
+import time
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
@@ -22,9 +26,23 @@ from app.schemas.admin import (
     OverviewResponse,
     PromptTemplateRead,
     PromptTemplateUpdate,
+    ResetPasswordRequest,
+    UserAdminCreateResponse,
+    UserAdminRead,
+    UserCreateAdmin,
+    UserPage,
+    UserUpdateAdmin,
     WorkflowLogRead,
 )
-from app.schemas.auth import LoginRequest, LoginResponse, UserRead
+from app.schemas.auth import (
+    CaptchaResponse,
+    ChangePasswordRequest,
+    LoginRequest,
+    LoginResponse,
+    RegisterRequest,
+    RegisterResponse,
+    UserRead,
+)
 from app.schemas.chat import (
     ChatMessageCreate,
     ChatMessageRead,
@@ -54,10 +72,11 @@ from app.schemas.rnd import (
     WorkflowStepRunRead,
 )
 from app.services.deepseek_client import DeepSeekClient
+from app.services.captcha_service import CaptchaStore
 from app.services.constitution_service import ConstitutionService
 from app.services.qa_orchestrator import QAOrchestrator
 from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
-from app.services.auth_service import AuthService
+from app.services.auth_service import AuthService, hash_password
 
 
 health_router = APIRouter(tags=["health"])
@@ -67,6 +86,92 @@ entity_router = APIRouter(tags=["entity"])
 constitution_router = APIRouter(prefix="/constitution", tags=["constitution"])
 rnd_router = APIRouter(prefix="/rnd", tags=["rnd"])
 admin_router = APIRouter(prefix="/admin", tags=["admin"])
+
+# ---------------------------------------------------------------------------
+# 内存守卫（单 worker 部署；多 worker 需升级为 DB/Redis 存储）
+# ---------------------------------------------------------------------------
+captcha_store = CaptchaStore()
+
+
+class _RegisterRateLimiter:
+    """注册 per-IP 限频：窗口内最多 limit 次（默认 5 次/小时），窗口滑动。"""
+
+    def __init__(self, limit: int = 5, window_seconds: int = 3600) -> None:
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self._records: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def allow(self, key: str) -> bool:
+        now = time.time()
+        with self._lock:
+            timestamps = [ts for ts in self._records.get(key, []) if now - ts < self.window_seconds]
+            self._records[key] = timestamps
+            return len(timestamps) < self.limit
+
+    def record(self, key: str) -> None:
+        now = time.time()
+        with self._lock:
+            self._records.setdefault(key, []).append(now)
+
+
+class _LoginFailGuard:
+    """登录失败锁：按 (username, ip) 连续失败 max_failures 次后锁定 lock_minutes 分钟，成功后清零。"""
+
+    def __init__(self, max_failures: int = 5, lock_minutes: int = 15) -> None:
+        self.max_failures = max_failures
+        self.lock_minutes = lock_minutes
+        self._records: dict[tuple[str, str], tuple[int, float]] = {}  # (user, ip) -> (fail_count, locked_until_ts)
+        self._lock = threading.Lock()
+
+    def locked_seconds(self, username: str, ip: str) -> int:
+        key = (username, ip)
+        now = time.time()
+        with self._lock:
+            record = self._records.get(key)
+            if record is None:
+                return 0
+            fail_count, locked_until = record
+            if locked_until > 0:
+                if now < locked_until:
+                    return max(1, int(locked_until - now))
+                self._records.pop(key, None)
+            elif fail_count >= self.max_failures:
+                # 兜底：计数达到上限却没有 locked_until（异常状态），立即锁定
+                self._records[key] = (fail_count, now + self.lock_minutes * 60)
+                return self.lock_minutes * 60
+            return 0
+
+    def record_failure(self, username: str, ip: str) -> None:
+        key = (username, ip)
+        now = time.time()
+        with self._lock:
+            fail_count, locked_until = self._records.get(key, (0, 0.0))
+            if locked_until > 0:
+                return  # 已锁定期间不再累计
+            fail_count += 1
+            if fail_count >= self.max_failures:
+                locked_until = now + self.lock_minutes * 60
+            self._records[key] = (fail_count, locked_until)
+
+    def reset(self, username: str, ip: str) -> None:
+        with self._lock:
+            self._records.pop((username, ip), None)
+
+
+register_rate_limiter = _RegisterRateLimiter(limit=5, window_seconds=3600)
+login_fail_guard = _LoginFailGuard(
+    max_failures=5,
+    lock_minutes=max(1, settings.login_fail_lock_minutes),
+)
+
+
+def _client_ip(request: Request) -> str:
+    """取客户端 IP：优先 X-Forwarded-For 首项，其次直连地址。"""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",", 1)[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _workflow_run_read(repository: PostgresRepository, run: WorkflowRun) -> WorkflowRunRead:
@@ -106,12 +211,70 @@ def _bearer_from_header(authorization: str | None) -> str:
     return token.strip()
 
 
+@auth_router.get("/captcha", response_model=CaptchaResponse)
+def get_captcha(request: Request) -> CaptchaResponse:
+    if not settings.captcha_enabled:
+        raise HTTPException(status_code=404, detail="验证码功能未启用")
+    ip = _client_ip(request)
+    captcha_id, image_base64 = captcha_store.issue(ip)
+    return CaptchaResponse(captcha_id=captcha_id, image_base64=image_base64)
+
+
+@auth_router.post("/register", response_model=RegisterResponse)
+def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db_session)) -> RegisterResponse:
+    ip = _client_ip(request)
+    if settings.captcha_enabled and not captcha_store.verify(payload.captcha_id, payload.captcha_text, ip):
+        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+    if not register_rate_limiter.allow(ip):
+        raise HTTPException(status_code=429, detail="注册请求过于频繁，请稍后再试")
+    service = AuthService(db)
+    try:
+        user, _ = service.register_user(
+            username=payload.username,
+            password=payload.password,
+            email=payload.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        register_rate_limiter.record(ip)
+    db.commit()
+    return RegisterResponse(message="注册成功，请等待管理员审核", user_id=user.id)
+
+
+@auth_router.post("/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> dict:
+    service = AuthService(db)
+    try:
+        service.change_password(current_user, payload.old_password, payload.new_password)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return {"message": "密码已修改，请重新登录"}
+
+
 @auth_router.post("/login", response_model=LoginResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db_session)) -> LoginResponse:
+def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db_session)) -> LoginResponse:
+    ip = _client_ip(request)
+    if settings.captcha_enabled and not captcha_store.verify(payload.captcha_id, payload.captcha_text, ip):
+        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+    locked = login_fail_guard.locked_seconds(payload.username, ip)
+    if locked > 0:
+        raise HTTPException(status_code=429, detail=f"登录失败次数过多，请 {login_fail_guard.lock_minutes} 分钟后再试")
     service = AuthService(db)
     user = service.authenticate(payload.username, payload.password)
     if user is None:
+        existing = db.scalar(select(AppUser).where(AppUser.username == payload.username.strip()))
+        if existing is not None and not existing.is_active:
+            # 账号存在但未启用：不是凭据错误，不计入失败锁（避免审核通过后仍被临时锁定）
+            raise HTTPException(status_code=401, detail="账号未启用，请等待管理员审核")
+        login_fail_guard.record_failure(payload.username, ip)
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    login_fail_guard.reset(payload.username, ip)
     token, auth_session = service.create_session(user)
     db.commit()
     db.refresh(user)
@@ -149,26 +312,39 @@ def health_check(db: Session = Depends(get_db_session), neo4j: Neo4jRepository =
 
 
 @chat_router.post("/chat/sessions", response_model=ChatSessionCreateResponse)
-def create_chat_session(db: Session = Depends(get_db_session)) -> ChatSessionCreateResponse:
+def create_chat_session(
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> ChatSessionCreateResponse:
     repository = PostgresRepository(db)
-    session = repository.create_chat_session()
+    session = repository.create_chat_session(current_user.id)
     db.commit()
     return ChatSessionCreateResponse(session_id=session.id, title=session.title)
 
 
 @chat_router.get("/chat/sessions/{session_id}", response_model=ChatSessionRead)
-def get_chat_session(session_id: str, db: Session = Depends(get_db_session)) -> ChatSessionRead:
+def get_chat_session(
+    session_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> ChatSessionRead:
     repository = PostgresRepository(db)
-    session = repository.get_chat_session(session_id)
+    session = repository.get_chat_session(session_id, current_user.id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     return ChatSessionRead.model_validate(session, from_attributes=True)
 
 
 @chat_router.get("/chat/sessions", response_model=list[ChatSessionRead])
-def list_chat_sessions(db: Session = Depends(get_db_session)) -> list[ChatSessionRead]:
+def list_chat_sessions(
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> list[ChatSessionRead]:
     repository = PostgresRepository(db)
-    return [ChatSessionRead.model_validate(item, from_attributes=True) for item in repository.list_chat_sessions()]
+    return [
+        ChatSessionRead.model_validate(item, from_attributes=True)
+        for item in repository.list_chat_sessions(current_user.id)
+    ]
 
 
 @chat_router.post("/chat/sessions/{session_id}/messages", response_model=QAResponse)
@@ -179,6 +355,9 @@ def ask_question(
     neo4j: Neo4jRepository = Depends(get_neo4j_repository),
     current_user: AppUser = Depends(get_current_user),
 ) -> QAResponse:
+    session = PostgresRepository(db).get_chat_session(session_id, current_user.id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
     orchestrator = get_qa_orchestrator(db, neo4j)
     current_user_snapshot = {"id": current_user.id}
     try:
@@ -197,7 +376,7 @@ def ask_question_stream(
     current_user: AppUser = Depends(get_current_user),
 ):
     repo = PostgresRepository(db)
-    session = repo.get_chat_session(session_id)
+    session = repo.get_chat_session(session_id, current_user.id)
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
     repo.create_message(session_id, "user", payload.question)
@@ -219,15 +398,29 @@ def ask_question_stream(
 
 
 @chat_router.get("/chat/sessions/{session_id}/messages", response_model=list[ChatMessageRead])
-def list_messages(session_id: str, db: Session = Depends(get_db_session)) -> list[ChatMessageRead]:
+def list_messages(
+    session_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> list[ChatMessageRead]:
     repository = PostgresRepository(db)
+    session = repository.get_chat_session(session_id, current_user.id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
     messages = repository.list_messages(session_id)
     return [ChatMessageRead.model_validate(item, from_attributes=True) for item in messages]
 
 
 @chat_router.get("/chat/sessions/{session_id}/graph", response_model=GraphResponse)
-def get_session_graph(session_id: str, db: Session = Depends(get_db_session)) -> GraphResponse:
+def get_session_graph(
+    session_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> GraphResponse:
     repository = PostgresRepository(db)
+    session = repository.get_chat_session(session_id, current_user.id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
     snapshot = repository.get_latest_graph_snapshot(session_id)
     if snapshot is None:
         return GraphResponse(nodes=[], edges=[], focus_paths=[], legend={}, metrics={})
@@ -235,10 +428,18 @@ def get_session_graph(session_id: str, db: Session = Depends(get_db_session)) ->
 
 
 @chat_router.get("/chat/graph-snapshots/{snapshot_id}", response_model=GraphSnapshotRead)
-def get_graph_snapshot(snapshot_id: str, db: Session = Depends(get_db_session)) -> GraphSnapshotRead:
+def get_graph_snapshot(
+    snapshot_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> GraphSnapshotRead:
     repository = PostgresRepository(db)
     snapshot = repository.get_graph_snapshot(snapshot_id)
     if snapshot is None:
+        raise HTTPException(status_code=404, detail="Graph snapshot not found")
+    # 归属校验：快照所属会话必须属于当前用户（他人数据 → 404）
+    owner_session = repository.get_chat_session(snapshot.session_id, current_user.id)
+    if owner_session is None:
         raise HTTPException(status_code=404, detail="Graph snapshot not found")
     return GraphSnapshotRead(
         id=snapshot.id,
@@ -333,10 +534,143 @@ def get_constitution_assessment(
     current_user: AppUser = Depends(get_current_user),
     service: ConstitutionService = Depends(get_constitution_service),
 ) -> ConstitutionAssessmentRead:
-    assessment = service.get_assessment(assessment_id)
-    if assessment is None or assessment.user_id != current_user.id:
+    assessment = service.get_assessment(assessment_id, current_user.id)
+    if assessment is None:
         raise HTTPException(status_code=404, detail="Constitution assessment not found")
     return ConstitutionAssessmentRead.model_validate(assessment, from_attributes=True)
+
+
+# ---------------------------------------------------------------------------
+# 管理后台用户管理（get_current_admin 守卫在 main.py 路由级启用）
+# ---------------------------------------------------------------------------
+@admin_router.get("/users", response_model=UserPage)
+def list_admin_users(
+    query: str | None = None,
+    role: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db_session),
+) -> UserPage:
+    repository = PostgresRepository(db)
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    items, total = repository.list_users(query=query, role=role, page=page, page_size=page_size)
+    return UserPage(
+        items=[UserAdminRead.model_validate(item, from_attributes=True) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@admin_router.post("/users", response_model=UserAdminCreateResponse)
+def create_admin_user(payload: UserCreateAdmin, db: Session = Depends(get_db_session)) -> UserAdminCreateResponse:
+    if payload.role not in ("admin", "user"):
+        raise HTTPException(status_code=400, detail="role 仅支持 admin 或 user")
+    generated = None
+    if payload.password is None or payload.password == "":
+        generated = secrets.token_urlsafe(12)
+        password = generated
+    else:
+        password = payload.password
+    service = AuthService(db)
+    try:
+        user, _ = service.register_user(
+            username=payload.username,
+            password=password,
+            email=payload.email,
+            display_name=payload.display_name,
+            role=payload.role,
+            is_active=True,  # 管理员创建即视为已启用
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    db.refresh(user)
+    return UserAdminCreateResponse(
+        **UserAdminRead.model_validate(user, from_attributes=True).model_dump(),
+        generated_password=generated,
+    )
+
+
+@admin_router.put("/users/{user_id}", response_model=UserAdminRead)
+def update_admin_user(
+    user_id: str,
+    payload: UserUpdateAdmin,
+    db: Session = Depends(get_db_session),
+) -> UserAdminRead:
+    repository = PostgresRepository(db)
+    user = repository.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    data = payload.model_dump(exclude_unset=True)
+    if "role" in data and data["role"] not in ("admin", "user"):
+        raise HTTPException(status_code=400, detail="role 仅支持 admin 或 user")
+    is_seed_admin = user.username == settings.default_admin_username
+    # 保护 1：种子管理员不可降级为 user
+    if is_seed_admin and "role" in data and data["role"] != "admin":
+        raise HTTPException(status_code=400, detail="种子管理员不能被降级")
+    # 保护 2：最后一名启用状态的管理员不可被停用或降级
+    becomes_non_admin = "role" in data and data["role"] != "admin" and user.role == "admin"
+    becomes_inactive = "is_active" in data and data["is_active"] is False and user.is_active and user.role == "admin"
+    if (becomes_non_admin or becomes_inactive) and repository.count_active_admins(exclude_user_id=user_id) == 0:
+        raise HTTPException(status_code=400, detail="系统至少需要保留一名启用状态的管理员")
+    if "email" in data and data["email"]:
+        normalized = data["email"].strip().lower()
+        duplicate = db.scalar(
+            select(AppUser).where(AppUser.email == normalized, AppUser.id != user_id)
+        )
+        if duplicate is not None:
+            raise HTTPException(status_code=400, detail="邮箱已被使用")
+        data["email"] = normalized
+    for field in ("display_name", "email", "role", "is_active"):
+        if field in data:
+            setattr(user, field, data[field])
+    db.commit()
+    db.refresh(user)
+    return UserAdminRead.model_validate(user, from_attributes=True)
+
+
+@admin_router.put("/users/{user_id}/password")
+def reset_admin_user_password(
+    user_id: str,
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db_session),
+) -> dict:
+    repository = PostgresRepository(db)
+    user = repository.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if len(payload.new_password) < settings.password_min_length:
+        raise HTTPException(status_code=400, detail=f"密码长度不能少于 {settings.password_min_length} 位")
+    user.password_hash = hash_password(payload.new_password)
+    repository.revoke_all_sessions(user_id)
+    db.commit()
+    return {"message": "密码已重置，该用户全部会话已失效"}
+
+
+@admin_router.post("/users/{user_id}/force-logout")
+def force_logout_user(user_id: str, db: Session = Depends(get_db_session)) -> dict:
+    repository = PostgresRepository(db)
+    user = repository.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    revoked = repository.revoke_all_sessions(user_id)
+    db.commit()
+    return {"message": "ok", "revoked_sessions": revoked}
+
+
+@admin_router.delete("/users/{user_id}")
+def delete_admin_user(user_id: str, db: Session = Depends(get_db_session)) -> dict:
+    repository = PostgresRepository(db)
+    user = repository.get_user(user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.username == settings.default_admin_username:
+        raise HTTPException(status_code=400, detail="种子管理员不能被删除")
+    repository.delete_user_with_data(user_id)
+    db.commit()
+    return {"message": "ok"}
 
 
 @admin_router.get("/overview", response_model=OverviewResponse)
@@ -417,17 +751,26 @@ def update_cypher_template(
 
 
 @rnd_router.post("/sessions", response_model=WorkflowSessionCreateResponse)
-def create_workflow_session(db: Session = Depends(get_db_session)) -> WorkflowSessionCreateResponse:
+def create_workflow_session(
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> WorkflowSessionCreateResponse:
     repository = PostgresRepository(db)
-    session = repository.create_workflow_session()
+    session = repository.create_workflow_session(current_user.id)
     db.commit()
     return WorkflowSessionCreateResponse(id=session.id, session_id=session.id, title=session.title)
 
 
 @rnd_router.get("/sessions", response_model=list[WorkflowSessionRead])
-def list_workflow_sessions(db: Session = Depends(get_db_session)) -> list[WorkflowSessionRead]:
+def list_workflow_sessions(
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> list[WorkflowSessionRead]:
     repository = PostgresRepository(db)
-    return [WorkflowSessionRead.model_validate(item, from_attributes=True) for item in repository.list_workflow_sessions()]
+    return [
+        WorkflowSessionRead.model_validate(item, from_attributes=True)
+        for item in repository.list_workflow_sessions(current_user.id)
+    ]
 
 
 @rnd_router.post("/sessions/{session_id}/runs", response_model=WorkflowRunResponse)
@@ -437,7 +780,11 @@ def create_workflow_run(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db_session),
     neo4j: Neo4jRepository = Depends(get_neo4j_repository),
+    current_user: AppUser = Depends(get_current_user),
 ) -> WorkflowRunResponse:
+    session = PostgresRepository(db).get_workflow_session(session_id, current_user.id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Workflow session not found")
     orchestrator = get_rnd_workflow_orchestrator(db, neo4j)
     try:
         result = orchestrator.start_run(session_id, payload.question, reuse_last_brief=payload.reuse_last_brief)
@@ -457,18 +804,27 @@ def create_workflow_run(
 
 
 @rnd_router.get("/runs/{run_id}", response_model=WorkflowRunRead)
-def get_workflow_run(run_id: str, db: Session = Depends(get_db_session)) -> WorkflowRunRead:
+def get_workflow_run(
+    run_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> WorkflowRunRead:
     repository = PostgresRepository(db)
-    run = repository.get_workflow_run(run_id)
+    run = repository.get_workflow_run(run_id, current_user.id)
     if run is None:
         raise HTTPException(status_code=404, detail="Workflow run not found")
     return _workflow_run_read(repository, run)
 
 
 @rnd_router.get("/runs/{run_id}/steps/{step_id}", response_model=WorkflowStepDetailRead)
-def get_workflow_step_detail(run_id: str, step_id: str, db: Session = Depends(get_db_session)) -> WorkflowStepDetailRead:
+def get_workflow_step_detail(
+    run_id: str,
+    step_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> WorkflowStepDetailRead:
     repository = PostgresRepository(db)
-    step = repository.get_workflow_step_run(step_id)
+    step = repository.get_workflow_step_run(step_id, current_user.id)
     if step is None or step.run_id != run_id:
         raise HTTPException(status_code=404, detail="Workflow step not found")
     snapshot = repository.get_graph_snapshot(step.graph_snapshot_id) if step.graph_snapshot_id else None

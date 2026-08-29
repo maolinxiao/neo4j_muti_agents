@@ -100,10 +100,13 @@ class AuthService:
         password: str,
         email: str | None = None,
         display_name: str | None = None,
+        role: str = "user",
+        is_active: bool = False,
     ) -> tuple[AppUser, str]:
         """注册新用户：用户名唯一；邮箱非空时唯一（服务层保证）。
 
-        新用户 role='user'、is_active=False（待管理员审核，审核前不能登录）。
+        公开注册：role='user'、is_active=False（待管理员审核，审核前不能登录）。
+        管理员创建时可通过 role/is_active 覆盖（如 role='admin', is_active=True）。
         返回 (user, 已哈希密码)；校验失败抛 ValueError。
         """
         username = (username or "").strip()
@@ -123,8 +126,8 @@ class AuthService:
             display_name=display_name or username,
             email=normalized_email,
             password_hash=password_hash,
-            role="user",
-            is_active=False,  # 待审核
+            role=role,
+            is_active=is_active,
         )
         self.session.add(user)
         self.session.flush()

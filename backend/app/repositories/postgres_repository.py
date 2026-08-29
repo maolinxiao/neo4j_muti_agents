@@ -1,8 +1,11 @@
-from sqlalchemy import desc, select
+from datetime import datetime
+
+from sqlalchemy import desc, func, or_, select, update, delete
 from sqlalchemy.orm import Session
 
 from app.db.models import (
     AppUser,
+    AuthSession,
     ChatMessage,
     ChatSession,
     ConstitutionAssessment,
@@ -12,6 +15,7 @@ from app.db.models import (
     GraphSnapshot,
     PromptTemplate,
     QATrace,
+    UserFeedback,
     WorkflowRun,
     WorkflowSession,
     WorkflowStepRun,
@@ -22,28 +26,23 @@ class PostgresRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
 
-    def _default_user_id(self) -> str:
-        """未显式指定归属用户时的兜底：最早创建的 admin；无 admin 则最早任意用户。"""
-        user_id = self.session.scalar(
-            select(AppUser.id).where(AppUser.role == "admin").order_by(AppUser.created_at.asc()).limit(1)
-        )
-        if user_id is None:
-            user_id = self.session.scalar(select(AppUser.id).order_by(AppUser.created_at.asc()).limit(1))
-        if user_id is None:
-            raise RuntimeError("系统中不存在任何用户，无法创建会话")
-        return user_id
-
-    def create_chat_session(self, user_id: str | None = None) -> ChatSession:
-        chat_session = ChatSession(user_id=user_id or self._default_user_id())
+    def create_chat_session(self, user_id: str) -> ChatSession:
+        chat_session = ChatSession(user_id=user_id)
         self.session.add(chat_session)
         self.session.flush()
         return chat_session
 
-    def get_chat_session(self, session_id: str) -> ChatSession | None:
-        return self.session.get(ChatSession, session_id)
+    def get_chat_session(self, session_id: str, user_id: str | None = None) -> ChatSession | None:
+        stmt = select(ChatSession).where(ChatSession.id == session_id)
+        if user_id is not None:
+            stmt = stmt.where(ChatSession.user_id == user_id)
+        return self.session.scalar(stmt)
 
-    def list_chat_sessions(self) -> list[ChatSession]:
-        stmt = select(ChatSession).where(ChatSession.status != "workflow_shadow").order_by(desc(ChatSession.updated_at))
+    def list_chat_sessions(self, user_id: str | None = None) -> list[ChatSession]:
+        stmt = select(ChatSession).where(ChatSession.status != "workflow_shadow")
+        if user_id is not None:
+            stmt = stmt.where(ChatSession.user_id == user_id)
+        stmt = stmt.order_by(desc(ChatSession.updated_at))
         return list(self.session.scalars(stmt))
 
     def create_message(self, session_id: str, role: str, content: str, extra_payload: dict | None = None) -> ChatMessage:
@@ -181,16 +180,19 @@ class PostgresRepository:
         )
         return list(self.session.scalars(stmt))
 
-    def get_constitution_assessment(self, assessment_id: str) -> ConstitutionAssessment | None:
-        return self.session.get(ConstitutionAssessment, assessment_id)
+    def get_constitution_assessment(self, assessment_id: str, user_id: str | None = None) -> ConstitutionAssessment | None:
+        stmt = select(ConstitutionAssessment).where(ConstitutionAssessment.id == assessment_id)
+        if user_id is not None:
+            stmt = stmt.where(ConstitutionAssessment.user_id == user_id)
+        return self.session.scalar(stmt)
 
     def create_workflow_session(
         self,
+        user_id: str,
         title: str | None = None,
         last_brief: dict | None = None,
-        user_id: str | None = None,
     ) -> WorkflowSession:
-        owner_id = user_id or self._default_user_id()
+        owner_id = user_id
         workflow_session = WorkflowSession(title=title, last_brief=last_brief, user_id=owner_id)
         self.session.add(workflow_session)
         self.session.flush()
@@ -205,11 +207,17 @@ class PostgresRepository:
         self.session.flush()
         return workflow_session
 
-    def get_workflow_session(self, session_id: str) -> WorkflowSession | None:
-        return self.session.get(WorkflowSession, session_id)
+    def get_workflow_session(self, session_id: str, user_id: str | None = None) -> WorkflowSession | None:
+        stmt = select(WorkflowSession).where(WorkflowSession.id == session_id)
+        if user_id is not None:
+            stmt = stmt.where(WorkflowSession.user_id == user_id)
+        return self.session.scalar(stmt)
 
-    def list_workflow_sessions(self) -> list[WorkflowSession]:
-        stmt = select(WorkflowSession).order_by(desc(WorkflowSession.updated_at))
+    def list_workflow_sessions(self, user_id: str | None = None) -> list[WorkflowSession]:
+        stmt = select(WorkflowSession)
+        if user_id is not None:
+            stmt = stmt.where(WorkflowSession.user_id == user_id)
+        stmt = stmt.order_by(desc(WorkflowSession.updated_at))
         return list(self.session.scalars(stmt))
 
     def create_workflow_run(
@@ -230,8 +238,13 @@ class PostgresRepository:
         self.session.flush()
         return workflow_run
 
-    def get_workflow_run(self, run_id: str) -> WorkflowRun | None:
-        return self.session.get(WorkflowRun, run_id)
+    def get_workflow_run(self, run_id: str, user_id: str | None = None) -> WorkflowRun | None:
+        stmt = select(WorkflowRun).where(WorkflowRun.id == run_id)
+        if user_id is not None:
+            stmt = stmt.join(WorkflowSession, WorkflowRun.session_id == WorkflowSession.id).where(
+                WorkflowSession.user_id == user_id
+            )
+        return self.session.scalar(stmt)
 
     def list_workflow_runs(self, session_id: str | None = None, limit: int = 100) -> list[WorkflowRun]:
         stmt = select(WorkflowRun)
@@ -267,9 +280,110 @@ class PostgresRepository:
         self.session.flush()
         return step_run
 
-    def get_workflow_step_run(self, step_id: str) -> WorkflowStepRun | None:
-        return self.session.get(WorkflowStepRun, step_id)
+    def get_workflow_step_run(self, step_id: str, user_id: str | None = None) -> WorkflowStepRun | None:
+        stmt = select(WorkflowStepRun).where(WorkflowStepRun.id == step_id)
+        if user_id is not None:
+            stmt = (
+                stmt.join(WorkflowRun, WorkflowStepRun.run_id == WorkflowRun.id)
+                .join(WorkflowSession, WorkflowRun.session_id == WorkflowSession.id)
+                .where(WorkflowSession.user_id == user_id)
+            )
+        return self.session.scalar(stmt)
 
     def list_workflow_step_runs(self, run_id: str) -> list[WorkflowStepRun]:
         stmt = select(WorkflowStepRun).where(WorkflowStepRun.run_id == run_id).order_by(WorkflowStepRun.sequence.asc())
         return list(self.session.scalars(stmt))
+
+    # ------------------------------------------------------------------
+    # 用户管理（admin）
+    # ------------------------------------------------------------------
+    def get_user(self, user_id: str) -> AppUser | None:
+        return self.session.get(AppUser, user_id)
+
+    def get_user_by_username(self, username: str) -> AppUser | None:
+        return self.session.scalar(select(AppUser).where(AppUser.username == username))
+
+    def list_users(
+        self,
+        query: str | None = None,
+        role: str | None = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[list[AppUser], int]:
+        conditions = []
+        if query:
+            pattern = f"%{query.strip()}%"
+            conditions.append(
+                or_(
+                    AppUser.username.ilike(pattern),
+                    AppUser.display_name.ilike(pattern),
+                    AppUser.email.ilike(pattern),
+                )
+            )
+        if role:
+            conditions.append(AppUser.role == role)
+        total = self.session.scalar(select(func.count()).select_from(AppUser).where(*conditions)) or 0
+        stmt = (
+            select(AppUser)
+            .where(*conditions)
+            .order_by(desc(AppUser.created_at))
+            .offset(max(0, page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(self.session.scalars(stmt)), int(total)
+
+    def count_active_admins(self, exclude_user_id: str | None = None) -> int:
+        stmt = select(func.count()).select_from(AppUser).where(AppUser.role == "admin", AppUser.is_active.is_(True))
+        if exclude_user_id is not None:
+            stmt = stmt.where(AppUser.id != exclude_user_id)
+        return int(self.session.scalar(stmt) or 0)
+
+    def revoke_all_sessions(self, user_id: str) -> int:
+        result = self.session.execute(
+            update(AuthSession)
+            .where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))
+            .values(revoked_at=datetime.utcnow())
+        )
+        self.session.flush()
+        return int(result.rowcount or 0)
+
+    def delete_user_with_data(self, user_id: str) -> None:
+        """级联删除用户的全部业务数据（按外键依赖顺序手工清理）。
+
+        覆盖表：workflow_step_run → workflow_run → workflow_session（含 shadow chat_session）、
+        user_feedback / qa_trace / graph_snapshot / chat_message → chat_session、
+        constitution_profile（先解除 last_assessment_id 引用）→ constitution_assessment、
+        auth_session → app_user。
+        """
+        chat_ids = select(ChatSession.id).where(ChatSession.user_id == user_id)
+        workflow_session_ids = select(WorkflowSession.id).where(WorkflowSession.user_id == user_id)
+        workflow_run_ids = select(WorkflowRun.id).where(WorkflowRun.session_id.in_(workflow_session_ids))
+        # 1) 工作流步骤（先于 graph_snapshot / workflow_run 删除）
+        self.session.execute(delete(WorkflowStepRun).where(WorkflowStepRun.run_id.in_(workflow_run_ids)))
+        # 2) 工作流运行
+        self.session.execute(delete(WorkflowRun).where(WorkflowRun.session_id.in_(workflow_session_ids)))
+        # 3) 评论反馈（引用 chat_session / chat_message）
+        self.session.execute(delete(UserFeedback).where(UserFeedback.session_id.in_(chat_ids)))
+        # 4) QA traces（引用 graph_snapshot，先删）
+        self.session.execute(delete(QATrace).where(QATrace.session_id.in_(chat_ids)))
+        # 5) 图谱快照（chat 与 workflow 的 shadow session 共用 chat_session.id）
+        self.session.execute(delete(GraphSnapshot).where(GraphSnapshot.session_id.in_(chat_ids)))
+        # 6) 聊天消息
+        self.session.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(chat_ids)))
+        # 7) 体质档案：先解除对 assessment 的外键引用，再删 assessment / profile
+        self.session.execute(
+            update(ConstitutionProfile)
+            .where(ConstitutionProfile.user_id == user_id, ConstitutionProfile.last_assessment_id.is_not(None))
+            .values(last_assessment_id=None)
+        )
+        self.session.execute(delete(ConstitutionAssessment).where(ConstitutionAssessment.user_id == user_id))
+        self.session.execute(delete(ConstitutionProfile).where(ConstitutionProfile.user_id == user_id))
+        # 8) 登录会话
+        self.session.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
+        # 9) 工作流会话（含 shadow chat_session 关系先删会话本体）
+        self.session.execute(delete(WorkflowSession).where(WorkflowSession.id.in_(workflow_session_ids)))
+        # 10) 聊天会话（含 workflow_shadow）
+        self.session.execute(delete(ChatSession).where(ChatSession.id.in_(chat_ids)))
+        # 11) 用户本体
+        self.session.execute(delete(AppUser).where(AppUser.id == user_id))
+        self.session.flush()

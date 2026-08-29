@@ -17,10 +17,15 @@ class UserAdminRead(BaseModel):
 
 class UserCreateAdmin(BaseModel):
     username: str = Field(min_length=1, max_length=64)
-    password: str = Field(min_length=1, max_length=256)
+    # 密码可传入；留空则由后端随机生成（生成结果仅通过响应的 generated_password 返回一次）
+    password: str | None = Field(default=None, max_length=256)
     display_name: str | None = Field(default=None, max_length=128)
     email: str | None = Field(default=None, max_length=128)
     role: str = Field(default="user", max_length=32)
+
+
+class UserAdminCreateResponse(UserAdminRead):
+    generated_password: str | None = None
 
 
 class UserUpdateAdmin(BaseModel):

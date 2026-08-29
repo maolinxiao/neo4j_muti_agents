@@ -48,6 +48,13 @@ def get_current_user(
     return user
 
 
+def get_current_admin(current_user: AppUser = Depends(get_current_user)) -> AppUser:
+    """管理员守卫：仅 role='admin' 的账号可访问，否则 403。"""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return current_user
+
+
 def get_qa_orchestrator(
     session: Session = Depends(get_db_session),
     neo4j_repository: Neo4jRepository = Depends(get_neo4j_repository),

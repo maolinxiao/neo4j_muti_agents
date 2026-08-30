@@ -137,10 +137,12 @@ const captchaEnabled = ref(false);
 const loadCaptcha = async () => {
   try {
     const { data } = await api.getCaptcha();
+    // 同时原子更新 captcha_id 与图片，并清空输入框（点击刷新 / 失败自动刷新共用）
     captcha.id = data.captcha_id || "";
     captcha.image = data.image_base64 || "";
     captcha.mime = data.mime || "image/png";
     captchaEnabled.value = true;
+    form.captchaText = "";
   } catch {
     // 验证码功能未启用时，不展示验证码输入
     captchaEnabled.value = false;
@@ -165,7 +167,8 @@ const submit = async () => {
     if (detail && detail.includes("未启用")) {
       ElMessage.error("账号未启用，请等待管理员审核");
     } else if (detail) {
-      ElMessage.error(detail);
+      // 验证码类 400：后端已返回可区分原因（过期/已使用/次数过多/输入错误等），提示并自动刷新验证码
+      ElMessage.error(detail.includes("验证码") ? `${detail}，验证码已自动刷新` : detail);
     } else {
       ElMessage.error(status === 401 ? "用户名或密码错误。" : "登录失败，请检查账号和密码。");
     }

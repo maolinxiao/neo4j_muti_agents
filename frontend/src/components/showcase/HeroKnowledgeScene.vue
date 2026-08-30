@@ -64,6 +64,27 @@ const BLOOM_CONVERGE_START = 0.86; // 特写极值段 bloom 收敛起点
 const BLOOM_CONVERGE_RANGE = 0.14; // bloom 收敛过渡区间
 const BLOOM_EXTREME_CONVERGE = 0.28; // 极值段 bloom 提升幅度收敛比例
 
+// —— 特写内部三环轨道（§4）：去连线 + 三环布局 + 绽放动画 + 标签朝向 ——
+const INNER_RING_COUNT = 3; // 轨道环数
+const INNER_RING_TILTS = [-0.42, 0.08, 0.52]; // 各环倾角（rad），绕 X/Z 轴错开实现
+const INNER_RING_TILT_AXES = ["x", "z", "x"]; // 各环倾角作用轴（X 或 Z 错开）
+const INNER_RING_RADIUS_STEP = 0.18; // 第 i 环半径 = 基数 × (1 + 0.18·i)
+const INNER_RING_SPEEDS = [0.09, 0.12, 0.15]; // 各环公转角速度（rad/s），交替方向
+const INNER_RING_SPIN_REDUCED = 0.4; // 减少动效偏好下公转降速系数
+const INNER_SAT_RADIUS = 1.05; // 卫星球体半径（原 1.15）
+const INNER_SAT_RADIUS_PLATFORM = 0.9; // 平台卫星球体半径（原 0.96）
+const INNER_SAT_BREATHE_AMPLITUDE = 0.1; // 卫星环面内相位错开轻呼吸幅度（±0.1）
+const INNER_SAT_BREATHE_REDUCED = 0.5; // 减少动效偏好下呼吸幅度系数
+const INNER_REVEAL_SCALE_MIN = 0.35; // 绽放展开起始 scale（→1.0）
+const INNER_EXTREME_THRESHOLD = 0.85; // 特写极值段起点（innerReveal）
+const INNER_EXTREME_EXPAND = 1.06; // 极值段整体外扩倍数
+const SAT_OPACITY_REVEAL_START = 0.05; // 卫星 opacity 0→1 揭示起点
+const SAT_OPACITY_REVEAL_RANGE = 0.6; // 卫星 opacity 揭示过渡区间
+const SAT_LABEL_FACING_OFFSET = 0.1; // 标签朝向判定偏置（背对阈值）
+const SAT_LABEL_FACING_RANGE = 0.28; // 标签朝向过渡区间
+const SAT_LABEL_FACING_FADE_K = 5; // 标签朝向透明度平滑速率（≈0.2s）
+const INNER_GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5)); // 环内黄金相位偏移
+
 /** 关键画面轮播（入场结束后；不含 platform，避免与开场重复） */
 const LOOP_SPOTLIGHT_ORDER = [
   "formula1",
@@ -241,6 +262,7 @@ const _linkMidWorld = new THREE.Vector3();
 const _linkMidCam = new THREE.Vector3();
 const _labelWorldPos = new THREE.Vector3();
 const _satLabelOffset = new THREE.Vector3();
+const _satWorldPos = new THREE.Vector3();
 
 const easeInOut = (t) => {
   const x = Math.max(0, Math.min(1, t));
@@ -624,91 +646,33 @@ const createGlowSphere = (colorHex, radius, isCore = false) => {
   return group;
 };
 
-const innerSpherePos = (index, total, radius) => {
-  const golden = Math.PI * (3 - Math.sqrt(5));
-  const y = 1 - (index / Math.max(total - 1, 1)) * 2;
-  const r = Math.sqrt(Math.max(0, 1 - y * y));
-  const theta = golden * index;
-  // 纵向压扁为环绕带（0.5），绕 Y 轴旋转时卫星明显环绕大节点而非两极几乎不动
-  return new THREE.Vector3(Math.cos(theta) * r * radius, y * radius * 0.5, Math.sin(theta) * r * radius);
-};
+/** 三环轨道：第 index 个卫星所属环编号（按 index % RING_COUNT 轮询分配） */
+const innerRingOf = (index) => index % INNER_RING_COUNT;
 
-const PLATFORM_INNER_LAYOUT = [
-  [-24, -4, -2],
-  [-19, 5.5, 5],
-  [-8.5, 8.5, -5],
-  [8.5, 8.5, 5],
-  [19, 5.5, -3],
-  [24, -4, 4],
-  [10, -9.5, -5],
-  [-10, -9.5, 5],
-];
+/** 第 ringIndex 环的卫星数（轮询分配后的每环数量） */
+const innerRingNodeCount = (total, ringIndex) =>
+  Math.floor(total / INNER_RING_COUNT) + (ringIndex < total % INNER_RING_COUNT ? 1 : 0);
 
-const innerNodePosition = (nodeId, index, total, radius, hubRadius) => {
-  if (nodeId !== "platform") {
-    return innerSpherePos(index, total, radius);
-  }
+/** 第 ringIndex 环半径：基数 × (1 + 0.18·i)，环间错开形成原子模型层 */
+const innerRingRadiusOf = (radius, ringIndex) => radius * (1 + INNER_RING_RADIUS_STEP * ringIndex);
 
-  const base = PLATFORM_INNER_LAYOUT[index % PLATFORM_INNER_LAYOUT.length];
-  const scale = Math.max(radius, hubRadius * 2.8) / 24;
-  return new THREE.Vector3(base[0] * scale, base[1] * scale, base[2] * scale);
-};
-
-const INNER_TUBE_SEGMENTS = 20;
-const INNER_TUBE_RADIAL = 6;
-
-const createInnerLink = (from, to) => {
-  const dir = new THREE.Vector3().subVectors(to, from);
-  const len = dir.length();
-  if (len < 0.01) return null;
-
-  const normalized = dir.clone().divideScalar(len);
-  const start = from.clone().addScaledVector(normalized, 1.2);
-  const end = to.clone().addScaledVector(normalized, -1.2);
-  const control = start.clone().add(end).multiplyScalar(0.5);
-  const outward = control.clone();
-  if (outward.lengthSq() < 0.01) {
-    // 两卫星近乎对穿时，中点贴近球心，沿端点连线的法向选一个稳定外凸方向
-    outward.crossVectors(start, end);
-    if (outward.lengthSq() < 0.01) outward.set(0, 1, 0);
-  }
-  outward.normalize();
-  // 关键修复：让弧线明显外凸到卫星壳层之外，整条连线绕过中心大节点，
-  // 形成清晰的“环绕轨道”而非笔直穿心的弦线（贝塞尔 t=0.5 仅移动一半推力，故乘 2）
-  const apexTarget = Math.max(start.length(), end.length()) + 2;
-  const push = Math.max(3.5, 2 * (apexTarget - control.length()));
-  control.addScaledVector(outward, push);
-
-  const curve = new THREE.QuadraticBezierCurve3(start, control, end);
-  const geometry = new THREE.TubeGeometry(curve, INNER_TUBE_SEGMENTS, 0.05, INNER_TUBE_RADIAL, false);
-
-  // 沿管长方向端点淡出的顶点色，与主题青绿一致，柔和融入小节点
-  const base = new THREE.Color(0x9fe0d0);
-  const ring = INNER_TUBE_RADIAL + 1;
-  const count = geometry.attributes.position.count;
-  const colors = new Float32Array(count * 3);
-  for (let i = 0; i < count; i += 1) {
-    const u = Math.floor(i / ring) / INNER_TUBE_SEGMENTS;
-    const edge = Math.min(u, 1 - u);
-    const a = Math.min(1, edge / 0.22);
-    colors[i * 3] = base.r * a;
-    colors[i * 3 + 1] = base.g * a;
-    colors[i * 3 + 2] = base.b * a;
-  }
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-
-  const mesh = new THREE.Mesh(
-    geometry,
-    new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.5,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    }),
-  );
-  mesh.renderOrder = 15;
-  return mesh;
+/**
+ * 三环轨道卫星位置（环局部坐标，落在环面圆周上）：
+ * 每环内等角间距 2π/n_i，叠加黄金相位 π(3−√5) 与节点种子相位错开各环；
+ * 位置相对所属环 Group，环 Group 负责倾角与公转。
+ */
+const ringPosition = (nodeId, index, total, radius) => {
+  const ringIndex = innerRingOf(index);
+  const countInRing = innerRingNodeCount(total, ringIndex);
+  const k = Math.floor(index / INNER_RING_COUNT);
+  let seed = 0;
+  for (let i = 0; i < nodeId.length; i += 1) seed += nodeId.charCodeAt(i);
+  const angle =
+    (k / Math.max(countInRing, 1)) * Math.PI * 2
+    + INNER_GOLDEN_ANGLE * (ringIndex + 1)
+    + seed * 0.013;
+  const ringRadius = innerRingRadiusOf(radius, ringIndex);
+  return new THREE.Vector3(Math.cos(angle) * ringRadius, 0, Math.sin(angle) * ringRadius);
 };
 
 const buildInnerNetwork = (nodeId, hubRadius) => {
@@ -731,11 +695,35 @@ const buildInnerNetwork = (nodeId, hubRadius) => {
   );
   group.add(cage);
 
+  const isPlatformNetwork = nodeId === "platform";
+  // 平台节点沿用同一算法，仅半径基数更大（保持其 8 个卫星与名称/副标题）
+  const layoutRadius = isPlatformNetwork
+    ? Math.max(config.radius || 10, hubRadius * 2.8)
+    : config.radius || 10;
+
+  // 三环轨道：每环一个子 Group（记录环参数），卫星 pos 相对环局部坐标落在环面圆周上；
+  // animate 中环绕各自法向轴缓慢公转（交替方向），卫星随环转动
+  const ringGroups = [];
+  for (let i = 0; i < INNER_RING_COUNT; i += 1) {
+    const ringGroup = new THREE.Group();
+    const axis = INNER_RING_TILT_AXES[i] === "z" ? "z" : "x";
+    ringGroup.rotation[axis] = INNER_RING_TILTS[i];
+    ringGroup.userData.radius = innerRingRadiusOf(layoutRadius, i);
+    ringGroup.userData.tilt = INNER_RING_TILTS[i];
+    ringGroup.userData.axis = axis;
+    ringGroup.userData.speed = INNER_RING_SPEEDS[i];
+    ringGroup.userData.direction = i % 2 === 0 ? 1 : -1;
+    ringGroup.userData.phase = INNER_GOLDEN_ANGLE * (i + 1);
+    group.add(ringGroup);
+    ringGroups.push(ringGroup);
+  }
+
   const satellites = config.nodes.map((item, index) => {
-    const isPlatformNetwork = nodeId === "platform";
-    const pos = innerNodePosition(nodeId, index, config.nodes.length, config.radius || 10, hubRadius);
+    const ringIndex = innerRingOf(index);
+    const ringGroup = ringGroups[ringIndex];
+    const pos = ringPosition(nodeId, index, config.nodes.length, layoutRadius);
     const sat = new THREE.Mesh(
-      new THREE.SphereGeometry(isPlatformNetwork ? 0.96 : 1.15, 20, 20),
+      new THREE.SphereGeometry(isPlatformNetwork ? INNER_SAT_RADIUS_PLATFORM : INNER_SAT_RADIUS, 20, 20),
       new THREE.MeshStandardMaterial({
         color: item.color,
         emissive: new THREE.Color(item.color),
@@ -747,33 +735,27 @@ const buildInnerNetwork = (nodeId, hubRadius) => {
       }),
     );
     sat.position.copy(pos);
-    group.add(sat);
+    ringGroup.add(sat);
 
     const label = createMiniLabel(item.name, item.subtitle, item.color);
     if (isPlatformNetwork) {
       label.scale.set(4.6, 1.42, 1);
     }
     label.userData.baseOffsetY = isPlatformNetwork ? 2.7 : 2.2;
-    label.position.copy(pos).add(new THREE.Vector3(0, label.userData.baseOffsetY, 0));
-    group.add(label);
+    label.position.copy(pos).add(_satLabelOffset.set(0, label.userData.baseOffsetY, 0));
+    ringGroup.add(label);
     labelEntries.push({ label });
 
-    return { mesh: sat, label, pos };
+    return { mesh: sat, label, pos, ringGroup, ringIndex, phase: index * 0.9 };
   });
 
-  const innerLinks = [];
-  config.links.forEach(([a, b]) => {
-    if (!satellites[a] || !satellites[b]) return;
-    const link = createInnerLink(satellites[a].pos, satellites[b].pos);
-    if (link) {
-      group.add(link);
-      innerLinks.push(link);
-    }
-  });
+  // config.links 数据字段保留不动；连线视觉已去除（三环轨道替代）
+  const reachRadius = ringGroups.reduce(
+    (max, ringGroup) => Math.max(max, ringGroup.userData.radius + 3.2),
+    hubRadius * 1.2,
+  );
 
-  const reachRadius = satellites.reduce((max, sat) => Math.max(max, sat.pos.length() + 3.2), hubRadius * 1.2);
-
-  return { group, cage, satellites, innerLinks, reachRadius };
+  return { group, cage, satellites, ringGroups, reachRadius };
 };
 
 /** 柔和发光圆点纹理：径向渐变（白芯 → 青绿 → 透明），用于流动光点，避免“生硬绿球” */
@@ -1356,29 +1338,48 @@ const animate = () => {
     group.userData.innerReveal = innerReveal;
     if (inner) {
       inner.group.visible = innerReveal > 0.03;
-      const innerScale = 0.45 + innerReveal * 0.55;
+      // 绽放展开：innerReveal 提升时环整体 scale 0.35→1.0 平滑展开（揭示节奏与 innerReveal 同源）；
+      // 特写极值（>0.85）整体 ×1.06 轻微外扩
+      const extremeExpand = innerReveal > INNER_EXTREME_THRESHOLD
+        ? 1
+          + clamp01((innerReveal - INNER_EXTREME_THRESHOLD) / (1 - INNER_EXTREME_THRESHOLD))
+            * (INNER_EXTREME_EXPAND - 1)
+        : 1;
+      const innerScale =
+        (INNER_REVEAL_SCALE_MIN + innerReveal * (1 - INNER_REVEAL_SCALE_MIN)) * extremeExpand;
       inner.group.scale.setScalar(innerScale);
-      // 放慢公转、收敛摆动幅度，让小节点环绕更从容优雅而非机械急转
-      inner.group.rotation.y = elapsed * 0.26;
-      inner.group.rotation.x = Math.sin(elapsed * 0.22) * 0.1;
-      // inner 子网络（cage/satellite/links）一并参与视线遮挡淡出
+      // 三环轨道：各环绕自身法向轴缓慢公转（交替方向）；减少动效偏好下减速
+      const spinMul = reducedMotion ? INNER_RING_SPIN_REDUCED : 1;
+      const breatheMul = reducedMotion ? INNER_SAT_BREATHE_REDUCED : 1;
+      inner.ringGroups.forEach((ringGroup) => {
+        ringGroup.rotation.y += ringGroup.userData.speed * ringGroup.userData.direction * spinMul * delta;
+      });
+      // inner 子网络（cage/satellite/labels）一并参与视线遮挡淡出
       inner.cage.material.opacity = (0.06 + innerReveal * 0.22) * occlusionFade;
       inner.cage.rotation.y = -elapsed * 0.2;
-      inner.satellites.forEach((sat, i) => {
+      // 绽放展开：卫星 opacity 0→1 随揭示同步
+      const satOpacity = clamp01((innerReveal - SAT_OPACITY_REVEAL_START) / SAT_OPACITY_REVEAL_RANGE) * occlusionFade;
+      inner.satellites.forEach((sat) => {
         sat.mesh.material.emissiveIntensity = 0.15 + innerReveal * 0.25;
-        sat.mesh.material.opacity = occlusionFade;
-        sat.label.material.opacity = (0.4 + innerReveal * 0.55) * occlusionFade;
-        sat.mesh.position.copy(sat.pos);
-        // 轻柔上下浮动 + 沿半径方向的呼吸，营造环绕的生命感
-        const breathe = 1 + Math.sin(elapsed * 0.7 + i * 0.9) * 0.04 * innerReveal;
-        sat.mesh.position.multiplyScalar(breathe);
-        sat.mesh.position.y += Math.sin(elapsed * 0.9 + i) * 0.14 * innerReveal;
+        sat.mesh.material.opacity = satOpacity;
+        // 环面内相位错开的轻呼吸（±0.1）：卫星沿所在环径向伸缩，标签同步跟随
+        const breathe =
+          1 + Math.sin(elapsed * 0.8 + sat.phase) * INNER_SAT_BREATHE_AMPLITUDE * innerReveal * breatheMul;
+        sat.mesh.position.copy(sat.pos).multiplyScalar(breathe);
         sat.label.position
           .copy(sat.mesh.position)
           .add(_satLabelOffset.set(0, sat.label.userData.baseOffsetY || 2.2, 0));
-      });
-      inner.innerLinks.forEach((link) => {
-        link.material.opacity = (0.22 + innerReveal * 0.4) * occlusionFade;
+        // 标签朝向：dot(卫星世界方向, 相机视线) 判背面/正面 — 卫星位于相机与球心之间（视线同侧）时
+        // 正面显示；绕到球心背对相机一侧时标签平滑淡出（≈0.2s exp 平滑），保证不挡大球
+        sat.mesh.getWorldPosition(_satWorldPos);
+        _satWorldPos.sub(_worldPos).normalize();
+        const facingDot = _satWorldPos.dot(_viewDir);
+        const facingTarget = clamp01((SAT_LABEL_FACING_OFFSET - facingDot) / SAT_LABEL_FACING_RANGE);
+        const facingK = 1 - Math.exp(-SAT_LABEL_FACING_FADE_K * delta);
+        sat.label.userData.facingSmooth =
+          (sat.label.userData.facingSmooth || 0)
+          + (facingTarget - (sat.label.userData.facingSmooth || 0)) * facingK;
+        sat.label.material.opacity = (0.4 + innerReveal * 0.55) * occlusionFade * sat.label.userData.facingSmooth;
       });
     }
   });

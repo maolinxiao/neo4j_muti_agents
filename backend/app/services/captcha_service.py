@@ -11,6 +11,7 @@
 import base64
 import hashlib
 import io
+import logging
 import random
 import secrets
 import threading
@@ -21,10 +22,21 @@ from PIL import Image, ImageDraw, ImageFont
 
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 # 去除易混淆字符 0/O/o、1/l/I
 CAPTCHA_CHARSET = "23456789ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz"
 _IMAGE_WIDTH = 120
 _IMAGE_HEIGHT = 40
+
+# verify() 返回值：可区分的失败原因（路由层据此返回对应提示文案）
+CAPTCHA_OK = "ok"  # 校验通过（一次性作废）
+CAPTCHA_INVALID = "invalid"  # id/文本为空，或记录不存在（含已作废后再次提交）
+CAPTCHA_EXPIRED = "expired"  # 超过 TTL
+CAPTCHA_IP_MISMATCH = "ip_mismatch"  # 提交 IP 与签发 IP 不一致
+CAPTCHA_USED = "used"  # 已成功校验过（一次性作废后再提交）
+CAPTCHA_ATTEMPTS_EXCEEDED = "attempts_exceeded"  # 错误尝试达到上限
+CAPTCHA_TEXT_MISMATCH = "text_mismatch"  # 文本不匹配（记录仍有效，可重试）
 
 
 @dataclass
@@ -37,7 +49,7 @@ class _CaptchaRecord:
 
 
 class CaptchaStore:
-    """内存验证码存储：issue(ip) -> (captcha_id, image_base64)；verify(id, text, ip) -> bool。"""
+    """内存验证码存储：issue(ip) -> (captcha_id, image_base64)；verify(id, text, ip) -> 结果原因（CAPTCHA_OK 或失败原因常量）。"""
 
     def __init__(self) -> None:
         self._records: dict[str, _CaptchaRecord] = {}
@@ -48,7 +60,7 @@ class CaptchaStore:
         self._cleanup()
         text = "".join(secrets.choice(CAPTCHA_CHARSET) for _ in range(max(1, settings.captcha_length)))
         record = _CaptchaRecord(
-            code_hash=self._hash(text),
+            code_hash=self._hash(self._normalize(text)),
             expires_at=time.time() + settings.captcha_ttl_seconds,
             ip=ip or "",
         )
@@ -57,34 +69,49 @@ class CaptchaStore:
             self._records[captcha_id] = record
         return captcha_id, self._render_base64(text)
 
-    def verify(self, captcha_id: str, text: str, ip: str = "") -> bool:
-        """校验验证码。
+    def verify(self, captcha_id: str, text: str, ip: str = "") -> str:
+        """校验验证码，返回 CAPTCHA_OK 或具体失败原因（见模块常量）。
 
         规则：TTL 过期 / 已使用 / 尝试次数达到 captcha_fail_max / IP 不一致（签发时有 IP 且当前不同）
-        均判定失败；成功即作废（一次性），失败累计 attempts，达到上限即作废。
+        均判定失败并返回可区分原因；成功即作废（一次性），失败累计 attempts，达到上限即作废。
+        文本比较不区分大小写且忽略首尾空白（issue 侧按同一规则归一化存储摘要）。
         """
-        if not captcha_id or not text:
-            return False
+        if not captcha_id or not text or not text.strip():
+            return CAPTCHA_INVALID
         now = time.time()
         with self._lock:
             record = self._records.get(captcha_id)
             if record is None:
-                return False
-            if now >= record.expires_at:
+                reason = CAPTCHA_INVALID
+            elif now >= record.expires_at:
                 self._records.pop(captcha_id, None)
-                return False
-            if record.ip and ip and record.ip != ip:
-                return False
-            if record.used or record.attempts >= settings.captcha_fail_max:
-                self._records.pop(captcha_id, None)
-                return False
-            record.attempts += 1
-            valid = secrets.compare_digest(record.code_hash, self._hash(text or ""))
-            if valid:
-                record.used = True
-            if valid or record.attempts >= settings.captcha_fail_max:
-                self._records.pop(captcha_id, None)
-            return valid
+                reason = CAPTCHA_EXPIRED
+            elif record.ip and ip and record.ip != ip:
+                reason = CAPTCHA_IP_MISMATCH
+            elif record.used:
+                reason = CAPTCHA_USED
+            elif record.attempts >= settings.captcha_fail_max:
+                reason = CAPTCHA_ATTEMPTS_EXCEEDED
+            else:
+                record.attempts += 1
+                if secrets.compare_digest(record.code_hash, self._hash(self._normalize(text))):
+                    record.used = True
+                    reason = CAPTCHA_OK
+                else:
+                    reason = (
+                        CAPTCHA_ATTEMPTS_EXCEEDED
+                        if record.attempts >= settings.captcha_fail_max
+                        else CAPTCHA_TEXT_MISMATCH
+                    )
+        if reason != CAPTCHA_OK:
+            logger.warning(
+                "captcha verify failed: reason=%s ip=%s captcha_id=%s attempts=%s",
+                reason,
+                ip or "-",
+                (captcha_id[:8] + "..") if captcha_id else "-",
+                record.attempts if record is not None else "-",
+            )
+        return reason
 
     def _cleanup(self) -> None:
         """清理过期/已使用的记录。"""
@@ -97,6 +124,11 @@ class CaptchaStore:
     @staticmethod
     def _hash(text: str) -> str:
         return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        """归一化比较文本：去首尾空白并转大写（字符集内大小写等价），实现不区分大小写比较。"""
+        return (text or "").strip().upper()
 
     @staticmethod
     def _render_base64(text: str) -> str:

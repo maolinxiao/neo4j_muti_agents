@@ -72,7 +72,16 @@ from app.schemas.rnd import (
     WorkflowStepRunRead,
 )
 from app.services.deepseek_client import DeepSeekClient
-from app.services.captcha_service import CaptchaStore
+from app.services.captcha_service import (
+    CAPTCHA_ATTEMPTS_EXCEEDED,
+    CAPTCHA_EXPIRED,
+    CAPTCHA_INVALID,
+    CAPTCHA_IP_MISMATCH,
+    CAPTCHA_OK,
+    CAPTCHA_TEXT_MISMATCH,
+    CAPTCHA_USED,
+    CaptchaStore,
+)
 from app.services.constitution_service import ConstitutionService
 from app.services.qa_orchestrator import QAOrchestrator
 from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
@@ -211,6 +220,19 @@ def _bearer_from_header(authorization: str | None) -> str:
     return token.strip()
 
 
+def _captcha_error_detail(reason: str) -> str:
+    """验证码校验失败原因 → 用户可读提示（用户据此可直接对症：刷新验证码或重新输入）。"""
+    details = {
+        CAPTCHA_INVALID: "验证码无效或已被作废，请刷新验证码后重试",
+        CAPTCHA_EXPIRED: "验证码已过期，请刷新验证码后重试",
+        CAPTCHA_USED: "验证码已被使用，请刷新验证码后重试",
+        CAPTCHA_ATTEMPTS_EXCEEDED: "验证码错误次数过多，请刷新验证码后重试",
+        CAPTCHA_IP_MISMATCH: "验证码与当前网络环境不一致，请刷新验证码后重试",
+        CAPTCHA_TEXT_MISMATCH: "验证码输入错误，请重新输入（不区分大小写）",
+    }
+    return details.get(reason, "验证码错误或已过期")
+
+
 @auth_router.get("/captcha", response_model=CaptchaResponse)
 def get_captcha(request: Request) -> CaptchaResponse:
     if not settings.captcha_enabled:
@@ -223,8 +245,10 @@ def get_captcha(request: Request) -> CaptchaResponse:
 @auth_router.post("/register", response_model=RegisterResponse)
 def register(payload: RegisterRequest, request: Request, db: Session = Depends(get_db_session)) -> RegisterResponse:
     ip = _client_ip(request)
-    if settings.captcha_enabled and not captcha_store.verify(payload.captcha_id, payload.captcha_text, ip):
-        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+    if settings.captcha_enabled:
+        captcha_reason = captcha_store.verify(payload.captcha_id, payload.captcha_text, ip)
+        if captcha_reason != CAPTCHA_OK:
+            raise HTTPException(status_code=400, detail=_captcha_error_detail(captcha_reason))
     if not register_rate_limiter.allow(ip):
         raise HTTPException(status_code=429, detail="注册请求过于频繁，请稍后再试")
     service = AuthService(db)
@@ -260,8 +284,10 @@ def change_password(
 @auth_router.post("/login", response_model=LoginResponse)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db_session)) -> LoginResponse:
     ip = _client_ip(request)
-    if settings.captcha_enabled and not captcha_store.verify(payload.captcha_id, payload.captcha_text, ip):
-        raise HTTPException(status_code=400, detail="验证码错误或已过期")
+    if settings.captcha_enabled:
+        captcha_reason = captcha_store.verify(payload.captcha_id, payload.captcha_text, ip)
+        if captcha_reason != CAPTCHA_OK:
+            raise HTTPException(status_code=400, detail=_captcha_error_detail(captcha_reason))
     locked = login_fail_guard.locked_seconds(payload.username, ip)
     if locked > 0:
         raise HTTPException(status_code=429, detail=f"登录失败次数过多，请 {login_fail_guard.lock_minutes} 分钟后再试")

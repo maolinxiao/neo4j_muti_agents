@@ -12,8 +12,10 @@ import { onMounted, onUnmounted, ref } from "vue";
 import heroGraphData from "../../assets/showcase/data/hero-graph.json";
 import heroInnerNetworks from "../../assets/showcase/data/hero-inner-networks.json";
 import { heroColorByType, HERO_TYPE_LABELS } from "../../utils/heroGraphColors";
+import { useShowcaseMotionPreference } from "../../composables/useShowcaseMotionPreference";
 
 const containerRef = ref(null);
+const { preferReducedMotion } = useShowcaseMotionPreference();
 
 const SPHERE_RADIUS = 62;
 const OUTER_KB_RADIUS = 82;
@@ -32,6 +34,35 @@ const FOCUS_ZOOM_IN = 2.7;
 const FOCUS_ZOOM_OUT = 2.6;
 const FOCUS_REST = 0.9;
 const PLATFORM_LABEL_FOCUS_FADE = 0.72;
+
+// —— 特写遮挡修复（§3）：视线淡出 / 链接聚焦 / 标签分层 / 内部展开减熵 ——
+const OCCLUSION_MIN_OPACITY = 0.02; // 遮挡节点与非相邻链接的淡出下限
+const OCCLUSION_DEPTH_MARGIN = 1.25; // 焦点球前表面深度判定余量（×焦点半径）
+const OCCLUSION_CONE_MARGIN = 1.35; // 视线遮挡判定锥半径余量（×焦点半径 + 节点当前半径）
+const OCCLUSION_FADE_K = 3.2; // 遮挡权重 exp 平滑速率（常规动效）
+const OCCLUSION_FADE_K_REDUCED = 9.0; // 减少动效偏好下更直接的淡出
+const LINK_FOCUS_WEIGHT_THRESHOLD = 0.55; // 链接聚焦策略生效阈值（特写权重）
+const LINK_FOCUS_MIN_OPACITY = 0.02; // 非相邻链接淡出下限
+const LINK_FADE_K = 3.0; // 链接透明度 exp 平滑速率
+const LINK_MID_FRONT_KEEP = 0.3; // 链路中点位于焦点球与相机之间时的保留比例
+const LINK_MID_CONE = 2.4; // 链路中点遮挡判定锥半径（×焦点半径）
+const DIM_OTHERS_FADE = 0.42; // 特写时非焦点节点基础淡化强度（增强后）
+const DIM_OTHERS_FADE_REDUCED = 0.55; // 减少动效偏好下更激进的淡化
+const LABEL_NON_FOCUS_FADE = 0.85; // 非焦点标签 opacity ×(1−spotWeight·0.85)
+const LABEL_FOCUS_RENDER_ORDER = 210; // 特写焦点标签置顶渲染
+const LABEL_DIST_SORT_BASE = 30; // 标签按相机距离分层的 renderOrder 基础值
+const LABEL_DIST_SORT_RANGE = 140; // 标签分层 renderOrder 区间宽度（近者在上）
+const LABEL_INNER_FADE_THRESHOLD = 0.7; // 焦点标签 innerReveal 超过后淡出防满屏
+const LABEL_INNER_FADE_RANGE = 0.15; // 焦点标签淡出过渡区间
+const LABEL_FOCUS_SCALE_BOOST = 0.2; // 焦点标签特写平滑放大系数
+const INNER_FADE_THRESHOLD = 0.6; // 内部展开减熵：非焦点大球开始整体淡出
+const INNER_FADE_RANGE = 0.3; // 减熵淡出过渡区间
+const RING_SPOT_FADE = 0.6; // orbitRings 随特写权重淡出（再降一档）
+const GYRO_SPOT_FADE = 0.78; // gyroRings 随特写权重淡出（再降一档）
+const DUST_SPOT_FADE = 0.24; // dustField 随特写权重淡出（再降一档）
+const BLOOM_CONVERGE_START = 0.86; // 特写极值段 bloom 收敛起点
+const BLOOM_CONVERGE_RANGE = 0.14; // bloom 收敛过渡区间
+const BLOOM_EXTREME_CONVERGE = 0.28; // 极值段 bloom 提升幅度收敛比例
 
 /** 关键画面轮播（入场结束后；不含 platform，避免与开场重复） */
 const LOOP_SPOTLIGHT_ORDER = [
@@ -176,6 +207,9 @@ let isPaused = false;
 let accumulatedRotation = 0;
 let prevSpotWeight = 0;
 let rotWeightSmooth = 0;
+let linkFocusSmooth = 0;
+let labelEntries = [];
+let labelDistances = new Float32Array(0);
 
 const _worldPos = new THREE.Vector3();
 const _worldPosB = new THREE.Vector3();
@@ -201,6 +235,12 @@ const _linkControl = new THREE.Vector3();
 const _linkOut = new THREE.Vector3();
 const _linkCurvePoint = new THREE.Vector3();
 const _nodePush = new THREE.Vector3();
+const _focusViewDir = new THREE.Vector3();
+const _nodeToCamRaw = new THREE.Vector3();
+const _linkMidWorld = new THREE.Vector3();
+const _linkMidCam = new THREE.Vector3();
+const _labelWorldPos = new THREE.Vector3();
+const _satLabelOffset = new THREE.Vector3();
 
 const easeInOut = (t) => {
   const x = Math.max(0, Math.min(1, t));
@@ -210,6 +250,32 @@ const easeInOut = (t) => {
 const smootherStep = (t) => {
   const x = Math.max(0, Math.min(1, t));
   return x * x * x * (x * (x * 6 - 15) + 10);
+};
+
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+
+/** 特写权重 → 内部子网络展开度（与主循环 innerReveal 同式） */
+const innerRevealOf = (weight) => (weight > 0.02 ? easeInOut(clamp01((weight - 0.12) / 0.88)) : 0);
+
+/** 主/次焦点半径按权重混合，供视线遮挡与链路中点遮挡判定 */
+const blendFocusRadius = (primaryId, primaryWeight, secondaryId, secondaryWeight) => {
+  let radius = 0;
+  let total = 0;
+  if (primaryWeight > 0.001) {
+    const primary = nodeMap.get(primaryId);
+    if (primary) {
+      radius += (primary.userData.baseRadius || 4.8) * primaryWeight;
+      total += primaryWeight;
+    }
+  }
+  if (secondaryId && secondaryWeight > 0.001) {
+    const secondary = nodeMap.get(secondaryId);
+    if (secondary) {
+      radius += (secondary.userData.baseRadius || 4.8) * secondaryWeight;
+      total += secondaryWeight;
+    }
+  }
+  return total > 0.001 ? radius / total : 4.8;
 };
 
 /**
@@ -676,6 +742,8 @@ const buildInnerNetwork = (nodeId, hubRadius) => {
         emissiveIntensity: 0.22,
         metalness: 0.3,
         roughness: 0.45,
+        transparent: true,
+        opacity: 1,
       }),
     );
     sat.position.copy(pos);
@@ -688,6 +756,7 @@ const buildInnerNetwork = (nodeId, hubRadius) => {
     label.userData.baseOffsetY = isPlatformNetwork ? 2.7 : 2.2;
     label.position.copy(pos).add(new THREE.Vector3(0, label.userData.baseOffsetY, 0));
     group.add(label);
+    labelEntries.push({ label });
 
     return { mesh: sat, label, pos };
   });
@@ -943,6 +1012,7 @@ const buildScene = () => {
     }
     if (mesh.userData.label) {
       mesh.userData.label.userData.baseY = mesh.userData.label.position.y;
+      labelEntries.push({ label: mesh.userData.label });
     }
 
     graphGroup.add(mesh);
@@ -980,16 +1050,18 @@ const buildScene = () => {
   });
 
   [SPHERE_RADIUS * 1.02, SPHERE_RADIUS * 1.18, OUTER_KB_RADIUS * 1.02].forEach((r, i) => {
+    const baseOpacity = i === 0 ? 0.08 : i === 1 ? 0.055 : 0.04;
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(r, r + (i === 2 ? 0.5 : 0.4), 128),
       new THREE.MeshBasicMaterial({
         color: i === 0 ? 0x34d399 : i === 1 ? 0x818cf8 : 0x64748b,
         transparent: true,
-        opacity: i === 0 ? 0.08 : i === 1 ? 0.055 : 0.04,
+        opacity: baseOpacity,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
     );
+    ring.userData.baseOpacity = baseOpacity;
     ring.rotation.x = Math.PI / 2;
     graphGroup.add(ring);
     orbitRings.push(ring);
@@ -1056,6 +1128,8 @@ const buildScene = () => {
     }),
   );
   scene.add(dustField);
+
+  labelDistances = new Float32Array(labelEntries.length);
 };
 
 const syncSize = () => {
@@ -1085,6 +1159,7 @@ const animate = () => {
   } = getSpotlightState(elapsed);
   const effectiveSpotWeight = Math.min(1, spotWeight + secondaryWeight);
   const activeConfig = effectiveSpotWeight > 0.001 ? focusConfig : DEFAULT_SPOTLIGHT;
+  const reducedMotion = preferReducedMotion.value;
 
   // 入场预热：前 ~2.4s 让旋转/相机从静止平滑加速，避免一进首页就满速、节奏突兀
   const warmup = smootherStep(Math.min(1, elapsed / 2.4));
@@ -1099,19 +1174,21 @@ const animate = () => {
 
   orbitRings.forEach((ring, i) => {
     ring.rotation.z = elapsed * (i === 0 ? 0.025 : i === 1 ? -0.018 : 0.012);
+    // 轨道环随特写权重收敛（在原有氛围基础上再降一档）
+    ring.material.opacity = ring.userData.baseOpacity * (1 - effectiveSpotWeight * RING_SPOT_FADE);
   });
 
   if (dustField) {
     dustField.rotation.y = -accumulatedRotation * 0.32;
     dustField.rotation.x = Math.sin(elapsed * 0.05) * 0.04;
-    dustField.material.opacity = 0.32 - effectiveSpotWeight * 0.14;
+    dustField.material.opacity = 0.32 - effectiveSpotWeight * DUST_SPOT_FADE;
   }
 
   gyroRings.forEach((g) => {
     g.pivot.rotation.y = elapsed * g.spec.speed;
     const angle = elapsed * g.spec.speed * 7 + g.phase;
     g.tracer.position.set(Math.cos(angle) * g.spec.radius, Math.sin(angle) * g.spec.radius, 0);
-    const fade = 1 - effectiveSpotWeight * 0.55;
+    const fade = 1 - effectiveSpotWeight * GYRO_SPOT_FADE;
     g.ring.material.opacity = g.spec.opacity * fade;
     g.tracer.material.opacity = 0.8 * fade;
   });
@@ -1153,6 +1230,26 @@ const animate = () => {
   camera.getWorldDirection(_viewDir);
   _viewDirNeg.copy(_viewDir).negate();
 
+  // —— 焦点深度基准：视线遮挡与链路中点遮挡共用 ——
+  let focusDist = Infinity;
+  let focusFrontDepth = Infinity;
+  let focusConeRadius = 0;
+  if (focusBlend > 0.001) {
+    _focusViewDir.copy(_blendFocus).sub(camera.position).normalize();
+    focusDist = camera.position.distanceTo(_blendFocus);
+    focusConeRadius = blendFocusRadius(focusId, spotWeight, secondaryFocusId, secondaryWeight);
+    focusFrontDepth = focusDist - focusConeRadius * OCCLUSION_DEPTH_MARGIN;
+  }
+
+  // 内部展开减熵 / 链接聚焦的帧级权重（exp 平滑，无跳变）
+  const globalInnerReveal = Math.max(innerRevealOf(spotWeight), innerRevealOf(secondaryWeight));
+  const entropyFadeBase = 1 - smootherStep(clamp01((globalInnerReveal - INNER_FADE_THRESHOLD) / INNER_FADE_RANGE));
+  const linkFocusActive = effectiveSpotWeight > LINK_FOCUS_WEIGHT_THRESHOLD ? 1 : 0;
+  const linkK = 1 - Math.exp(-LINK_FADE_K * delta);
+  linkFocusSmooth += (linkFocusActive - linkFocusSmooth) * linkK;
+
+  graphGroup.updateMatrixWorld();
+
   nodeEntries.forEach((group) => {
     group.position.copy(group.userData.basePos);
     if (platformFocusWeight > 0.01 && group.userData.nodeId !== "platform") {
@@ -1172,11 +1269,15 @@ const animate = () => {
       secondaryWeight,
     );
     const spotBoost = nodeSpot;
-    let dimOthers = effectiveSpotWeight > 0.15 && nodeSpot < 0.05 ? 1 - effectiveSpotWeight * 0.32 : 1;
+    const isFocusNode = nodeSpot > 0.02;
+    // 特写时非焦点节点整体淡化（增强后的 dimOthers），减少动效偏好下更激进
+    let dimOthers = effectiveSpotWeight > 0.15 && !isFocusNode
+      ? 1 - effectiveSpotWeight * (reducedMotion ? DIM_OTHERS_FADE_REDUCED : DIM_OTHERS_FADE)
+      : 1;
     if (platformFocusWeight > 0.08 && group.userData.nodeId !== "platform") {
       dimOthers *= 1 - platformFocusWeight * 0.55;
     }
-    const innerReveal = nodeSpot > 0.02 ? easeInOut(Math.max(0, (nodeSpot - 0.12) / 0.88)) : 0;
+    const innerReveal = innerRevealOf(nodeSpot);
 
     group.getWorldPosition(_worldPos);
     _camToNode.copy(_worldPos).sub(camera.position).normalize();
@@ -1188,33 +1289,67 @@ const animate = () => {
     const r = group.userData.baseRadius * pulse * scaleBoost;
     group.userData.currentVisualRadius = r;
 
+    // —— 视线遮挡淡出：位于相机与焦点球之间的非焦点节点整体收敛到 ~0.02 ——
+    let occlusionTarget = 0;
+    if (!isFocusNode && effectiveSpotWeight > 0.05 && focusBlend > 0.001) {
+      _nodeToCamRaw.copy(_worldPos).sub(camera.position);
+      const nodeDepth = _nodeToCamRaw.dot(_focusViewDir);
+      const offAxisSq = Math.max(0, _nodeToCamRaw.lengthSq() - nodeDepth * nodeDepth);
+      const cone = focusConeRadius * OCCLUSION_CONE_MARGIN + r;
+      if (nodeDepth < focusFrontDepth && offAxisSq < cone * cone) occlusionTarget = 1;
+    }
+    const occlusionK = 1 - Math.exp(-(reducedMotion ? OCCLUSION_FADE_K_REDUCED : OCCLUSION_FADE_K) * delta);
+    const occlusionSmooth =
+      (group.userData.occlusionSmooth || 0) + (occlusionTarget - (group.userData.occlusionSmooth || 0)) * occlusionK;
+    group.userData.occlusionSmooth = occlusionSmooth;
+    const occlusionFade = 1 - occlusionSmooth * effectiveSpotWeight * (1 - OCCLUSION_MIN_OPACITY);
+    group.userData.occlusionFade = occlusionFade;
+
+    // —— 内部展开减熵：焦点内部网络展开过半时，非焦点大球整体淡出 ——
+    const entropyFade = isFocusNode ? 1 : entropyFadeBase;
+
     group.userData.core.scale.setScalar(r / group.userData.baseRadius);
     group.userData.glow.scale.setScalar(r / group.userData.baseRadius);
     group.userData.core.material.emissiveIntensity =
-      Math.max(0.08, (group.userData.baseEmissive + highlight * 0.045 - spotBoost * 0.11) * dimOthers);
-    group.userData.core.material.opacity = (0.78 + spotBoost * 0.02) * dimOthers;
+      Math.max(0.08, (group.userData.baseEmissive + highlight * 0.045 - spotBoost * 0.11) * dimOthers)
+      * entropyFade * occlusionFade;
+    group.userData.core.material.opacity = (0.78 + spotBoost * 0.02) * dimOthers * entropyFade * occlusionFade;
     // 菲涅尔辉光：朝向相机/特写时增强，特写内部展开时收敛避免遮挡
     group.userData.glow.material.uniforms.uIntensity.value =
-      (group.userData.baseGlow + highlight * 0.35 + spotBoost * 0.2 - innerReveal * 0.3) * dimOthers;
-    group.userData.shell.material.opacity = (0.18 + spotBoost * 0.08) * dimOthers;
-    group.userData.surfaceWire.material.opacity = (0.07 + innerReveal * 0.2 + spotBoost * 0.06) * dimOthers;
+      (group.userData.baseGlow + highlight * 0.35 + spotBoost * 0.2 - innerReveal * 0.3)
+      * dimOthers * entropyFade * occlusionFade;
+    group.userData.shell.material.opacity = (0.18 + spotBoost * 0.08) * dimOthers * entropyFade * occlusionFade;
+    group.userData.surfaceWire.material.opacity =
+      (0.07 + innerReveal * 0.2 + spotBoost * 0.06) * dimOthers * entropyFade * occlusionFade;
 
     if (group.userData.wire) {
       group.userData.wire.rotation.y = elapsed * 0.35;
       group.userData.wire.rotation.x = elapsed * 0.22;
-      group.userData.wire.material.opacity = 0.12 + innerReveal * 0.2;
+      group.userData.wire.material.opacity = (0.12 + innerReveal * 0.2) * dimOthers * occlusionFade;
     }
     if (group.userData.label) {
+      const label = group.userData.label;
       const isPlatformLabel = group.userData.nodeId === "platform";
       const platformLabelFade = isPlatformLabel ? 1 - innerReveal * PLATFORM_LABEL_FOCUS_FADE : 1;
-      group.userData.label.material.opacity = (0.88 + spotBoost * 0.1) * dimOthers * platformLabelFade;
+      // 焦点标签：inner 展开过深时淡出防满屏；特写时关深度测试并置顶渲染保证可读
+      const labelInnerFade = isFocusNode
+        ? 1 - clamp01((innerReveal - LABEL_INNER_FADE_THRESHOLD) / LABEL_INNER_FADE_RANGE)
+        : 1;
+      // 非焦点标签：随特写权重更激进淡出，避免文字满屏互叠
+      const nonFocusLabelFade = isFocusNode ? 1 : 1 - effectiveSpotWeight * LABEL_NON_FOCUS_FADE;
+      label.material.opacity =
+        (0.88 + nodeSpot * 0.1) * dimOthers * platformLabelFade * labelInnerFade * nonFocusLabelFade * occlusionFade;
+      label.material.depthTest = !isFocusNode;
+      label.userData.focusOverride = isFocusNode;
+      if (isFocusNode) label.renderOrder = LABEL_FOCUS_RENDER_ORDER;
       const base = group.userData.labelBaseScale || 22;
       const nodeConfig = getSpotlightConfig(group.userData.nodeId);
-      const labelScaleBoost = isPlatformLabel ? 0.06 : 0.16;
-      const s = base * (0.96 + spotBoost * labelScaleBoost);
-      group.userData.label.scale.set(s, s * 0.31, 1);
-      group.userData.label.position.y =
-        group.userData.label.userData.baseY + spotBoost * (nodeConfig.labelLift || CLOSE_LOOK_LIFT);
+      // 焦点标签特写平滑放大；减少动效偏好下不放大
+      const labelScaleBoost = reducedMotion ? 0 : isPlatformLabel ? 0.06 : LABEL_FOCUS_SCALE_BOOST;
+      const s = base * (0.96 + nodeSpot * labelScaleBoost);
+      label.scale.set(s, s * 0.31, 1);
+      label.position.y =
+        label.userData.baseY + nodeSpot * (nodeConfig.labelLift || CLOSE_LOOK_LIFT);
     }
 
     const inner = group.userData.innerNetwork;
@@ -1226,34 +1361,92 @@ const animate = () => {
       // 放慢公转、收敛摆动幅度，让小节点环绕更从容优雅而非机械急转
       inner.group.rotation.y = elapsed * 0.26;
       inner.group.rotation.x = Math.sin(elapsed * 0.22) * 0.1;
-      inner.cage.material.opacity = 0.06 + innerReveal * 0.22;
+      // inner 子网络（cage/satellite/links）一并参与视线遮挡淡出
+      inner.cage.material.opacity = (0.06 + innerReveal * 0.22) * occlusionFade;
       inner.cage.rotation.y = -elapsed * 0.2;
       inner.satellites.forEach((sat, i) => {
         sat.mesh.material.emissiveIntensity = 0.15 + innerReveal * 0.25;
-        sat.label.material.opacity = 0.4 + innerReveal * 0.55;
+        sat.mesh.material.opacity = occlusionFade;
+        sat.label.material.opacity = (0.4 + innerReveal * 0.55) * occlusionFade;
         sat.mesh.position.copy(sat.pos);
         // 轻柔上下浮动 + 沿半径方向的呼吸，营造环绕的生命感
         const breathe = 1 + Math.sin(elapsed * 0.7 + i * 0.9) * 0.04 * innerReveal;
         sat.mesh.position.multiplyScalar(breathe);
         sat.mesh.position.y += Math.sin(elapsed * 0.9 + i) * 0.14 * innerReveal;
-        sat.label.position.copy(sat.mesh.position).add(new THREE.Vector3(0, sat.label.userData.baseOffsetY || 2.2, 0));
+        sat.label.position
+          .copy(sat.mesh.position)
+          .add(_satLabelOffset.set(0, sat.label.userData.baseOffsetY || 2.2, 0));
       });
       inner.innerLinks.forEach((link) => {
-        link.material.opacity = 0.22 + innerReveal * 0.4;
+        link.material.opacity = (0.22 + innerReveal * 0.4) * occlusionFade;
       });
     }
   });
+
+  // —— 标签分层：每帧按相机距离赋 renderOrder（近者在上），焦点标签置顶，避免文字互叠 ——
+  if (labelEntries.length) {
+    let minDist = Infinity;
+    let maxDist = 0;
+    for (let i = 0; i < labelEntries.length; i += 1) {
+      const entry = labelEntries[i];
+      if (entry.label.userData.focusOverride) continue;
+      const d = entry.label.getWorldPosition(_labelWorldPos).distanceToSquared(camera.position);
+      labelDistances[i] = d;
+      if (d < minDist) minDist = d;
+      if (d > maxDist) maxDist = d;
+    }
+    if (Number.isFinite(minDist)) {
+      const span = Math.max(1e-4, maxDist - minDist);
+      for (let i = 0; i < labelEntries.length; i += 1) {
+        const entry = labelEntries[i];
+        if (entry.label.userData.focusOverride) continue;
+        const norm = 1 - (labelDistances[i] - minDist) / span;
+        entry.label.renderOrder = Math.round(LABEL_DIST_SORT_BASE + norm * LABEL_DIST_SORT_RANGE);
+      }
+    }
+  }
 
   linkMeshes.forEach(({ mesh, source, target }) => {
     const sourceSpot = nodeSpotWeight(source.userData.nodeId, focusId, spotWeight, secondaryFocusId, secondaryWeight);
     const targetSpot = nodeSpotWeight(target.userData.nodeId, focusId, spotWeight, secondaryFocusId, secondaryWeight);
     const relatedSpot = Math.max(sourceSpot, targetSpot);
+    const isAdjacent = relatedSpot > 0.02;
     updateLinkMesh(mesh, source, target, (activeConfig.linkArc || DEFAULT_SPOTLIGHT.linkArc) * (1 + relatedSpot * 0.35));
     const base = mesh.userData.baseOpacity ?? 0.62;
     const pulse = Math.sin(elapsed * 2 + source.userData.phase) * 0.06;
-    const incidentFade = 1 - relatedSpot * 0.42;
-    const spotFade = 1 - effectiveSpotWeight * 0.5;
-    mesh.material.opacity = Math.max(0.018, (base * 0.9 + pulse * 0.35) * spotFade * incidentFade);
+    let targetOpacity = base * 0.9 + pulse * 0.35;
+    if (isAdjacent) {
+      // 相邻链接保持，作为焦点节点的视线引导
+      targetOpacity *= 1 - relatedSpot * 0.42;
+    } else {
+      targetOpacity *= 1 - effectiveSpotWeight * 0.5;
+      // 链接聚焦：特写权重超阈值后非相邻链接整体淡出至 0.02
+      if (linkFocusSmooth > 0.001) {
+        targetOpacity += (LINK_FOCUS_MIN_OPACITY - targetOpacity) * linkFocusSmooth;
+      }
+    }
+    // 链路中点位于焦点球与相机之间时额外淡出，防“线盖球”
+    let midFrontTarget = 0;
+    if (focusBlend > 0.001 && effectiveSpotWeight > 0.05) {
+      _linkMidWorld
+        .copy(mesh.userData.cStart)
+        .multiplyScalar(0.25)
+        .addScaledVector(mesh.userData.cControl, 0.5)
+        .addScaledVector(mesh.userData.cEnd, 0.25)
+        .applyMatrix4(graphGroup.matrixWorld);
+      _linkMidCam.copy(_linkMidWorld).sub(camera.position);
+      const midDepth = _linkMidCam.dot(_focusViewDir);
+      const midOffAxisSq = Math.max(0, _linkMidCam.lengthSq() - midDepth * midDepth);
+      const midCone = focusConeRadius * LINK_MID_CONE + 2;
+      if (midDepth < focusFrontDepth && midOffAxisSq < midCone * midCone) midFrontTarget = 1;
+    }
+    const midFrontSmooth =
+      (mesh.userData.midFrontSmooth || 0) + (midFrontTarget - (mesh.userData.midFrontSmooth || 0)) * linkK;
+    mesh.userData.midFrontSmooth = midFrontSmooth;
+    targetOpacity *= 1 - midFrontSmooth * effectiveSpotWeight * (1 - LINK_MID_FRONT_KEEP);
+    targetOpacity = Math.max(LINK_FOCUS_MIN_OPACITY, targetOpacity);
+    mesh.material.opacity += (targetOpacity - mesh.material.opacity) * linkK;
+    mesh.userData.currentOpacity = mesh.material.opacity;
   });
 
   particles.forEach(({ mesh, link }) => {
@@ -1269,7 +1462,8 @@ const animate = () => {
     mesh.position.copy(_linkCurvePoint);
     // 两端淡出，中段最亮，像一束流动的能量而非生硬的点
     const edgeFade = Math.sin(t * Math.PI);
-    const particleFade = 1 - effectiveSpotWeight * 0.85;
+    // 光点与所属链接的透明度挂钩：链接淡出（聚焦/遮挡）时粒子同步淡出
+    const particleFade = Math.min(1, (link.userData.currentOpacity || 0) / LINK_BASE_OPACITY);
     mesh.material.opacity = Math.max(0, 0.7 * particleFade * (0.18 + 0.82 * edgeFade));
     const s = 1.9 + edgeFade * 0.9;
     mesh.scale.set(s, s, 1);
@@ -1277,8 +1471,11 @@ const animate = () => {
 
   const targetExposure = BASE_EXPOSURE + effectiveSpotWeight * ((activeConfig.exposure || BASE_EXPOSURE) - BASE_EXPOSURE);
   renderer.toneMappingExposure += (targetExposure - renderer.toneMappingExposure) * (1 - Math.exp(-4.5 * delta));
+  // 特写极值段收敛 bloom，防焦点球过曝成白斑
+  const bloomConverge = smootherStep(clamp01((effectiveSpotWeight - BLOOM_CONVERGE_START) / BLOOM_CONVERGE_RANGE));
   const targetBloom = BASE_BLOOM_STRENGTH
     + effectiveSpotWeight * ((activeConfig.bloomStrength || BASE_BLOOM_STRENGTH) - BASE_BLOOM_STRENGTH)
+      * (1 - bloomConverge * BLOOM_EXTREME_CONVERGE)
     + Math.sin(elapsed * 0.4) * 0.01;
   bloomPass.strength += (targetBloom - bloomPass.strength) * (1 - Math.exp(-4.2 * delta));
   composer.render();
@@ -1293,6 +1490,9 @@ const dispose = () => {
   particles = [];
   orbitRings = [];
   gyroRings = [];
+  labelEntries = [];
+  labelDistances = new Float32Array(0);
+  linkFocusSmooth = 0;
   dustField?.geometry?.dispose();
   dustField?.material?.dispose();
   dustField = null;

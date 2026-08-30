@@ -8,32 +8,50 @@
           title="三大核心能力"
           lead="面向企业研发与个人食养，以图谱证据串联问答、体质辨识与多 Agent 研发协同。"
         />
-        <div class="capability-grid">
-          <article
+        <div ref="tiltScope" class="capability-grid" @mousemove="tilt.onMove" @mouseleave="tilt.onLeave">
+          <div
             v-for="(item, index) in capabilities"
             :key="item.key"
-            class="reveal-stagger-item capability-card sc-glass sc-card-hover sc-card-glow"
-            :class="`capability-card--${item.key}`"
+            class="reveal-stagger-item cap-wrap"
             :style="{ '--reveal-index': index }"
           >
-            <div class="capability-visual" aria-hidden="true">
-              <component :is="item.icon" />
-              <span class="visual-orbit" />
-            </div>
-            <div class="capability-body">
-              <span class="capability-kicker">{{ item.kicker }}</span>
-              <h3>{{ item.title }}</h3>
-              <p class="capability-desc">{{ item.description }}</p>
-              <div class="capability-flow" aria-label="能力流程">
-                <span v-for="step in item.flow" :key="step">{{ step }}</span>
+            <article class="capability-card sc-glass sc-card-hover sc-card-glow" :class="`capability-card--${item.key}`">
+              <span class="cap-glare" aria-hidden="true" />
+              <div class="capability-visual" aria-hidden="true">
+                <UseCaseScene v-if="useScene3d" :variant="item.sceneVariant" :color="item.sceneColor">
+                  <template #fallback>
+                    <component :is="item.icon" />
+                    <span class="visual-orbit" />
+                  </template>
+                </UseCaseScene>
+                <template v-else>
+                  <component :is="item.icon" />
+                  <span class="visual-orbit" />
+                </template>
               </div>
-              <blockquote class="capability-example">「{{ item.example }}」</blockquote>
-              <router-link :to="item.route" class="capability-link">
-                进入 {{ item.title }}
-                <span aria-hidden="true">→</span>
-              </router-link>
-            </div>
-          </article>
+              <div class="capability-body">
+                <span class="capability-kicker">{{ item.kicker }}</span>
+                <h3>{{ item.title }}</h3>
+                <p class="capability-desc">{{ item.description }}</p>
+                <div class="capability-flow" aria-label="能力流程">
+                  <span v-for="step in item.flow" :key="step">{{ step }}</span>
+                </div>
+                <div class="capability-stats" aria-label="能力数据与知识库">
+                  <div class="cap-stat-row">
+                    <span v-for="stat in item.statChips" :key="stat" class="cap-stat">{{ stat }}</span>
+                  </div>
+                  <div class="cap-kb-row" aria-label="关联知识库">
+                    <span v-for="kb in item.kbChips" :key="kb" class="cap-kb">{{ kb }}</span>
+                  </div>
+                </div>
+                <blockquote class="capability-example">「{{ item.example }}」</blockquote>
+                <router-link :to="item.route" class="capability-link">
+                  进入 {{ item.title }}
+                  <span aria-hidden="true">→</span>
+                </router-link>
+              </div>
+            </article>
+          </div>
         </div>
       </div>
     </ShowcaseReveal3D>
@@ -41,11 +59,18 @@
 </template>
 
 <script setup>
-import { h } from "vue";
+import { computed, h, ref } from "vue";
 
+import UseCaseScene from "./UseCaseScene.vue";
 import ShowcaseReveal3D from "./ShowcaseReveal3D.vue";
 import ShowcaseSectionDecor from "./ShowcaseSectionDecor.vue";
 import ShowcaseSectionHeader from "./ShowcaseSectionHeader.vue";
+import { useMediaQuery, useTilt } from "../../composables/useTilt";
+import { useShowcaseMotionPreference } from "../../composables/useShowcaseMotionPreference";
+
+const { preferReducedMotion } = useShowcaseMotionPreference();
+const isNarrow = useMediaQuery("(max-width: 767px)");
+const useScene3d = computed(() => !preferReducedMotion.value && !isNarrow.value);
 
 const iconQa = () =>
   h("svg", { viewBox: "0 0 64 64", class: "cap-icon" }, [
@@ -74,6 +99,7 @@ const iconRnd = () =>
     h("line", { x1: "22", y1: "32", x2: "32", y2: "24", stroke: "currentColor", "stroke-width": "1", opacity: "0.35" }),
     h("line", { x1: "32", y1: "24", x2: "42", y2: "32", stroke: "currentColor", "stroke-width": "1", opacity: "0.35" }),
     h("line", { x1: "42", y1: "32", x2: "32", y2: "40", stroke: "currentColor", "stroke-width": "1", opacity: "0.35" }),
+    h("line", { x1: "32", y1: "40", x2: "22", y2: "32", stroke: "currentColor", "stroke-width": "1", opacity: "0.35" }),
   ]);
 
 const capabilities = [
@@ -86,6 +112,10 @@ const capabilities = [
     example: "麻黄可以用什么药食同源原料替代",
     flow: ["问题输入", "图谱召回", "证据回答"],
     route: { name: "chat" },
+    sceneVariant: "graph",
+    sceneColor: "#059669",
+    statChips: ["18 类节点", "86,482 节点", "207,354 关系"],
+    kbChips: ["KB1", "KB2", "…", "KB7"],
   },
   {
     key: "constitution",
@@ -96,6 +126,10 @@ const capabilities = [
     example: "我是什么体质",
     flow: ["量表测评", "体质判定", "食养建议"],
     route: { name: "constitution" },
+    sceneVariant: "constellation",
+    sceneColor: "#ec4899",
+    statChips: ["9 种体质", "30 道问卷"],
+    kbChips: ["KB8"],
   },
   {
     key: "rnd",
@@ -106,8 +140,22 @@ const capabilities = [
     example: "把四君子汤改造成药食同源代餐粉",
     flow: ["需求拆解", "Agent 协同", "方案输出"],
     route: { name: "rnd" },
+    sceneVariant: "pipeline",
+    sceneColor: "#d97706",
+    statChips: ["6 步工作流", "5 专家 Agent"],
+    kbChips: ["KB3", "KB4", "KB5"],
   },
 ];
+
+// —— 3D 倾斜：卡片组（mousemove 事件委托 + glare 跟随；reduced-motion 自动禁用）——
+const tiltScope = ref(null);
+const tilt = useTilt(tiltScope, {
+  selector: ".capability-card",
+  maxDeg: 6,
+  perspective: 900,
+  liftY: -3,
+  hoverScale: 1,
+});
 </script>
 
 <style scoped>
@@ -126,26 +174,83 @@ const capabilities = [
   gap: 1.5rem;
 }
 
+.cap-wrap {
+  display: flex;
+}
+
 .capability-card {
+  position: relative;
   border-radius: var(--sc-radius-md);
   overflow: hidden;
   height: 100%;
+  flex: 1;
   display: flex;
   flex-direction: column;
   background: var(--sc-bg-panel);
   border: 1px solid rgba(15, 23, 42, 0.08);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+/* —— 渐变描边（hover 淡入，mask 勾勒 1.5px 环线）—— */
+.capability-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, var(--cap-border-a, rgba(5, 150, 105, 0.55)), rgba(255, 255, 255, 0.08) 38%, var(--cap-border-b, rgba(217, 119, 6, 0.45)));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.capability-card:hover::after {
+  opacity: 1;
 }
 
 .capability-card--qa {
+  --cap-border-a: rgba(5, 150, 105, 0.62);
+  --cap-border-b: rgba(52, 211, 153, 0.28);
   border-top: 3px solid rgba(5, 150, 105, 0.55);
 }
 
 .capability-card--constitution {
+  --cap-border-a: rgba(236, 72, 153, 0.55);
+  --cap-border-b: rgba(244, 114, 182, 0.3);
   border-top: 3px solid rgba(236, 72, 153, 0.45);
 }
 
 .capability-card--rnd {
+  --cap-border-a: rgba(217, 119, 6, 0.6);
+  --cap-border-b: rgba(251, 191, 36, 0.3);
   border-top: 3px solid rgba(217, 119, 6, 0.55);
+}
+
+/* —— 高光 glare（--tilt-gx / --tilt-gy 由 useTilt 每帧更新）—— */
+.cap-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    300px circle at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
+    rgba(255, 255, 255, 0.32),
+    rgba(255, 255, 255, 0) 55%
+  );
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.capability-card.tilt-hover .cap-glare {
+  opacity: 1;
 }
 
 .capability-visual {
@@ -172,6 +277,45 @@ const capabilities = [
   background:
     radial-gradient(circle at 50% 80%, rgba(217, 119, 6, 0.08), transparent 65%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent);
+}
+
+/* 视觉区径向光晕呼吸（场景 canvas 之下，SVG 回退时同样生效） */
+.capability-visual::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 62%, var(--cap-visual-glow, rgba(5, 150, 105, 0.14)), transparent 58%);
+  animation: capGlowBreathe 5.2s ease-in-out infinite;
+}
+
+.capability-card--qa {
+  --cap-visual-glow: rgba(5, 150, 105, 0.16);
+}
+
+.capability-card--constitution {
+  --cap-visual-glow: rgba(236, 72, 153, 0.13);
+}
+
+.capability-card--rnd {
+  --cap-visual-glow: rgba(217, 119, 6, 0.15);
+}
+
+@keyframes capGlowBreathe {
+  0%, 100% { opacity: 0.45; transform: scale(0.96); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+/* 场景容器占满视觉区；WebGL 回退时 slot 图标在其内居中 */
+.capability-visual :deep(.use-case-scene) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
 }
 
 .capability-visual :deep(.cap-icon) {
@@ -256,6 +400,78 @@ const capabilities = [
 .capability-card--rnd .capability-flow span {
   background: rgba(217, 119, 6, 0.08);
   color: var(--sc-highlight);
+}
+
+/* —— stat chips 行（flow 下方数据与 KB 标签区）—— */
+.capability-stats {
+  margin: 1.15rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.cap-stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.cap-stat {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  background: rgba(5, 150, 105, 0.07);
+  color: var(--sc-accent);
+  border: 1px solid rgba(5, 150, 105, 0.16);
+  white-space: nowrap;
+}
+
+.capability-card--constitution .cap-stat {
+  background: rgba(236, 72, 153, 0.06);
+  color: #db2777;
+  border-color: rgba(236, 72, 153, 0.18);
+}
+
+.capability-card--rnd .cap-stat {
+  background: rgba(217, 119, 6, 0.07);
+  color: var(--sc-highlight);
+  border-color: rgba(217, 119, 6, 0.18);
+}
+
+.cap-kb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cap-kb {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.52rem;
+  border-radius: 7px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+  background: rgba(15, 23, 42, 0.05);
+  color: var(--sc-text-secondary);
+  border: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.capability-card--constitution .cap-kb {
+  background: rgba(236, 72, 153, 0.06);
+  color: #be185d;
+  border-color: rgba(236, 72, 153, 0.16);
+}
+
+.capability-card--rnd .cap-kb {
+  background: rgba(217, 119, 6, 0.06);
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.16);
 }
 
 .capability-example {

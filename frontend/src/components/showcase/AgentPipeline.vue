@@ -8,7 +8,15 @@
         title="研发协同流程"
         lead="需求进入后，主控 Agent 调度方剂生成、功效预测、风味预测与替代映射，最终汇总为可交付方案。"
       />
-      <div class="pipeline">
+      <div
+        ref="pipelineRef"
+        class="pipeline"
+        @mouseenter="pauseCarousel"
+        @mouseleave="resumeCarousel(); tilt.onLeave()"
+        @transitionend.capture="scheduleMeasure"
+        @mousemove="tilt.onMove"
+      >
+        <AgentFlowScene v-if="useScene3d" ref="flowScene" class="pipeline-scene" @resize="scheduleMeasure" />
         <template v-for="(agent, index) in agents" :key="agent.key">
           <div class="reveal-stagger-item pipeline-item" :style="{ '--reveal-index': index }">
             <button
@@ -16,6 +24,7 @@
               class="step-node sc-glass-subtle sc-card-hover sc-card-glow"
               :class="{ active: focusedKey === agent.key }"
               :aria-expanded="focusedKey === agent.key"
+              :ref="(el) => { if (el) stepNodes[index] = el; }"
               @click="toggle(agent.key)"
             >
               <span class="step-index">{{ index + 1 }}</span>
@@ -30,10 +39,16 @@
       </div>
       <transition name="detail-fade" mode="out-in">
         <div :key="activeAgent.key" class="pipeline-detail sc-glass">
-          <span class="detail-kicker">{{ activeAgent.key }}</span>
+          <div class="detail-head">
+            <span class="detail-step-badge">第 {{ activeIndex + 1 }} 步</span>
+            <span class="detail-kicker">{{ activeAgent.key }}</span>
+          </div>
           <h3>{{ activeAgent.name }}</h3>
           <p>{{ activeAgent.role }}</p>
           <p class="detail-extra">{{ activeAgent.detail }}</p>
+          <div class="detail-kb-row" aria-label="关联知识库">
+            <span v-for="kb in activeAgent.kb" :key="kb" class="detail-kb">{{ kb }}</span>
+          </div>
         </div>
       </transition>
       </div>
@@ -42,11 +57,14 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, nextTick } from "vue";
 
+import AgentFlowScene from "./AgentFlowScene.vue";
 import ShowcaseReveal3D from "./ShowcaseReveal3D.vue";
 import ShowcaseSectionDecor from "./ShowcaseSectionDecor.vue";
 import ShowcaseSectionHeader from "./ShowcaseSectionHeader.vue";
+import { useMediaQuery, useTilt } from "../../composables/useTilt";
+import { useShowcaseMotionPreference } from "../../composables/useShowcaseMotionPreference";
 
 const agents = [
   {
@@ -54,45 +72,157 @@ const agents = [
     name: "主控 Agent",
     role: "需求拆解、模块调度、逻辑校验与方案整合。",
     detail: "识别研发目标，分配后续专家 Agent，并校验各步输出一致性。",
+    kb: ["综合"],
   },
   {
     key: "formula_generation",
     name: "方剂生成专家",
     role: "组方设计、君臣佐使配伍、剂量建模与方解撰写。",
     detail: "基于图谱证据生成药食同源化组方草案，并做初步合规校验。",
+    kb: ["KB1", "KB2", "KB5"],
   },
   {
     key: "efficacy_prediction",
     name: "功效预测专家",
     role: "中医功效、现代药理与人群分层风险评估。",
     detail: "连接 KB2 功效-病症库，输出功效预测与适配人群说明。",
+    kb: ["KB2"],
   },
   {
     key: "flavor_prediction",
     name: "风味预测专家",
     role: "风味特征、协调性、缺陷识别与优化建议。",
     detail: "连接 KB3 风味评价库，评估苦味、涩感与接受度风险。",
+    kb: ["KB3"],
   },
   {
     key: "replacement_mapping",
     name: "替代映射专家",
     role: "功效/风味/成本/合规/工艺/供应链替代方案。",
     detail: "连接 KB4 替代评分库，输出 CAN_REPLACE 映射与取舍说明。",
+    kb: ["KB4", "KB7"],
   },
   {
     key: "master_control_final",
     name: "最终主控汇总",
     role: "整合各模块输出，形成最终研发方案。",
     detail: "汇总证据、风险提示与后续建议，供研发决策使用。",
+    kb: ["综合"],
   },
 ];
 
-const focusedKey = ref(agents[0].key);
-const activeAgent = computed(() => agents.find((agent) => agent.key === focusedKey.value) || agents[0]);
+const { preferReducedMotion } = useShowcaseMotionPreference();
+const isNarrow = useMediaQuery("(max-width: 767px)");
+const useScene3d = computed(() => !preferReducedMotion.value && !isNarrow.value);
+
+// —— AgentFlowScene 接入：六节点坐标测量 + 自动轮播 ——
+const pipelineRef = ref(null);
+const flowScene = ref(null);
+const stepNodes = ref([]);
+
+const focusedIndex = ref(0);
+const focusedKey = computed(() => agents[focusedIndex.value].key);
+const activeAgent = computed(() => agents[focusedIndex.value]);
+const activeIndex = computed(() => focusedIndex.value);
+
+const focusAgent = (index, { restartCarousel = false } = {}) => {
+  const i = ((index % agents.length) + agents.length) % agents.length;
+  focusedIndex.value = i;
+  // 场景可用时联动 3D 脉冲（webglOk 已被暴露并解包为布尔；setActive 内部对未挂载场景安全返回）
+  if (flowScene.value?.webglOk) {
+    flowScene.value.setActive(i);
+  }
+  if (restartCarousel) startCarousel();
+};
 
 const toggle = (key) => {
-  focusedKey.value = key;
+  const index = agents.findIndex((agent) => agent.key === key);
+  // 悬停中点击保持暂停；非悬停（如外部触发）点击后重启计时
+  if (index >= 0) focusAgent(index, { restartCarousel: !hoveringPipeline.value });
 };
+
+// —— 坐标测量：.step-node 中心相对 .pipeline ——
+const measureNodes = () => {
+  const scene = flowScene.value;
+  const pipeline = pipelineRef.value;
+  if (!scene || !pipeline) return;
+  if (!scene.webglOk) return;
+  const box = pipeline.getBoundingClientRect();
+  const rects = stepNodes.value
+    .filter(Boolean)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - box.left, y: r.top + r.height / 2 - box.top };
+    })
+    .filter((r) => Number.isFinite(r.x) && Number.isFinite(r.y));
+  if (rects.length >= 2) scene.setNodes(rects);
+};
+
+let measureRaf = null;
+const scheduleMeasure = () => {
+  if (measureRaf != null) return;
+  measureRaf = window.requestAnimationFrame(() => {
+    measureRaf = null;
+    measureNodes();
+  });
+};
+
+let resizeObserver = null;
+let carouselTimer = null;
+const hoveringPipeline = ref(false);
+
+const startCarousel = () => {
+  stopCarousel();
+  if (preferReducedMotion.value) return; // reduced-motion 不启用循环动画
+  carouselTimer = window.setInterval(() => {
+    if (document.hidden) return;
+    focusAgent(focusedIndex.value + 1);
+  }, 4000);
+};
+
+const pauseCarousel = () => {
+  hoveringPipeline.value = true;
+  stopCarousel();
+};
+
+const resumeCarousel = () => {
+  hoveringPipeline.value = false;
+  startCarousel();
+};
+
+const stopCarousel = () => {
+  if (carouselTimer != null) {
+    window.clearInterval(carouselTimer);
+    carouselTimer = null;
+  }
+};
+
+onMounted(async () => {
+  await nextTick();
+  measureNodes();
+  requestAnimationFrame(measureNodes);
+  // reveal 动画结束后坐标归位，再补一次
+  window.setTimeout(measureNodes, 700);
+  resizeObserver = new ResizeObserver(scheduleMeasure);
+  if (pipelineRef.value) resizeObserver.observe(pipelineRef.value);
+  startCarousel();
+});
+
+onUnmounted(() => {
+  stopCarousel();
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  if (measureRaf != null) window.cancelAnimationFrame(measureRaf);
+});
+
+// —— 节点 3D 倾斜（±3° 微动）——
+const tilt = useTilt(pipelineRef, {
+  selector: ".step-node",
+  maxDeg: 3,
+  perspective: 900,
+  liftY: -3,
+  hoverScale: 1,
+});
 </script>
 
 <style scoped>
@@ -119,6 +249,15 @@ const toggle = (key) => {
   border: 1px solid rgba(15, 23, 42, 0.06);
 }
 
+/* —— AgentFlowScene canvas 铺满 .pipeline（z-index:0），DOM 节点叠于其上 —— */
+.pipeline .pipeline-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .pipeline::before {
   content: "";
   position: absolute;
@@ -130,6 +269,8 @@ const toggle = (key) => {
 }
 
 .pipeline-item {
+  position: relative;
+  z-index: 1;
   flex: 1 1 140px;
   min-width: 120px;
   max-width: 180px;
@@ -149,6 +290,7 @@ const toggle = (key) => {
   cursor: pointer;
   background: var(--sc-bg-panel);
   transition: border-color 0.25s ease, background 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  will-change: transform;
 }
 
 .step-node:hover,
@@ -161,10 +303,20 @@ const toggle = (key) => {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
 }
 
-/* active 节点底色与编号强调 */
+/* active 节点底色与编号强调 + 光晕呼吸 */
 .step-node.active {
   background: rgba(5, 150, 105, 0.08);
   border-color: rgba(5, 150, 105, 0.42);
+  animation: stepNodeGlow 3.2s ease-in-out infinite;
+}
+
+@keyframes stepNodeGlow {
+  0%, 100% {
+    box-shadow: 0 8px 28px rgba(5, 150, 105, 0.18), 0 0 0 rgba(5, 150, 105, 0);
+  }
+  50% {
+    box-shadow: 0 10px 36px rgba(5, 150, 105, 0.34), 0 0 24px rgba(5, 150, 105, 0.2);
+  }
 }
 
 .step-index {
@@ -208,15 +360,26 @@ const toggle = (key) => {
   padding-top: 1.5rem;
 }
 
-/* 渐变细线 + 流动光点 */
+/* —— 渐变流动线（repeating 渐变 + background-position 循环；保留光点明灭）—— */
 .connector-line {
   position: relative;
   display: block;
   width: 26px;
   height: 2px;
   border-radius: 2px;
-  background: linear-gradient(90deg, rgba(5, 150, 105, 0.08), rgba(5, 150, 105, 0.4), rgba(5, 150, 105, 0.08));
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(5, 150, 105, 0.08) 0 12px,
+    rgba(5, 150, 105, 0.55) 26px,
+    rgba(5, 150, 105, 0.08) 40px
+  );
+  animation: connectorGradientFlow 1.6s linear infinite;
   overflow: hidden;
+}
+
+@keyframes connectorGradientFlow {
+  0% { background-position: 0 0; }
+  100% { background-position: 40px 0; }
 }
 
 .connector-line::after {
@@ -254,9 +417,29 @@ const toggle = (key) => {
   border: 1px solid rgba(5, 150, 105, 0.12);
 }
 
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+
+/* —— 第 {n} 步 徽章 —— */
+.detail-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 750;
+  background: rgba(5, 150, 105, 0.12);
+  color: var(--sc-accent);
+  border: 1px solid rgba(5, 150, 105, 0.24);
+  white-space: nowrap;
+}
+
 .detail-kicker {
   display: block;
-  margin-bottom: 0.45rem;
   color: var(--sc-accent);
   font-family: ui-monospace, monospace;
   font-size: 0.75rem;
@@ -279,6 +462,30 @@ const toggle = (key) => {
 .detail-extra {
   margin-top: 0.45rem !important;
   color: var(--sc-muted) !important;
+}
+
+/* —— KB 标签 chips —— */
+.detail-kb-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+}
+
+.detail-kb {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.62rem;
+  border-radius: 7px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(5, 150, 105, 0.07);
+  color: #047857;
+  border: 1px solid rgba(5, 150, 105, 0.18);
 }
 
 .detail-fade-enter-active {
@@ -327,7 +534,18 @@ const toggle = (key) => {
   .connector-line {
     width: 2px;
     height: 22px;
-    background: linear-gradient(180deg, rgba(5, 150, 105, 0.08), rgba(5, 150, 105, 0.4), rgba(5, 150, 105, 0.08));
+    background: repeating-linear-gradient(
+      180deg,
+      rgba(5, 150, 105, 0.08) 0 10px,
+      rgba(5, 150, 105, 0.55) 22px,
+      rgba(5, 150, 105, 0.08) 34px
+    );
+    animation: connectorGradientFlowV 1.6s linear infinite;
+  }
+
+  @keyframes connectorGradientFlowV {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 34px; }
   }
 
   .connector-line::after {

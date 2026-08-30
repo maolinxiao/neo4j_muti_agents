@@ -8,21 +8,26 @@
           title="企业端与个人端分流"
           lead="同一图谱底座，服务研发决策与个人食养两类路径——问题先分类，证据先召回。"
         />
-        <div class="audience-grid">
-          <article class="reveal-stagger-item audience-panel enterprise sc-glass sc-card-hover sc-card-glow" :style="{ '--reveal-index': 0 }">
-            <div class="panel-visual">
-              <div class="panel-badge">Enterprise</div>
-              <h3>企业端 · 研发协同</h3>
-              <p class="panel-lead">面向产品研发、方剂改造与合规决策，强调证据链与 Agent 协同输出。</p>
-            </div>
-            <div class="panel-content">
-              <ul>
-                <li v-for="item in enterpriseItems" :key="item">{{ item }}</li>
-              </ul>
-              <blockquote>「这个配方是否好喝，适合做什么剂型」</blockquote>
-            </div>
-          </article>
+        <div ref="tiltScope" class="audience-grid" @mousemove="tilt.onMove" @mouseleave="tilt.onLeave">
+          <div class="reveal-stagger-item panel-wrap" :style="{ '--reveal-index': 0 }">
+            <article class="audience-panel enterprise sc-glass sc-card-hover sc-card-glow">
+              <span class="panel-glare" aria-hidden="true" />
+              <div class="panel-visual">
+                <div class="panel-badge">Enterprise</div>
+                <h3>企业端 · 研发协同</h3>
+                <p class="panel-lead">面向产品研发、方剂改造与合规决策，强调证据链与 Agent 协同输出。</p>
+                <span class="panel-stat">6 类研发任务</span>
+              </div>
+              <div class="panel-content">
+                <ul>
+                  <li v-for="item in enterpriseItems" :key="item">{{ item }}</li>
+                </ul>
+                <blockquote>「这个配方是否好喝，适合做什么剂型」</blockquote>
+              </div>
+            </article>
+          </div>
           <div class="reveal-stagger-item classifier-bridge" :style="{ '--reveal-index': 1 }" aria-hidden="true">
+            <AudienceFlowScene v-if="useScene3d" class="classifier-scene" />
             <div class="classifier-core">
               <span>Intent Router</span>
               <strong>问题分类器</strong>
@@ -31,19 +36,23 @@
             <div class="classifier-line classifier-line--top" />
             <div class="classifier-line classifier-line--bottom" />
           </div>
-          <article class="reveal-stagger-item audience-panel personal sc-glass sc-card-hover sc-card-glow" :style="{ '--reveal-index': 2 }">
-            <div class="panel-visual">
-              <div class="panel-badge">Personal</div>
-              <h3>个人端 · 体质食养</h3>
-              <p class="panel-lead">面向体质辨识、食养推荐与安全提醒，强调个体适配与禁忌边界。</p>
-            </div>
-            <div class="panel-content">
-              <ul>
-                <li v-for="item in personalItems" :key="item">{{ item }}</li>
-              </ul>
-              <blockquote>「孕妇能不能吃某某原料」</blockquote>
-            </div>
-          </article>
+          <div class="reveal-stagger-item panel-wrap" :style="{ '--reveal-index': 2 }">
+            <article class="audience-panel personal sc-glass sc-card-hover sc-card-glow">
+              <span class="panel-glare" aria-hidden="true" />
+              <div class="panel-visual">
+                <div class="panel-badge">Personal</div>
+                <h3>个人端 · 体质食养</h3>
+                <p class="panel-lead">面向体质辨识、食养推荐与安全提醒，强调个体适配与禁忌边界。</p>
+                <span class="panel-stat">5 类食养路径</span>
+              </div>
+              <div class="panel-content">
+                <ul>
+                  <li v-for="item in personalItems" :key="item">{{ item }}</li>
+                </ul>
+                <blockquote>「孕妇能不能吃某某原料」</blockquote>
+              </div>
+            </article>
+          </div>
         </div>
       </div>
     </ShowcaseReveal3D>
@@ -51,12 +60,22 @@
 </template>
 
 <script setup>
+import { computed, ref } from "vue";
+
+import AudienceFlowScene from "./AudienceFlowScene.vue";
 import ShowcaseReveal3D from "./ShowcaseReveal3D.vue";
 import ShowcaseSectionDecor from "./ShowcaseSectionDecor.vue";
 import ShowcaseSectionHeader from "./ShowcaseSectionHeader.vue";
+import { useMediaQuery, useTilt } from "../../composables/useTilt";
+import { useShowcaseMotionPreference } from "../../composables/useShowcaseMotionPreference";
+
+const { preferReducedMotion } = useShowcaseMotionPreference();
+const isNarrow = useMediaQuery("(max-width: 767px)");
+const useScene3d = computed(() => !preferReducedMotion.value && !isNarrow.value);
 
 const enterpriseItems = [
-  "产品研发与名方/方剂药食同源化",
+  "产品研发与配方生成",
+  "名方/方剂药食同源化",
   "单味药替代与 CAN_REPLACE 映射",
   "风味优化与剂型工艺建议",
   "竞品市场分析与功效标签对比",
@@ -67,8 +86,19 @@ const personalItems = [
   "九种体质辨识与问卷测评",
   "个性化食养推荐与适宜原料",
   "产品适配判断与场景匹配",
+  "成品选购推荐与适用性评估",
   "禁忌风险提醒与慎用边界",
 ];
+
+// —— 3D 倾斜：两个面板（mousemove 事件委托 + glare 跟随；reduced-motion 自动禁用）——
+const tiltScope = ref(null);
+const tilt = useTilt(tiltScope, {
+  selector: ".audience-panel",
+  maxDeg: 6,
+  perspective: 900,
+  liftY: -3,
+  hoverScale: 1,
+});
 </script>
 
 <style scoped>
@@ -88,6 +118,16 @@ const personalItems = [
   align-items: stretch;
 }
 
+/* reveal 包装层：负责滚动显现 transform，面板 tilt 的可变 transform 不与其冲突 */
+.panel-wrap {
+  display: flex;
+}
+
+.panel-wrap .audience-panel {
+  flex: 1;
+  width: 100%;
+}
+
 .audience-panel {
   display: flex;
   flex-direction: column;
@@ -97,14 +137,69 @@ const personalItems = [
   overflow: hidden;
   background: var(--sc-bg-panel);
   border: 1px solid rgba(15, 23, 42, 0.08);
+  transform-style: preserve-3d;
+  will-change: transform;
 }
 
+/* —— 渐变描边（hover 淡入）—— */
+.audience-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, var(--panel-border-a, rgba(217, 119, 6, 0.55)), rgba(255, 255, 255, 0.08) 45%, var(--panel-border-b, rgba(5, 150, 105, 0.5)));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.audience-panel:hover::after {
+  opacity: 1;
+}
+
+/* —— 高光 glare —— */
+.panel-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    320px circle at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0) 55%
+  );
+  mix-blend-mode: overlay;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.audience-panel.tilt-hover .panel-glare {
+  opacity: 1;
+}
+
+/* —— 中央列：3D 分叉场景铺满中列，CSS 圆环叠于其上 —— */
 .classifier-bridge {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100%;
+  overflow: hidden;
+}
+
+.classifier-bridge .classifier-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  min-height: 0;
+  min-width: 0;
 }
 
 /* 白色玻璃圆核 + accent 双环描边，统一浅色主题 */
@@ -130,6 +225,13 @@ const personalItems = [
     0 0 0 5px rgba(5, 150, 105, 0.06),
     0 18px 44px rgba(15, 23, 42, 0.12),
     0 1px 0 rgba(255, 255, 255, 0.95) inset;
+  /* 呼吸缩放：±1.5%，4s，与分叉粒子流同节奏 */
+  animation: classifierBreathe 4s ease-in-out infinite;
+}
+
+@keyframes classifierBreathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.015); }
 }
 
 .classifier-core::before {
@@ -267,6 +369,31 @@ const personalItems = [
   background: rgba(5, 150, 105, 0.1);
 }
 
+/* —— 统计徽章 —— */
+.panel-stat {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1.15rem;
+  padding: 0.42rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.enterprise .panel-stat {
+  color: var(--sc-highlight);
+  background: rgba(217, 119, 6, 0.09);
+  border-color: rgba(217, 119, 6, 0.22);
+}
+
+.personal .panel-stat {
+  color: var(--sc-accent);
+  background: rgba(5, 150, 105, 0.09);
+  border-color: rgba(5, 150, 105, 0.22);
+}
+
 .audience-panel h3 {
   margin: 0 0 0.85rem;
   font-size: 1.35rem;
@@ -299,10 +426,39 @@ const personalItems = [
 .audience-panel li {
   margin-bottom: 0.65rem;
   position: relative;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), color 0.28s ease;
 }
 
 .audience-panel li::marker {
   color: var(--sc-muted);
+}
+
+/* 列表项 hover：整体平移 + 尾部箭头滑入 */
+.audience-panel li::after {
+  content: "→";
+  display: inline-block;
+  margin-left: 0.4rem;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  font-weight: 700;
+}
+
+.enterprise li::after {
+  color: var(--sc-highlight);
+}
+
+.personal li::after {
+  color: var(--sc-accent);
+}
+
+.audience-panel li:hover {
+  transform: translateX(6px);
+}
+
+.audience-panel li:hover::after {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .audience-panel blockquote {

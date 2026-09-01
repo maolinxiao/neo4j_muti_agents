@@ -8,6 +8,172 @@ from neo4j import GraphDatabase
 from app.core.config import settings
 
 
+ROLE_RELATION_LABELS = {
+    "MONARCH_HERB": "君药",
+    "MINISTER_HERB": "臣药",
+    "ASSISTANT_HERB": "佐药",
+    "GUIDE_HERB": "使药",
+    "MONARCH": "君药",
+    "MINISTER": "臣药",
+    "ASSISTANT": "佐药",
+    "GUIDE": "使药",
+    "君药": "君药",
+    "臣药": "臣药",
+    "佐药": "佐药",
+    "使药": "使药",
+}
+
+_ROLE_PLACEHOLDERS = {"", "角色未标注", "未标注", "未知", "无", "unknown", "none", "n/a", "null"}
+
+_DOSE_PLACEHOLDERS = {
+    "",
+    "待核定",
+    "待校验",
+    "待定",
+    "剂量待核定",
+    "剂量待校验",
+    "剂量待结合原方出处与专业规范核定",
+    "剂量建议结合原方出处与专业规范进一步核定",
+}
+
+_ROLE_POSITIONAL = ["君药", "臣药", "佐药", "使药"]
+
+_ROLE_PROP_FIELDS = [
+    ("君药", "monarch_herb"),
+    ("臣药", "minister_herb"),
+    ("佐药", "assistant_herb"),
+    ("使药", "guide_herb"),
+]
+
+# 原方配比文本，如 "人参9g 白术9g 茯苓9g 甘草6g" 或 "黄芪9-15g"
+_RATIO_PATTERN = re.compile(
+    r"([\u4e00-\u9fff]{1,5})\s*([0-9]+(?:\.[0-9]+)?)\s*[-~至–—]\s*([0-9]+(?:\.[0-9]+)?)\s*(g|克|枚|片|钱|两)|"
+    r"([\u4e00-\u9fff]{1,5})\s*([0-9]+(?:\.[0-9]+)?)\s*(g|克|枚|片|钱|两)",
+    re.I,
+)
+
+_NAME_SPLIT_PATTERN = re.compile(r"[、,，;；/\s]+")
+
+
+def map_role_relation(value: Any) -> str | None:
+    """把图谱边/字段的角色取值映射为君臣佐使标签；占位或不可识别返回 None。
+
+    兼容大小写与别名：MONARCH_HERB / MONARCH / monarch / 君药 等。
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text in _ROLE_PLACEHOLDERS:
+        return None
+    norm = text.upper()
+    norm = norm.replace("_HERB", "").replace("HERB", "").replace("ROLE_", "").replace("ROLE", "")
+    norm = norm.replace("-", "").replace(" ", "")
+    return ROLE_RELATION_LABELS.get(norm)
+
+
+def split_name_field(value: Any) -> list[str]:
+    """把 "人参、白术" 之类的字段拆成名字列表。"""
+    if not value:
+        return []
+    if isinstance(value, list):
+        raw_items = value
+    else:
+        raw_items = _NAME_SPLIT_PATTERN.split(str(value))
+    return [item.strip() for item in raw_items if item and str(item).strip()]
+
+
+def clean_dose_value(value: Any) -> str | None:
+    """清洗剂量取值；占位/缺失返回 None。"""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text or text in _DOSE_PLACEHOLDERS:
+        return None
+    return re.sub(r"\s+", "", text)
+
+
+def parse_ratio_dosages(value: Any) -> dict[str, str]:
+    """解析原方配比文本（如 "人参9g 白术9g..."）为 {药材名: 剂量}。"""
+    text = str(value or "").strip()
+    if not text:
+        return {}
+    dosage_map: dict[str, str] = {}
+    for match in _RATIO_PATTERN.finditer(text):
+        if match.group(1):
+            name = match.group(1).strip()
+            unit = re.sub(r"\s+", "", match.group(4))
+            dose = f"{match.group(2).strip()}~{match.group(3).strip()}{unit}"
+        else:
+            name = match.group(5).strip()
+            dose = re.sub(r"\s+", "", f"{match.group(6).strip()}{match.group(7)}")
+        if name and dose and name not in dosage_map:
+            dosage_map[name] = dose
+    return dosage_map
+
+
+def enrich_formula_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """把 find_formulas_for_brief 结果中的 role_relation/君臣佐使字段/原方配比文本映射进 ingredients。
+
+    - role：优先 IN_FORMULA 边角色 → role_relation（MONARCH_HERB→君药 等）→ 原方君主使字段 → 按组成顺序推定；
+      占位符（"角色未标注"）视为缺失，不会进入输出。
+    - dosage：优先 IN_FORMULA 边剂量 → props.ratio 配比文本解析（如 "人参9g"→"9g"）；缺失留 None，
+      由上层转为"原方剂量待查证"。
+    """
+    enriched: list[dict[str, Any]] = []
+    for row in rows:
+        props = row.get("props") or {}
+        role_by_name: dict[str, str] = {}
+        for item in row.get("role_herbs", []) or []:
+            name = item.get("name")
+            label = map_role_relation(item.get("role_relation"))
+            if name and label:
+                role_by_name.setdefault(name, label)
+        for label, field in _ROLE_PROP_FIELDS:
+            for name in split_name_field(props.get(field)):
+                if name:
+                    role_by_name.setdefault(name, label)
+        dosage_by_name = parse_ratio_dosages(props.get("ratio"))
+        ingredients: list[dict[str, Any]] = []
+        for index, item in enumerate(row.get("ingredients", []) or []):
+            if not isinstance(item, dict) or not item.get("name"):
+                continue
+            name = item["name"]
+            mapped_edge_role = map_role_relation(item.get("role"))
+            mapped_role_field = role_by_name.get(name)
+            if mapped_edge_role:
+                role = mapped_edge_role
+                role_basis = "IN_FORMULA 边角色"
+            elif mapped_role_field:
+                role = mapped_role_field
+                role_basis = "图谱 role_relation/原方君臣佐使字段"
+            else:
+                role = _ROLE_POSITIONAL[index] if index < 4 else "配伍药"
+                role_basis = "按原方组成顺序推定"
+            dose = clean_dose_value(item.get("dosage"))
+            dosage_source = ""
+            if dose:
+                dosage_source = "IN_FORMULA 边剂量"
+            else:
+                dose = dosage_by_name.get(name)
+                if dose:
+                    ratio_text = str(props.get("ratio") or "").strip()
+                    dosage_source = f"原方配比解析（{ratio_text}）" if ratio_text else "原方配比解析"
+            ingredients.append(
+                {
+                    "name": name,
+                    "role": role,
+                    "role_basis": role_basis,
+                    "dosage": dose,
+                    "dosage_source": dosage_source,
+                    "props": item.get("props") or {},
+                }
+            )
+        enriched_row = dict(row)
+        enriched_row["ingredients"] = ingredients
+        enriched.append(enriched_row)
+    return enriched
+
+
 class Neo4jRepository:
     _shared_driver = None
 
@@ -913,7 +1079,7 @@ RETURN
 """
         with self.driver.session() as session:
             rows = session.run(query, {"terms": terms, "limit": limit})
-            return [dict(record) for record in rows]
+            return enrich_formula_rows([dict(record) for record in rows])
 
     def find_formula_prototypes(
         self,

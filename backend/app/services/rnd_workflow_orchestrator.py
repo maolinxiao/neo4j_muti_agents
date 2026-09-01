@@ -3,7 +3,7 @@ import re
 from time import perf_counter
 from typing import Any
 
-from app.repositories.neo4j_repository import Neo4jRepository
+from app.repositories.neo4j_repository import Neo4jRepository, clean_dose_value, map_role_relation
 from app.repositories.postgres_repository import PostgresRepository
 from app.services.deepseek_client import DeepSeekClient
 
@@ -619,26 +619,36 @@ class RnDWorkflowOrchestrator:
         ingredients = []
         if original_formula:
             for index, herb in enumerate(original_formula.get("ingredients", [])[:4]):
-                role = herb.get("role") or (["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药")
+                role = map_role_relation(herb.get("role")) or (
+                    ["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药"
+                )
+                dose = clean_dose_value(herb.get("dosage"))
+                basis = herb.get("dosage_source") or ""
+                if not dose:
+                    dose = "原方剂量待查证"
+                    basis = basis or "图谱未给出该味剂量，需对照原方文献查证"
                 ingredients.append(
                     {
                         "name": herb.get("name"),
                         "herb_key": herb.get("name"),
                         "role": role,
-                        "dose_range": herb.get("dosage") or "剂量待结合原方出处与专业规范核定",
+                        "dose_range": dose,
                         "rationale": "KB5 原方组成，需经 KB1 合法性判断和 KB4 单味替代复核",
+                        "basis": basis,
                     }
                 )
 
         for index, herb in enumerate(prioritized[: max(0, 4 - len(ingredients))]):
             role = ["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药"
+            dose, dose_basis = self._suggested_dose_for_herb(herb.get("name"), role)
             ingredients.append(
                 {
                     "name": herb.get("name"),
                     "herb_key": herb.get("id"),
                     "role": role,
-                    "dose_range": "待校验",
+                    "dose_range": dose,
                     "rationale": "、".join(herb.get("tags", [])) or "与目标功效相关",
+                    "basis": dose_basis,
                 }
             )
 
@@ -1060,7 +1070,82 @@ class RnDWorkflowOrchestrator:
                         "source": item.get("source") or source,
                     }
                 )
+        return RnDWorkflowOrchestrator._enrich_composition(composition, formula_payload)
+
+    @classmethod
+    def _enrich_composition(
+        cls, composition: list[dict[str, Any]], formula_payload: dict[str, Any] | None
+    ) -> list[dict[str, Any]]:
+        """把 composition 的角色/剂量占位替换为 KB5 图谱映射值或按方剂学建议区间，保证非占位输出。
+
+        - role：KB5 role_relation（MONARCH_HERB→君药 等）/原方君臣佐使字段/组成顺序推定；
+          "角色未标注"类占位视为缺失。
+        - dose：优先图谱配比解析值（如 "9g"）；KB5 原方药材缺失时明确"原方剂量待查证"，
+          新增药材给出按方剂学建议区间并附依据。
+        """
+        formula_payload = formula_payload or {}
+        kb5_contexts = formula_payload.get("kb5_formula_context", []) or []
+        kb5_context = kb5_contexts[0] if kb5_contexts else None
+        kb5_ingredients = (kb5_context or {}).get("ingredients", []) or []
+        kb5_names: set[str] = set()
+        role_by_name: dict[str, str] = {}
+        dose_by_name: dict[str, str] = {}
+        dose_source_by_name: dict[str, str] = {}
+        for item in kb5_ingredients:
+            if not isinstance(item, dict) or not item.get("name"):
+                continue
+            name = item["name"]
+            kb5_names.add(name)
+            if item.get("role"):
+                role_by_name.setdefault(name, str(item["role"]))
+            dose = clean_dose_value(item.get("dosage"))
+            if dose:
+                dose_by_name.setdefault(name, dose)
+            if item.get("dosage_source"):
+                dose_source_by_name.setdefault(name, str(item["dosage_source"]))
+        source = f"KB5 原方「{kb5_context.get('formula_name')}」" if kb5_context else "药食同源候选组方（图谱候选药材）"
+        for index, item in enumerate(composition):
+            name = item.get("name") or ""
+            role = map_role_relation(item.get("role")) or role_by_name.get(name)
+            if not role:
+                role = ["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药"
+            item["role"] = role
+            dose = clean_dose_value(item.get("dose")) or dose_by_name.get(name)
+            basis = item.get("basis") or item.get("evidence") or ""
+            if not dose:
+                if name in kb5_names:
+                    dose = "原方剂量待查证"
+                    basis = basis or "图谱未给出该味剂量，需对照原方文献查证"
+                else:
+                    dose, dose_basis = cls._suggested_dose_for_herb(name, role)
+                    basis = basis or dose_basis
+            elif not basis:
+                basis = dose_source_by_name.get(name, "")
+            item["dose"] = dose
+            item["basis"] = basis
+            if not item.get("rationale"):
+                item["rationale"] = "与目标功效相关"
+            if not item.get("source"):
+                item["source"] = source
         return composition
+
+    @staticmethod
+    def _suggested_dose_for_herb(name: str, role: str) -> tuple[str, str]:
+        """图谱缺失剂量时给出按方剂学建议的区间与依据（禁止占位符）。"""
+        if name == "人参":
+            return (
+                "建议 1-3g/份（按方剂学建议区间；每日不超过 3g）",
+                "剂量按方剂学建议区间给出；人参每日不超过 3g，且须按 5 年及以下人工种植根及根茎核验后使用",
+            )
+        role_ranges = {
+            "君药": "建议 6-9g/份（按方剂学建议区间，需小试核定）",
+            "臣药": "建议 3-9g/份（按方剂学建议区间，需小试核定）",
+            "佐药": "建议 3-9g/份（按方剂学建议区间，需小试核定）",
+            "使药": "建议 1-3g/份（按方剂学建议区间，需小试核定）",
+            "配伍药": "建议 3-9g/份（按方剂学建议区间，需小试核定）",
+        }
+        dose_text = role_ranges.get(role, role_ranges["配伍药"])
+        return dose_text, "图谱未提供该味明确剂量，按方剂学建议区间给出，正式用量需小试验证"
 
     def _final_formula_section(self, value: Any, formula_payload: dict[str, Any] | None) -> dict[str, Any]:
         formulas = (formula_payload or {}).get("formulas", []) or []
@@ -1074,7 +1159,10 @@ class RnDWorkflowOrchestrator:
         if isinstance(value, dict):
             composition = value.get("composition")
             if isinstance(composition, list) and composition:
-                return value
+                enriched = self._enrich_composition(list(composition), formula_payload)
+                result = dict(value)
+                result["composition"] = enriched
+                return result
             return {"name": value.get("name") or extracted_name, "composition": extracted_composition}
         return {"name": extracted_name, "composition": extracted_composition}
 
@@ -1082,7 +1170,19 @@ class RnDWorkflowOrchestrator:
         self, value: Any, formula_payload: dict[str, Any] | None
     ) -> list[dict[str, Any]]:
         if isinstance(value, list) and value:
-            return value
+            normalized: list[dict[str, Any]] = []
+            for item in value:
+                if not isinstance(item, dict):
+                    continue
+                role = map_role_relation(item.get("role")) or "配伍药"
+                normalized.append(
+                    {
+                        "role": role,
+                        "herbs": item.get("herbs") or [],
+                        "duty": item.get("duty") or self.ROLE_DUTY.get(role, "协同配伍，辅助整体目标"),
+                    }
+                )
+            return normalized
         composition = self._composition_from_formula(formula_payload)
         grouped: dict[str, list[str]] = {}
         for item in composition:

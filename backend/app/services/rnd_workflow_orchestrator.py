@@ -1097,6 +1097,27 @@ class RnDWorkflowOrchestrator:
         return []
 
     @staticmethod
+    def _first_kb5_context(formula_payload: dict[str, Any] | None) -> dict[str, Any] | None:
+        """取首个规范化后的 KB5 原方上下文（查询侧数据），无则返回 None。"""
+        contexts = RnDWorkflowOrchestrator._normalize_kb5_context(
+            (formula_payload or {}).get("kb5_formula_context")
+        )
+        return contexts[0] if contexts else None
+
+    @staticmethod
+    def _kb5_source_text(kb5_context: dict[str, Any] | None) -> str:
+        """从查询侧上下文提取原方出处文本（FROM_SOURCE sources 优先，其次 props.source）。"""
+        if not kb5_context:
+            return ""
+        sources = RnDWorkflowOrchestrator._safe_list(kb5_context.get("sources"))
+        text = "、".join(str(item) for item in sources if item)
+        if text:
+            return text
+        props = RnDWorkflowOrchestrator._safe_dict(kb5_context.get("props"))
+        value = props.get("source")
+        return str(value) if value else ""
+
+    @staticmethod
     def _dedup(items: list[Any]) -> list[Any]:
         seen: set[str] = set()
         result: list[Any] = []
@@ -1276,10 +1297,18 @@ class RnDWorkflowOrchestrator:
     ) -> dict[str, Any]:
         if isinstance(value, dict):
             changes = value.get("changes") if isinstance(value.get("changes"), dict) else {}
-            if value.get("name") or any(changes.values()):
-                return {"name": value.get("name", ""), "source": value.get("source", ""), "changes": changes}
-        kb5_contexts = self._normalize_kb5_context((formula_payload or {}).get("kb5_formula_context"))
-        kb5_context = kb5_contexts[0] if kb5_contexts else None
+            name = value.get("name") or ""
+            source = value.get("source") or ""
+            if name or source or any(changes.values()):
+                # LLM 可能只填 changes 而遗漏 name/source（t7 实证）：从查询侧 kb5_formula_context 回注，消除随机性
+                kb5_context = self._first_kb5_context(formula_payload)
+                if kb5_context:
+                    if not name and kb5_context.get("formula_name"):
+                        name = str(kb5_context.get("formula_name"))
+                    if not source:
+                        source = self._kb5_source_text(kb5_context)
+                return {"name": name, "source": source, "changes": changes}
+        kb5_context = self._first_kb5_context(formula_payload)
         composition = self._composition_from_formula(formula_payload)
         comp_names = [item["name"] for item in composition]
         kb5_names = [
@@ -1313,11 +1342,7 @@ class RnDWorkflowOrchestrator:
         removed = [name for name in kb5_names if name not in comp_names]
         return {
             "name": kb5_context.get("formula_name") if kb5_context else "",
-            "source": (
-                "、".join(str(item) for item in self._safe_list(kb5_context.get("sources")))
-                if kb5_context and kb5_context.get("sources")
-                else ""
-            ),
+            "source": self._kb5_source_text(kb5_context),
             "changes": {"retained": retained, "replaced": replaced, "added": added, "removed": removed},
         }
 

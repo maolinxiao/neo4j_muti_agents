@@ -247,7 +247,7 @@ class RnDWorkflowOrchestrator:
             ),
         }
         fallback = self._formula_fallback(brief, selected, formula_contexts)
-        return self._run_step(
+        result = self._run_step(
             run_id,
             sequence,
             "formula_generation",
@@ -255,6 +255,26 @@ class RnDWorkflowOrchestrator:
             fallback,
             graph_snapshot_id=graph_snapshot_id,
         )
+        # 查询侧 enrich 后的 kb5 上下文覆盖 LLM 回显：服务端结构化数据优先（t10，原方信息回注源封闭）
+        return self._override_kb5_context_with_query_side(result, formula_contexts)
+
+    @staticmethod
+    def _override_kb5_context_with_query_side(
+        result: dict[str, Any], formula_contexts: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """查询侧 enrich 后的 kb5 上下文覆盖 LLM 回显（t10）。
+
+        服务端结构化数据（formula_name/source/role_herbs/ratio 等）优先于 LLM 转述；
+        LLM 回显文本另存 _kb5_echo（与结构化数据不同时）；查询侧为空则保持原逻辑不覆盖。
+        """
+        output_payload = result.get("output_payload")
+        if isinstance(output_payload, dict) and formula_contexts:
+            echo = output_payload.get("kb5_formula_context")
+            if echo is not None and echo != formula_contexts:
+                output_payload["_kb5_echo"] = echo
+            output_payload["kb5_formula_context"] = formula_contexts
+            result["output_payload"] = output_payload
+        return result
 
     def _run_efficacy_prediction(self, workflow_session_id: str, run_id: str, sequence: int, brief: dict[str, Any], formula_result: dict[str, Any]) -> dict[str, Any]:
         selected_herbs = self._collect_formula_herbs(formula_result["output_payload"])

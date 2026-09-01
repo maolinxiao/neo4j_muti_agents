@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from time import perf_counter
 from typing import Any
@@ -6,6 +7,9 @@ from typing import Any
 from app.repositories.neo4j_repository import Neo4jRepository, clean_dose_value, map_role_relation
 from app.repositories.postgres_repository import PostgresRepository
 from app.services.deepseek_client import DeepSeekClient
+
+
+logger = logging.getLogger(__name__)
 
 
 class RnDWorkflowOrchestrator:
@@ -163,8 +167,12 @@ class RnDWorkflowOrchestrator:
             run.summary_metrics = {
                 "stepCount": len(steps),
                 "graphSnapshotCount": len(related_graph_snapshots),
-                "formulaCount": len(formula_result["output_payload"].get("formulas", [])),
-                "replacementCount": len(replacement_result["output_payload"].get("recommended_replacements", [])),
+                "formulaCount": len(
+                    self._safe_list(formula_result["output_payload"].get("formulas"))
+                ),
+                "replacementCount": len(
+                    self._safe_list(replacement_result["output_payload"].get("recommended_replacements"))
+                ),
             }
             run.related_graph_snapshots = related_graph_snapshots
             run.status = "completed"
@@ -216,7 +224,9 @@ class RnDWorkflowOrchestrator:
 
     def _run_formula_generation(self, workflow_session_id: str, run_id: str, sequence: int, brief: dict[str, Any]) -> dict[str, Any]:
         search_terms = self._brief_search_terms(brief)
-        formula_contexts = self.neo4j_repository.find_formulas_for_brief(search_terms, limit=3)
+        formula_contexts = self._normalize_kb5_context(
+            self.neo4j_repository.find_formulas_for_brief(search_terms, limit=3)
+        )
         candidates = self.neo4j_repository.find_candidate_herbs_for_brief(search_terms, limit=18)
         selected = candidates[:8]
         herb_names = self._formula_context_herb_names(formula_contexts) + [item["id"] for item in selected]
@@ -473,7 +483,9 @@ class RnDWorkflowOrchestrator:
             if not payload:
                 continue
             source_snapshot = self._herb_flavor_snapshot(herb)
-            for candidate in payload.get("candidates", [])[:5]:
+            for candidate in self._safe_list(payload.get("candidates"))[:5]:
+                if not isinstance(candidate, dict):
+                    continue
                 rows.append(
                     {
                         "source_herb": herb.get("name") or herb["id"],
@@ -567,24 +579,33 @@ class RnDWorkflowOrchestrator:
         return entities
 
     def _collect_formula_herbs(self, formula_payload: dict[str, Any]) -> list[str]:
+        formula_payload = formula_payload or {}
         herb_names: list[str] = []
-        for formula_context in formula_payload.get("kb5_formula_context", []):
-            for ingredient in formula_context.get("ingredients", []):
+        for formula_context in self._normalize_kb5_context(formula_payload.get("kb5_formula_context")):
+            for ingredient in self._safe_list(formula_context.get("ingredients")):
+                if not isinstance(ingredient, dict):
+                    continue
                 herb_name = ingredient.get("name")
                 if herb_name and herb_name not in herb_names:
                     herb_names.append(herb_name)
-        for formula in formula_payload.get("formulas", []):
-            for herb in formula.get("ingredients", []):
+        for formula in self._safe_list(formula_payload.get("formulas")):
+            if not isinstance(formula, dict):
+                continue
+            for herb in self._safe_list(formula.get("ingredients")):
+                if not isinstance(herb, dict):
+                    continue
                 herb_key = herb.get("herb_key") or herb.get("name")
                 if herb_key and herb_key not in herb_names:
                     herb_names.append(herb_key)
         return herb_names
 
     @staticmethod
-    def _formula_context_herb_names(formula_contexts: list[dict[str, Any]]) -> list[str]:
+    def _formula_context_herb_names(formula_contexts: list[dict[str, Any]] | None) -> list[str]:
         herb_names: list[str] = []
-        for formula_context in formula_contexts:
-            for ingredient in formula_context.get("ingredients", []):
+        for formula_context in RnDWorkflowOrchestrator._normalize_kb5_context(formula_contexts):
+            for ingredient in RnDWorkflowOrchestrator._safe_list(formula_context.get("ingredients")):
+                if not isinstance(ingredient, dict):
+                    continue
                 herb_name = ingredient.get("name")
                 if herb_name and herb_name not in herb_names:
                     herb_names.append(herb_name)
@@ -597,7 +618,7 @@ class RnDWorkflowOrchestrator:
         formula_contexts: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         goal = brief.get("goal", "")
-        formula_contexts = formula_contexts or []
+        formula_contexts = self._normalize_kb5_context(formula_contexts)
         goal_tokens: list[str] = []
         if any(token in goal for token in ["感冒", "风寒", "风热"]):
             goal_tokens.extend(["解表", "散寒", "疏风", "宣肺", "止咳", "清热"])
@@ -618,7 +639,8 @@ class RnDWorkflowOrchestrator:
         original_formula = formula_contexts[0] if formula_contexts else None
         ingredients = []
         if original_formula:
-            for index, herb in enumerate(original_formula.get("ingredients", [])[:4]):
+            kb5_ingredients = [item for item in self._safe_list(original_formula.get("ingredients")) if isinstance(item, dict)]
+            for index, herb in enumerate(kb5_ingredients[:4]):
                 role = map_role_relation(herb.get("role")) or (
                     ["君药", "臣药", "佐药", "使药"][index] if index < 4 else "配伍药"
                 )
@@ -797,10 +819,15 @@ class RnDWorkflowOrchestrator:
         recommendations = []
         baseline_comparison = []
         for herb in herb_entities:
-            payload = next((item for item in replacement_payload if item["source_key"] == herb["id"]), None)
-            if not payload or not payload["candidates"]:
+            payload = next(
+                (item for item in replacement_payload if isinstance(item, dict) and item.get("source_key") == herb["id"]),
+                None,
+            )
+            candidates = self._safe_list(payload.get("candidates")) if payload else []
+            candidates = [item for item in candidates if isinstance(item, dict)]
+            if not candidates:
                 continue
-            candidate = payload["candidates"][0]
+            candidate = candidates[0]
             source_flavor = self._herb_flavor_snapshot(herb)
             candidate_flavor = self._herb_flavor_snapshot(candidate)
             flavor_acceptance = candidate.get("flavor_acceptance")
@@ -924,24 +951,24 @@ class RnDWorkflowOrchestrator:
                 "data_sources": ["KB1 药食同源合法性", "KB2 功效病症性味归经", "KB3 风味评价", "KB4 单味替代评分", "KB5 名方方剂", "KB6 产品市场", "KB7 食品合规"],
             }
 
-        formulas = (formula_payload or {}).get("formulas", [])
-        first_formula = formulas[0] if formulas else {}
-        kb5_contexts = (formula_payload or {}).get("kb5_formula_context", [])
+        formulas = self._safe_list((formula_payload or {}).get("formulas"))
+        first_formula = formulas[0] if formulas and isinstance(formulas[0], dict) else {}
+        kb5_contexts = self._normalize_kb5_context((formula_payload or {}).get("kb5_formula_context"))
         kb5_context = kb5_contexts[0] if kb5_contexts else None
 
         composition = self._composition_from_formula(formula_payload)
         herb_names = [item["name"] for item in composition]
         herb_text = "、".join(herb_names[:6]) if herb_names else "当前未形成稳定方剂"
-        efficacy_points = (efficacy_payload or {}).get("core_tcm_efficacy", [])[:3] or []
+        efficacy_points = self._safe_list((efficacy_payload or {}).get("core_tcm_efficacy"))[:3]
         efficacy_text = "；".join(str(item) for item in efficacy_points) if efficacy_points else "尚需补充功效证据"
         flavor_section = self._flavor_summary_section(None, flavor_payload)
-        replacements = (replacement_payload or {}).get("recommended_replacements", []) or []
+        replacements = self._safe_list((replacement_payload or {}).get("recommended_replacements"))
         replacement_text = "当前不建议替代核心药材" if not replacements else "存在可替代候选，需人工确认替代收益与风险"
         kb5_text = ""
         if kb5_context:
             kb5_text = (
                 f"KB5 原方依据：{kb5_context.get('formula_name')}；"
-                f"来源：{'、'.join(kb5_context.get('sources', [])) or '建议在定稿前核对原方文献'}。"
+                f"来源：{'、'.join(str(item) for item in self._safe_list(kb5_context.get('sources'))) or '建议在定稿前核对原方文献'}。"
             )
 
         recommendation = (
@@ -1000,10 +1027,10 @@ class RnDWorkflowOrchestrator:
         return {
             "brief_summary": final_output.get("brief_summary") or "",
             "final_recommendation": final_output.get("final_recommendation") or "",
-            "consistency_checks": final_output.get("consistency_checks") or [],
-            "next_actions": final_output.get("next_actions") or [],
-            "task_plan": final_output.get("task_plan") or [],
-            "data_sources": final_output.get("data_sources") or [],
+            "consistency_checks": self._safe_list(final_output.get("consistency_checks")),
+            "next_actions": self._safe_list(final_output.get("next_actions")),
+            "task_plan": self._safe_list(final_output.get("task_plan")),
+            "data_sources": self._safe_list(final_output.get("data_sources")),
             "final_formula": self._final_formula_section(final_output.get("final_formula"), formula_payload),
             "monarch_minister_summary": self._monarch_minister_summary(
                 final_output.get("monarch_minister_summary"), formula_payload
@@ -1030,6 +1057,46 @@ class RnDWorkflowOrchestrator:
         }
 
     @staticmethod
+    def _safe_list(value: Any) -> list[Any]:
+        """LLM 输出类型容错：list 原样；dict 包成单元素列表；其余（str/None/标量）视为空，绝不抛异常。"""
+        if isinstance(value, list):
+            return value
+        if isinstance(value, dict):
+            return [value]
+        return []
+
+    @staticmethod
+    def _safe_dict(value: Any) -> dict[str, Any]:
+        """LLM 输出类型容错：dict 原样；其余视为空 dict。"""
+        return value if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _normalize_kb5_context(value: Any) -> list[dict[str, Any]]:
+        """kb5_formula_context 类型规范化：None→[]；dict→[dict]；list→过滤非 dict 项；str→尝试 json.loads，失败置空。"""
+        if value is None:
+            return []
+        if isinstance(value, dict):
+            return [value]
+        if isinstance(value, list):
+            return [item for item in value if isinstance(item, dict)]
+        if isinstance(value, str):
+            text = value.strip()
+            if text:
+                try:
+                    parsed = json.loads(text)
+                except (ValueError, TypeError) as exc:
+                    logger.warning("kb5_formula_context 为非法 JSON 字符串，已置空：%s", exc)
+                    return []
+                if isinstance(parsed, dict):
+                    return [parsed]
+                if isinstance(parsed, list):
+                    return [item for item in parsed if isinstance(item, dict)]
+            logger.warning("kb5_formula_context 为字符串且无法解析为结构，已置空")
+            return []
+        logger.warning("kb5_formula_context 类型异常（%s），已置空", type(value).__name__)
+        return []
+
+    @staticmethod
     def _dedup(items: list[Any]) -> list[Any]:
         seen: set[str] = set()
         result: list[Any] = []
@@ -1043,13 +1110,15 @@ class RnDWorkflowOrchestrator:
     @staticmethod
     def _composition_from_formula(formula_payload: dict[str, Any] | None) -> list[dict[str, Any]]:
         formula_payload = formula_payload or {}
-        kb5_contexts = formula_payload.get("kb5_formula_context", []) or []
+        kb5_contexts = RnDWorkflowOrchestrator._normalize_kb5_context(formula_payload.get("kb5_formula_context"))
         kb5_context = kb5_contexts[0] if kb5_contexts else None
         source = f"KB5 原方「{kb5_context.get('formula_name')}」" if kb5_context else "药食同源候选组方（图谱候选药材）"
         composition: list[dict[str, Any]] = []
-        formulas = formula_payload.get("formulas", []) or []
+        formulas = RnDWorkflowOrchestrator._safe_list(formula_payload.get("formulas"))
         for formula in formulas[:1]:
-            for item in formula.get("ingredients", []) or []:
+            if not isinstance(formula, dict):
+                continue
+            for item in RnDWorkflowOrchestrator._safe_list(formula.get("ingredients")):
                 if not isinstance(item, dict):
                     continue
                 name = item.get("name") or item.get("herb_key")
@@ -1084,9 +1153,9 @@ class RnDWorkflowOrchestrator:
           新增药材给出按方剂学建议区间并附依据。
         """
         formula_payload = formula_payload or {}
-        kb5_contexts = formula_payload.get("kb5_formula_context", []) or []
+        kb5_contexts = RnDWorkflowOrchestrator._normalize_kb5_context(formula_payload.get("kb5_formula_context"))
         kb5_context = kb5_contexts[0] if kb5_contexts else None
-        kb5_ingredients = (kb5_context or {}).get("ingredients", []) or []
+        kb5_ingredients = RnDWorkflowOrchestrator._safe_list((kb5_context or {}).get("ingredients"))
         kb5_names: set[str] = set()
         role_by_name: dict[str, str] = {}
         dose_by_name: dict[str, str] = {}
@@ -1105,6 +1174,8 @@ class RnDWorkflowOrchestrator:
                 dose_source_by_name.setdefault(name, str(item["dosage_source"]))
         source = f"KB5 原方「{kb5_context.get('formula_name')}」" if kb5_context else "药食同源候选组方（图谱候选药材）"
         for index, item in enumerate(composition):
+            if not isinstance(item, dict):
+                continue
             name = item.get("name") or ""
             role = map_role_relation(item.get("role")) or role_by_name.get(name)
             if not role:
@@ -1148,9 +1219,9 @@ class RnDWorkflowOrchestrator:
         return dose_text, "图谱未提供该味明确剂量，按方剂学建议区间给出，正式用量需小试验证"
 
     def _final_formula_section(self, value: Any, formula_payload: dict[str, Any] | None) -> dict[str, Any]:
-        formulas = (formula_payload or {}).get("formulas", []) or []
-        first_formula = formulas[0] if formulas else {}
-        kb5_contexts = (formula_payload or {}).get("kb5_formula_context", []) or []
+        formulas = self._safe_list((formula_payload or {}).get("formulas"))
+        first_formula = formulas[0] if formulas and isinstance(formulas[0], dict) else {}
+        kb5_contexts = self._normalize_kb5_context((formula_payload or {}).get("kb5_formula_context"))
         kb5_context = kb5_contexts[0] if kb5_contexts else None
         extracted_name = first_formula.get("name") or (
             f"{kb5_context.get('formula_name')}药食同源化候选方" if kb5_context else "药食同源候选方（待定名）"
@@ -1178,7 +1249,7 @@ class RnDWorkflowOrchestrator:
                 normalized.append(
                     {
                         "role": role,
-                        "herbs": item.get("herbs") or [],
+                        "herbs": self._safe_list(item.get("herbs")),
                         "duty": item.get("duty") or self.ROLE_DUTY.get(role, "协同配伍，辅助整体目标"),
                     }
                 )
@@ -1207,13 +1278,17 @@ class RnDWorkflowOrchestrator:
             changes = value.get("changes") if isinstance(value.get("changes"), dict) else {}
             if value.get("name") or any(changes.values()):
                 return {"name": value.get("name", ""), "source": value.get("source", ""), "changes": changes}
-        kb5_contexts = (formula_payload or {}).get("kb5_formula_context", []) or []
+        kb5_contexts = self._normalize_kb5_context((formula_payload or {}).get("kb5_formula_context"))
         kb5_context = kb5_contexts[0] if kb5_contexts else None
         composition = self._composition_from_formula(formula_payload)
         comp_names = [item["name"] for item in composition]
-        kb5_names = [item.get("name") for item in (kb5_context or {}).get("ingredients", []) or [] if item.get("name")]
+        kb5_names = [
+            item.get("name")
+            for item in self._safe_list((kb5_context or {}).get("ingredients"))
+            if isinstance(item, dict) and item.get("name")
+        ]
         kb5_names = list(dict.fromkeys(kb5_names))
-        replacements = (replacement_payload or {}).get("recommended_replacements", []) or []
+        replacements = self._safe_list((replacement_payload or {}).get("recommended_replacements"))
         replaced: list[dict[str, Any]] = []
         replaced_sources: set[str] = set()
         replaced_targets: set[str] = set()
@@ -1238,7 +1313,11 @@ class RnDWorkflowOrchestrator:
         removed = [name for name in kb5_names if name not in comp_names]
         return {
             "name": kb5_context.get("formula_name") if kb5_context else "",
-            "source": "、".join(kb5_context.get("sources", [])) if kb5_context and kb5_context.get("sources") else "",
+            "source": (
+                "、".join(str(item) for item in self._safe_list(kb5_context.get("sources")))
+                if kb5_context and kb5_context.get("sources")
+                else ""
+            ),
             "changes": {"retained": retained, "replaced": replaced, "added": added, "removed": removed},
         }
 
@@ -1248,10 +1327,12 @@ class RnDWorkflowOrchestrator:
             return value
         efficacy_payload = efficacy_payload or {}
         effects = RnDWorkflowOrchestrator._dedup(
-            [item for item in (efficacy_payload.get("core_tcm_efficacy", []) or [])]
-            + [item for item in (efficacy_payload.get("core_modern_efficacy", []) or [])]
+            [item for item in RnDWorkflowOrchestrator._safe_list(efficacy_payload.get("core_tcm_efficacy"))]
+            + [item for item in RnDWorkflowOrchestrator._safe_list(efficacy_payload.get("core_modern_efficacy"))]
         )
-        mechanisms = RnDWorkflowOrchestrator._dedup(efficacy_payload.get("mechanisms", []) or [])
+        mechanisms = RnDWorkflowOrchestrator._dedup(
+            RnDWorkflowOrchestrator._safe_list(efficacy_payload.get("mechanisms"))
+        )
         return {"effects": effects, "mechanisms": mechanisms}
 
     @staticmethod
@@ -1259,15 +1340,17 @@ class RnDWorkflowOrchestrator:
         if isinstance(value, dict) and (value.get("notes") or value.get("acceptance")):
             return value
         flavor_payload = flavor_payload or {}
-        profile = flavor_payload.get("flavor_profile", {}) or {}
+        profile = RnDWorkflowOrchestrator._safe_dict(flavor_payload.get("flavor_profile"))
         notes: list[str] = []
-        if profile.get("taste"):
-            notes.append("味觉：" + "；".join(str(item) for item in profile["taste"]))
-        if profile.get("aroma"):
-            notes.append("香气：" + "；".join(str(item) for item in profile["aroma"]))
-        if profile.get("mouthfeel"):
-            notes.append("口感：" + "；".join(str(item) for item in profile["mouthfeel"]))
-        notes.extend(str(item) for item in (flavor_payload.get("defects", []) or []) if item)
+        for key, label in (("taste", "味觉"), ("aroma", "香气"), ("mouthfeel", "口感")):
+            items = RnDWorkflowOrchestrator._safe_list(profile.get(key))
+            if items:
+                notes.append(f"{label}：" + "；".join(str(item) for item in items))
+        notes.extend(
+            str(item)
+            for item in RnDWorkflowOrchestrator._safe_list(flavor_payload.get("defects"))
+            if item
+        )
         if flavor_payload.get("coordination_summary"):
             notes.append(str(flavor_payload["coordination_summary"]))
         return {
@@ -1286,15 +1369,15 @@ class RnDWorkflowOrchestrator:
             if not isinstance(payload, dict):
                 continue
             for key in ("compliance_notes", "risks"):
-                for item in payload.get(key, []) or []:
+                for item in RnDWorkflowOrchestrator._safe_list(payload.get(key)):
                     if isinstance(item, str) and item and item not in risks:
                         risks.append(item)
         efficacy_payload = efficacy_payload or {}
-        for item in efficacy_payload.get("risks", []) or []:
+        for item in RnDWorkflowOrchestrator._safe_list(efficacy_payload.get("risks")):
             if isinstance(item, str) and item and item not in risks:
                 risks.append(item)
         for key, label in (("avoid_population", "不适宜人群"), ("contraindicated_population", "禁忌人群")):
-            for item in efficacy_payload.get(key, []) or []:
+            for item in RnDWorkflowOrchestrator._safe_list(efficacy_payload.get(key)):
                 if not item:
                     continue
                 text = f"{label}：{item}" if isinstance(item, str) else label
@@ -1310,12 +1393,14 @@ class RnDWorkflowOrchestrator:
         replacement_payload: dict[str, Any] | None,
     ) -> list[str]:
         gaps: list[str] = []
-        formulas = (formula_payload or {}).get("formulas", []) or []
+        formulas = RnDWorkflowOrchestrator._safe_list((formula_payload or {}).get("formulas"))
         if not formulas:
             gaps.append("当前未形成稳定方剂，需补充目标功效、适用人群、剂型等需求信息。")
         else:
             gaps.append("剂量区间与配伍逻辑需经中药/食品专业复核，并进行小样感官与稳定性验证。")
-        replacements = (replacement_payload or {}).get("recommended_replacements", []) or []
+        replacements = RnDWorkflowOrchestrator._safe_list(
+            (replacement_payload or {}).get("recommended_replacements")
+        )
         if replacements:
             gaps.append("替代项的收益与风险（功效保持、人群边界、合规性）需进一步核验后再进入定稿。")
         elif formulas:

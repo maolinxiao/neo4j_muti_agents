@@ -160,7 +160,16 @@ export const useRndStore = defineStore("rnd", {
       try {
         const { data } = await api.getWorkflowStepDetail(runId, stepId);
         this.currentStepDetail = data;
-        this.selectedSnapshot = data.graph_snapshot || null;
+        let snapshot = data.graph_snapshot || null;
+        if (!snapshot && data.graph_snapshot_id) {
+          try {
+            const { data: snap } = await api.getGraphSnapshot(data.graph_snapshot_id);
+            snapshot = snap;
+          } catch {
+            snapshot = null;
+          }
+        }
+        this.selectedSnapshot = snapshot;
       } finally {
         if (!silent) {
           this.loading = false;

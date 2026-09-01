@@ -74,6 +74,92 @@ RND_MASTER_SCHEMA = {
     },
 }
 
+RND_MASTER_FINAL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "brief_summary": {"type": "string"},
+        "final_recommendation": {"type": "string"},
+        "consistency_checks": {"type": "array"},
+        "next_actions": {"type": "array"},
+        "task_plan": {"type": "array"},
+        "data_sources": {"type": "array"},
+        "final_formula": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "composition": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "role": {"type": "string"},
+                            "dose": {"type": "string"},
+                            "rationale": {"type": "string"},
+                            "basis": {"type": "string"},
+                            "source": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        },
+        "monarch_minister_summary": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "role": {"type": "string"},
+                    "herbs": {"type": "array"},
+                    "duty": {"type": "string"},
+                },
+            },
+        },
+        "original_formula": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "source": {"type": "string"},
+                "changes": {
+                    "type": "object",
+                    "properties": {
+                        "retained": {"type": "array"},
+                        "replaced": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "from": {"type": "string"},
+                                    "to": {"type": "string"},
+                                    "score": {},
+                                    "confidence": {},
+                                },
+                            },
+                        },
+                        "added": {"type": "array"},
+                        "removed": {"type": "array"},
+                    },
+                },
+            },
+        },
+        "efficacy_summary": {
+            "type": "object",
+            "properties": {
+                "effects": {"type": "array"},
+                "mechanisms": {"type": "array"},
+            },
+        },
+        "flavor_summary": {
+            "type": "object",
+            "properties": {
+                "notes": {"type": "array"},
+                "acceptance": {"type": "string"},
+            },
+        },
+        "compliance_risks": {"type": "array"},
+        "evidence_gaps": {"type": "array"},
+    },
+}
+
 
 DEFAULT_PROMPTS = [
     {
@@ -148,26 +234,44 @@ DEFAULT_PROMPTS = [
         "key": "rnd_master_control_final",
         "scenario": "rnd_workflow",
         "agent_key": "master_control_final",
-        "name": "研发主控 Agent（最终整合）",
-        "description": "整合各模块结果，生成最终研发推荐方案，并给出一致性校验和后续执行建议。",
+        "name": "研发主控 Agent（最终整合·总结报告）",
+        "description": "整合各模块结果，输出交付研发负责人的总结报告：最终配方、君臣佐使、原方依据、功效风味、替代对比、合规风险与证据缺口。",
         "system_prompt": (
-            "Role: 药食同源智研系统主控Agent（最终整合）。"
-            "你需要将用户 brief 与前序模块（方剂生成、功效预测、风味预测、替代映射）结果整合成最终方案。"
+            "Role: 药食同源智研系统主控Agent（最终整合·总结报告模式）。"
+            "你必须把用户 brief 与前序模块（方剂生成、功效预测、风味预测、替代映射）的结果整合成一份"
+            "「交付给研发负责人的总结报告」。报告要求结论先行、证据可追溯、风险显式、下一步可执行。"
+            "禁止只复述前序模块的过程性内容；前序模块结果只是证据来源，报告要给出明确的研发结论与决策建议。"
+            "输出必须包含以下结构化章节（字段名严格按约定 schema，无内容时返回空字符串/空列表）："
+            "【最终配方】final_formula：给出最终推荐方（含方名，若为候选方需标注「候选」）；"
+            "composition 逐味列出：name（药材名）、role（角色：君药/臣药/佐药/使药/配伍药）、dose（建议剂量区间，"
+            "区分成人每日推荐用量与最大安全用量）、rationale（作用与剂量依据）、basis（方解一句）、source（依据来源）；"
+            "【君臣佐使一览】monarch_minister_summary：按角色汇总 herbs（药材列表）与 duty（职责说明）；"
+            "【原方依据】original_formula：若属方剂药食同源化，输出 KB5 原方 name 与 source（出处），"
+            "并在 changes 中逐味标注 retained（保留）、replaced（替换，每项含 from/to/score/confidence，"
+            "score 为 KB4 CAN_REPLACE 百分制评分，confidence 为系统综合可信度与推荐状态，不得表述为临床有效率）、"
+            "added（新增）、removed（删除）；保留与替换必须给出依据；未命中 KB5 原方时说明最终配方为图谱候选组方；"
+            "【功效与机制摘要】efficacy_summary：基于 KB2 输出 effects（核心中医功效与现代功效）与 mechanisms（作用机制），"
+            "标注证据级别；"
+            "【风味与适配】flavor_summary：基于 KB3 输出 notes（味觉/香气/口感/风味缺陷）与 acceptance（目标人群接受度）；"
+            "【替代对比要点】由替代映射模块归纳逐味替代项、KB4 评分与系统综合可信度，说明是否建议采用替代及理由；"
+            "【合规与风险】compliance_risks：基于 KB1/KB7 列出原料合法性、宣传边界、禁用/慎用表述与风险人群提示；"
+            "【证据不足与下一步】evidence_gaps：列明当前证据缺口，并给出补充数据、小试验证或专业复核建议。"
             "Constraints: "
             "必须校验是否存在非药食同源成分、剂量不合理、替代后功效削弱、风味冲突、合规风险等问题；"
-            "必须校验各模块数据一致性，如方剂配伍与功效预测、风味预测与工艺适配的逻辑匹配；"
-            "必须校验替代映射是否同步考虑目标人群/体质画像、风味接受度、风味相似度和安全性；"
+            "必须校验各模块数据一致性，如方剂配伍与功效预测、风味预测与工艺适配、替代映射与目标人群/体质画像、风味接受度、风味相似度和安全性；"
             "方剂药食同源化必须明确 KB5 原方依据、保留药材、替代药材、重组配方、风味剂型、食品化边界和实验验证建议；"
             "KB4 只负责单味药替代评分，不能声称存在预生成方剂替代版本；"
-            "所有输出必须标注数据来源（如《中国药典》、GB标准、FlavorDB等），禁止无依据的输出。"
+            "禁止把系统推导的近似方表述为图谱直接证据；"
+            "所有输出必须标注数据来源（如《中国药典》、GB标准、KB5 名方、KB4 CAN_REPLACE、FlavorDB等），禁止无依据的输出。"
             "Goals: "
-            "请明确指出每个子模块结果是否一致，是否满足用户目标，以及任何证据缺口；"
+            "请明确指出每个子模块结果是否一致、是否满足用户目标，以及任何证据缺口；"
             "若存在数据或证据缺口，需明确给出补充建议；"
-            "提供包含方剂、功效、风味、替代方案、工艺建议、市场分析的完整研发报告。"
-            "最终方案需包含：brief_summary、task_plan、consistency_checks、final_recommendation、next_actions。"
+            "最终报告需包含：brief_summary、final_recommendation、consistency_checks、next_actions、"
+            "final_formula、monarch_minister_summary、original_formula、efficacy_summary、flavor_summary、"
+            "compliance_risks、evidence_gaps。"
         ),
-        "answer_schema": RND_MASTER_SCHEMA,
-        "output_schema": RND_MASTER_SCHEMA,
+        "answer_schema": RND_MASTER_FINAL_SCHEMA,
+        "output_schema": RND_MASTER_FINAL_SCHEMA,
         "is_active": True,
     },
     {

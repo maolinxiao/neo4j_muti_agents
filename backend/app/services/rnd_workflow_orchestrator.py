@@ -18,6 +18,14 @@ class RnDWorkflowOrchestrator:
         "master_control_final",
     ]
 
+    ROLE_DUTY = {
+        "君药": "针对目标需求与核心功效起主导作用",
+        "臣药": "辅助君药增强功效或针对兼证",
+        "佐药": "佐助主药或制约偏性，平衡药性与口感",
+        "使药": "调和诸药、改善整体协调性",
+        "配伍药": "协同配方整体目标，起辅助配伍作用",
+    }
+
     def __init__(
         self,
         postgres_repository: PostgresRepository,
@@ -132,31 +140,25 @@ class RnDWorkflowOrchestrator:
                     "flavor_prediction": flavor_result["output_payload"],
                     "replacement_mapping": replacement_result["output_payload"],
                     "instruction": (
-                        "整合前序模块（方剂生成、功效预测、风味预测、替代映射）并输出最终研发方案。"
-                        "必须给出：最终方剂组成与方解、每味药材在目标中的作用与剂量依据、"
-                        "核心功效与作用机制、风味特征与消费者接受度、替代方案与多维对比、"
-                        "合规与风险提示、可执行下一步。若属于方剂药食同源化，必须明确输出 KB5 原方依据、"
-                        "保留药材、替代药材、重组配方、风味剂型、食品化边界和实验验证建议。"
-                        "所有输出需标注数据来源。"
-                        "若证据不足，需具体说明缺口和补充数据建议。"
+                        "整合前序模块（方剂生成、功效预测、风味预测、替代映射）并输出「交付研发负责人的总结报告」。"
+                        "报告必须包含：最终配方（组成、君臣佐使角色、建议剂量区间、作用与剂量依据、方解一句）、"
+                        "君臣佐使一览、KB5 原方依据（含保留/替换/新增/删除逐味标注，替换引用 KB4 CAN_REPLACE 评分与系统综合可信度）、"
+                        "功效与机制摘要、风味与适配、替代对比要点、合规与风险、证据不足与下一步。"
+                        "禁止只复述前序模块内容；所有输出需标注数据来源。若证据不足，需具体说明缺口和补充数据建议。"
                     ),
                 },
                 final_master_fallback,
+                max_completion_tokens=1800,
             )
 
             steps = self.postgres_repository.list_workflow_step_runs(run.id)
-            final_report = {
-                "brief_summary": final_master["output_payload"].get("brief_summary", ""),
-                "final_recommendation": final_master["output_payload"].get("final_recommendation", ""),
-                "consistency_checks": final_master["output_payload"].get("consistency_checks", []),
-                "next_actions": final_master["output_payload"].get("next_actions", []),
-                "modules": {
-                    "formula_generation": formula_result["output_payload"],
-                    "efficacy_prediction": efficacy_result["output_payload"],
-                    "flavor_prediction": flavor_result["output_payload"],
-                    "replacement_mapping": replacement_result["output_payload"],
-                },
-            }
+            final_report = self._assemble_final_report(
+                final_master["output_payload"],
+                formula_result["output_payload"],
+                efficacy_result["output_payload"],
+                flavor_result["output_payload"],
+                replacement_result["output_payload"],
+            )
             run.final_report = final_report
             run.summary_metrics = {
                 "stepCount": len(steps),
@@ -186,6 +188,19 @@ class RnDWorkflowOrchestrator:
                 "final_recommendation": "",
                 "consistency_checks": [f"工作流执行失败：{exc}"],
                 "next_actions": ["请检查当前 Agent 提示词、图谱证据和模型连通性后重试。"],
+                "task_plan": [],
+                "data_sources": [],
+                "final_formula": {"name": "", "composition": []},
+                "monarch_minister_summary": [],
+                "original_formula": {
+                    "name": "",
+                    "source": "",
+                    "changes": {"retained": [], "replaced": [], "added": [], "removed": []},
+                },
+                "efficacy_summary": {"effects": [], "mechanisms": []},
+                "flavor_summary": {"notes": [], "acceptance": ""},
+                "compliance_risks": [],
+                "evidence_gaps": [],
                 "modules": {},
             }
             run.summary_metrics = {
@@ -344,6 +359,7 @@ class RnDWorkflowOrchestrator:
         input_payload: dict[str, Any],
         fallback: dict[str, Any],
         graph_snapshot_id: str | None = None,
+        max_completion_tokens: int = 1000,
     ) -> dict[str, Any]:
         prompt = self.postgres_repository.get_prompt_template_by_scenario_agent("rnd_workflow", agent_key)
         if prompt is None and agent_key == "master_control_final":
@@ -369,7 +385,7 @@ class RnDWorkflowOrchestrator:
             output_schema=prompt.output_schema if prompt else None,
             required_keys=list(fallback.keys()),
             agent_key=agent_key,
-            max_completion_tokens=1000,
+            max_completion_tokens=max_completion_tokens,
         )
         if not output_payload:
             output_payload = fallback
@@ -900,30 +916,31 @@ class RnDWorkflowOrchestrator:
 
         formulas = (formula_payload or {}).get("formulas", [])
         first_formula = formulas[0] if formulas else {}
-        ingredients = first_formula.get("ingredients", [])
-        herb_names = [item.get("name") for item in ingredients if item.get("name")]
-        herb_text = "、".join(herb_names[:6]) if herb_names else "当前未形成稳定方剂"
-        efficacy_points = (efficacy_payload or {}).get("core_tcm_efficacy", [])[:3]
-        efficacy_text = "；".join(efficacy_points) if efficacy_points else "尚需补充功效证据"
-        flavor_summary = (flavor_payload or {}).get("coordination_summary") or "风味评估信息有限"
-        replacements = (replacement_payload or {}).get("recommended_replacements", [])
-        replacement_text = "当前不建议替代核心药材" if not replacements else "存在可替代候选，需人工确认替代收益与风险"
         kb5_contexts = (formula_payload or {}).get("kb5_formula_context", [])
+        kb5_context = kb5_contexts[0] if kb5_contexts else None
+
+        composition = self._composition_from_formula(formula_payload)
+        herb_names = [item["name"] for item in composition]
+        herb_text = "、".join(herb_names[:6]) if herb_names else "当前未形成稳定方剂"
+        efficacy_points = (efficacy_payload or {}).get("core_tcm_efficacy", [])[:3] or []
+        efficacy_text = "；".join(str(item) for item in efficacy_points) if efficacy_points else "尚需补充功效证据"
+        flavor_section = self._flavor_summary_section(None, flavor_payload)
+        replacements = (replacement_payload or {}).get("recommended_replacements", []) or []
+        replacement_text = "当前不建议替代核心药材" if not replacements else "存在可替代候选，需人工确认替代收益与风险"
         kb5_text = ""
-        if kb5_contexts:
-            first_context = kb5_contexts[0]
+        if kb5_context:
             kb5_text = (
-                f"KB5 原方依据：{first_context.get('formula_name')}；"
-                f"来源：{'、'.join(first_context.get('sources', [])) or '建议在定稿前核对原方文献'}。"
+                f"KB5 原方依据：{kb5_context.get('formula_name')}；"
+                f"来源：{'、'.join(kb5_context.get('sources', [])) or '建议在定稿前核对原方文献'}。"
             )
 
         recommendation = (
-            f"针对「{question}」，已形成药食同源候选方：{herb_text}。"
-            f"{kb5_text}"
-            f"核心功效判断为：{efficacy_text}。"
-            f"风味与可接受性评估：{flavor_summary}。"
-            f"{replacement_text}。"
-            "最终需输出保留药材、替代药材、重组配方、风味剂型、食品化边界和实验验证建议；"
+            f"针对「{question}」，已形成药食同源候选方：{herb_text}。\n"
+            f"{kb5_text}\n"
+            f"核心功效判断为：{efficacy_text}。\n"
+            f"风味与可接受性评估：{flavor_section.get('acceptance') or '风味评估信息有限'}。\n"
+            f"{replacement_text}。\n"
+            "详细组成、君臣佐使、原方依据、替代对比、合规风险与证据缺口见结构化字段；\n"
             "建议先做小样验证、感官评价、稳定性和合规文案复核，再进入工艺放大。"
         )
         return {
@@ -952,7 +969,259 @@ class RnDWorkflowOrchestrator:
                 "如存在证据缺口，补充实验或文献验证。",
             ],
             "data_sources": ["KB1 药食同源合法性", "KB2 功效病症性味归经", "KB3 风味评价", "KB4 CAN_REPLACE 单味替代", "KB5 名方/方剂", "KB6 产品市场", "KB7 食品合规"],
+            "final_formula": self._final_formula_section(None, formula_payload),
+            "monarch_minister_summary": self._monarch_minister_summary(None, formula_payload),
+            "original_formula": self._original_formula_section(None, formula_payload, replacement_payload),
+            "efficacy_summary": self._efficacy_summary_section(None, efficacy_payload),
+            "flavor_summary": flavor_section,
+            "compliance_risks": self._collect_compliance_risks(formula_payload, efficacy_payload, replacement_payload),
+            "evidence_gaps": self._collect_evidence_gaps(formula_payload, efficacy_payload, flavor_payload, replacement_payload),
         }
+
+    def _assemble_final_report(
+        self,
+        final_output: dict[str, Any],
+        formula_payload: dict[str, Any] | None,
+        efficacy_payload: dict[str, Any] | None,
+        flavor_payload: dict[str, Any] | None,
+        replacement_payload: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        """组装最终报告：旧键保持兼容；结构化键优先取主控输出，缺失/为空时按模块 payload 抽取。"""
+        return {
+            "brief_summary": final_output.get("brief_summary") or "",
+            "final_recommendation": final_output.get("final_recommendation") or "",
+            "consistency_checks": final_output.get("consistency_checks") or [],
+            "next_actions": final_output.get("next_actions") or [],
+            "task_plan": final_output.get("task_plan") or [],
+            "data_sources": final_output.get("data_sources") or [],
+            "final_formula": self._final_formula_section(final_output.get("final_formula"), formula_payload),
+            "monarch_minister_summary": self._monarch_minister_summary(
+                final_output.get("monarch_minister_summary"), formula_payload
+            ),
+            "original_formula": self._original_formula_section(
+                final_output.get("original_formula"), formula_payload, replacement_payload
+            ),
+            "efficacy_summary": self._efficacy_summary_section(final_output.get("efficacy_summary"), efficacy_payload),
+            "flavor_summary": self._flavor_summary_section(final_output.get("flavor_summary"), flavor_payload),
+            "compliance_risks": (
+                final_output.get("compliance_risks")
+                or self._collect_compliance_risks(formula_payload, efficacy_payload, replacement_payload)
+            ),
+            "evidence_gaps": (
+                final_output.get("evidence_gaps")
+                or self._collect_evidence_gaps(formula_payload, efficacy_payload, flavor_payload, replacement_payload)
+            ),
+            "modules": {
+                "formula_generation": formula_payload,
+                "efficacy_prediction": efficacy_payload,
+                "flavor_prediction": flavor_payload,
+                "replacement_mapping": replacement_payload,
+            },
+        }
+
+    @staticmethod
+    def _dedup(items: list[Any]) -> list[Any]:
+        seen: set[str] = set()
+        result: list[Any] = []
+        for item in items:
+            key = json.dumps(item, ensure_ascii=False, sort_keys=True) if isinstance(item, (dict, list)) else str(item)
+            if key not in seen:
+                seen.add(key)
+                result.append(item)
+        return result
+
+    @staticmethod
+    def _composition_from_formula(formula_payload: dict[str, Any] | None) -> list[dict[str, Any]]:
+        formula_payload = formula_payload or {}
+        kb5_contexts = formula_payload.get("kb5_formula_context", []) or []
+        kb5_context = kb5_contexts[0] if kb5_contexts else None
+        source = f"KB5 原方「{kb5_context.get('formula_name')}」" if kb5_context else "药食同源候选组方（图谱候选药材）"
+        composition: list[dict[str, Any]] = []
+        formulas = formula_payload.get("formulas", []) or []
+        for formula in formulas[:1]:
+            for item in formula.get("ingredients", []) or []:
+                if not isinstance(item, dict):
+                    continue
+                name = item.get("name") or item.get("herb_key")
+                if not name:
+                    continue
+                composition.append(
+                    {
+                        "name": name,
+                        "role": item.get("role") or "配伍药",
+                        "dose": item.get("dose_range") or item.get("dose") or "待校验",
+                        "rationale": (
+                            item.get("rationale")
+                            or item.get("dose_rationale")
+                            or item.get("fang_jie_role")
+                            or "与目标功效相关"
+                        ),
+                        "basis": item.get("basis") or item.get("evidence") or "",
+                        "source": item.get("source") or source,
+                    }
+                )
+        return composition
+
+    def _final_formula_section(self, value: Any, formula_payload: dict[str, Any] | None) -> dict[str, Any]:
+        formulas = (formula_payload or {}).get("formulas", []) or []
+        first_formula = formulas[0] if formulas else {}
+        kb5_contexts = (formula_payload or {}).get("kb5_formula_context", []) or []
+        kb5_context = kb5_contexts[0] if kb5_contexts else None
+        extracted_name = first_formula.get("name") or (
+            f"{kb5_context.get('formula_name')}药食同源化候选方" if kb5_context else "药食同源候选方（待定名）"
+        )
+        extracted_composition = self._composition_from_formula(formula_payload)
+        if isinstance(value, dict):
+            composition = value.get("composition")
+            if isinstance(composition, list) and composition:
+                return value
+            return {"name": value.get("name") or extracted_name, "composition": extracted_composition}
+        return {"name": extracted_name, "composition": extracted_composition}
+
+    def _monarch_minister_summary(
+        self, value: Any, formula_payload: dict[str, Any] | None
+    ) -> list[dict[str, Any]]:
+        if isinstance(value, list) and value:
+            return value
+        composition = self._composition_from_formula(formula_payload)
+        grouped: dict[str, list[str]] = {}
+        for item in composition:
+            role = item.get("role") or "配伍药"
+            grouped.setdefault(role, []).append(item["name"])
+        return [
+            {
+                "role": role,
+                "herbs": names,
+                "duty": self.ROLE_DUTY.get(role, "协同配伍，辅助整体目标"),
+            }
+            for role, names in grouped.items()
+        ]
+
+    def _original_formula_section(
+        self,
+        value: Any,
+        formula_payload: dict[str, Any] | None,
+        replacement_payload: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        if isinstance(value, dict):
+            changes = value.get("changes") if isinstance(value.get("changes"), dict) else {}
+            if value.get("name") or any(changes.values()):
+                return {"name": value.get("name", ""), "source": value.get("source", ""), "changes": changes}
+        kb5_contexts = (formula_payload or {}).get("kb5_formula_context", []) or []
+        kb5_context = kb5_contexts[0] if kb5_contexts else None
+        composition = self._composition_from_formula(formula_payload)
+        comp_names = [item["name"] for item in composition]
+        kb5_names = [item.get("name") for item in (kb5_context or {}).get("ingredients", []) or [] if item.get("name")]
+        kb5_names = list(dict.fromkeys(kb5_names))
+        replacements = (replacement_payload or {}).get("recommended_replacements", []) or []
+        replaced: list[dict[str, Any]] = []
+        replaced_sources: set[str] = set()
+        replaced_targets: set[str] = set()
+        for item in replacements:
+            if not isinstance(item, dict):
+                continue
+            frm = item.get("source_herb")
+            to = item.get("recommended_herb")
+            if frm and to:
+                replaced.append(
+                    {
+                        "from": frm,
+                        "to": to,
+                        "score": item.get("score"),
+                        "confidence": item.get("professional_score") or item.get("confidence") or "待复核",
+                    }
+                )
+                replaced_sources.add(frm)
+                replaced_targets.add(to)
+        retained = [name for name in comp_names if name in kb5_names and name not in replaced_sources]
+        added = [name for name in comp_names if name and name not in kb5_names and name not in replaced_targets]
+        removed = [name for name in kb5_names if name not in comp_names]
+        return {
+            "name": kb5_context.get("formula_name") if kb5_context else "",
+            "source": "、".join(kb5_context.get("sources", [])) if kb5_context and kb5_context.get("sources") else "",
+            "changes": {"retained": retained, "replaced": replaced, "added": added, "removed": removed},
+        }
+
+    @staticmethod
+    def _efficacy_summary_section(value: Any, efficacy_payload: dict[str, Any] | None) -> dict[str, Any]:
+        if isinstance(value, dict) and (value.get("effects") or value.get("mechanisms")):
+            return value
+        efficacy_payload = efficacy_payload or {}
+        effects = RnDWorkflowOrchestrator._dedup(
+            [item for item in (efficacy_payload.get("core_tcm_efficacy", []) or [])]
+            + [item for item in (efficacy_payload.get("core_modern_efficacy", []) or [])]
+        )
+        mechanisms = RnDWorkflowOrchestrator._dedup(efficacy_payload.get("mechanisms", []) or [])
+        return {"effects": effects, "mechanisms": mechanisms}
+
+    @staticmethod
+    def _flavor_summary_section(value: Any, flavor_payload: dict[str, Any] | None) -> dict[str, Any]:
+        if isinstance(value, dict) and (value.get("notes") or value.get("acceptance")):
+            return value
+        flavor_payload = flavor_payload or {}
+        profile = flavor_payload.get("flavor_profile", {}) or {}
+        notes: list[str] = []
+        if profile.get("taste"):
+            notes.append("味觉：" + "；".join(str(item) for item in profile["taste"]))
+        if profile.get("aroma"):
+            notes.append("香气：" + "；".join(str(item) for item in profile["aroma"]))
+        if profile.get("mouthfeel"):
+            notes.append("口感：" + "；".join(str(item) for item in profile["mouthfeel"]))
+        notes.extend(str(item) for item in (flavor_payload.get("defects", []) or []) if item)
+        if flavor_payload.get("coordination_summary"):
+            notes.append(str(flavor_payload["coordination_summary"]))
+        return {
+            "notes": RnDWorkflowOrchestrator._dedup(notes),
+            "acceptance": flavor_payload.get("consumer_acceptance") or "需结合目标人群口味偏好与剂型做感官小试验证",
+        }
+
+    @staticmethod
+    def _collect_compliance_risks(
+        formula_payload: dict[str, Any] | None,
+        efficacy_payload: dict[str, Any] | None,
+        replacement_payload: dict[str, Any] | None,
+    ) -> list[str]:
+        risks: list[str] = []
+        for payload in (formula_payload, replacement_payload):
+            if not isinstance(payload, dict):
+                continue
+            for key in ("compliance_notes", "risks"):
+                for item in payload.get(key, []) or []:
+                    if isinstance(item, str) and item and item not in risks:
+                        risks.append(item)
+        efficacy_payload = efficacy_payload or {}
+        for item in efficacy_payload.get("risks", []) or []:
+            if isinstance(item, str) and item and item not in risks:
+                risks.append(item)
+        for key, label in (("avoid_population", "不适宜人群"), ("contraindicated_population", "禁忌人群")):
+            for item in efficacy_payload.get(key, []) or []:
+                if not item:
+                    continue
+                text = f"{label}：{item}" if isinstance(item, str) else label
+                if text not in risks:
+                    risks.append(text)
+        return risks
+
+    @staticmethod
+    def _collect_evidence_gaps(
+        formula_payload: dict[str, Any] | None,
+        efficacy_payload: dict[str, Any] | None,
+        flavor_payload: dict[str, Any] | None,
+        replacement_payload: dict[str, Any] | None,
+    ) -> list[str]:
+        gaps: list[str] = []
+        formulas = (formula_payload or {}).get("formulas", []) or []
+        if not formulas:
+            gaps.append("当前未形成稳定方剂，需补充目标功效、适用人群、剂型等需求信息。")
+        else:
+            gaps.append("剂量区间与配伍逻辑需经中药/食品专业复核，并进行小样感官与稳定性验证。")
+        replacements = (replacement_payload or {}).get("recommended_replacements", []) or []
+        if replacements:
+            gaps.append("替代项的收益与风险（功效保持、人群边界、合规性）需进一步核验后再进入定稿。")
+        elif formulas:
+            gaps.append("暂未获得稳定替代候选，建议保留原方并以配伍优化为主。")
+        gaps.append("风味与接受度结论需结合目标人群口味偏好与剂型做感官小试验证。")
+        return RnDWorkflowOrchestrator._dedup(gaps)
 
     def _normalize_goal(self, text: str) -> str:
         return re.sub(r"\s+", " ", text).strip()

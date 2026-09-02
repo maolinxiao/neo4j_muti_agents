@@ -2,10 +2,12 @@
   <div class="constitution-view">
     <div class="page-header">
       <div>
-        <div class="page-title">体质辨识</div>
-        <div class="page-desc">支持手动选择九种体质、逐题完成标准量表测评，并把结果保存为后续知识问答的默认体质档案。</div>
+        <div class="page-title">{{ t("constitution.title") }}</div>
+        <div class="page-desc">{{ t("constitution.pageDesc") }}</div>
       </div>
-      <el-button type="primary" :loading="store.loading" @click="store.refreshAll()">刷新数据</el-button>
+      <el-button type="primary" :loading="store.loading" @click="store.refreshAll()">
+        {{ t("common.refresh") }}
+      </el-button>
     </div>
 
     <ConstitutionAssessmentPanel />
@@ -16,8 +18,10 @@
 import { onMounted } from "vue";
 
 import ConstitutionAssessmentPanel from "../../components/ConstitutionAssessmentPanel.vue";
+import { useI18n } from "../../composables/useI18n";
 import { useConstitutionStore } from "../../stores/constitution";
 
+const { t } = useI18n();
 const store = useConstitutionStore();
 
 onMounted(async () => {
@@ -37,8 +41,8 @@ onMounted(async () => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  background: #fff;
-  border: 1px solid #e4e7ed;
+  background: var(--app-panel);
+  border: 1px solid var(--app-border);
   border-radius: 10px;
   padding: 16px 20px;
 }
@@ -46,14 +50,22 @@ onMounted(async () => {
 .page-title {
   font-size: 18px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   margin-bottom: 8px;
 }
 
 .page-desc {
   font-size: 14px;
   line-height: 1.7;
-  color: #606266;
+  color: var(--app-text-2);
   max-width: 860px;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 </style>

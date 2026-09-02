@@ -2,6 +2,9 @@ import { ElMessage } from "element-plus";
 import { defineStore } from "pinia";
 
 import { api } from "../api/client";
+import { useI18n } from "../composables/useI18n";
+
+const { t } = useI18n();
 
 const clonePayload = (payload) => ({
   mode: payload?.mode || "need_user_choice",
@@ -98,14 +101,14 @@ export const useConstitutionStore = defineStore("constitution", {
           mode: "existing_profile",
           existing_profile: data,
         });
-        ElMessage.success("体质档案已保存。");
+        ElMessage.success(t("constitution.messages.profileSaved"));
       } finally {
         this.saving = false;
       }
     },
     async submitAssessment(notes = "") {
       if (!Object.keys(this.answers).length) {
-        ElMessage.warning("请先完成至少一题作答。");
+        ElMessage.warning(t("constitution.messages.answerAtLeastOne"));
         return null;
       }
       this.saving = true;
@@ -121,7 +124,7 @@ export const useConstitutionStore = defineStore("constitution", {
           mode: "existing_profile",
           existing_profile: data.profile,
         });
-        ElMessage.success("体质测评结果已保存。");
+        ElMessage.success(t("constitution.messages.assessmentSaved"));
         return data;
       } finally {
         this.saving = false;

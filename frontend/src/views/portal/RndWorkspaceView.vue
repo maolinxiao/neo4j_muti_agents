@@ -45,10 +45,13 @@
             </el-tag>
           </div>
 
-          <el-divider v-if="store.currentRun.brief" />
-          <div v-if="store.currentRun.brief" class="brief-preview">
+          <div class="brief-option-row">
+            <el-checkbox v-model="showBrief" size="small">显示当前 brief（研发需求解析结果）</el-checkbox>
+          </div>
+          <el-divider v-if="showBrief" />
+          <div v-if="showBrief" class="brief-preview">
             <div class="brief-heading">当前 brief</div>
-            <el-descriptions :column="1" border size="small">
+            <el-descriptions v-if="store.currentRun.brief" :column="1" border size="small">
               <el-descriptions-item label="目标">{{ store.currentRun.brief.goal }}</el-descriptions-item>
               <el-descriptions-item label="剂型">{{ store.currentRun.brief.dosage_form || "未指定" }}</el-descriptions-item>
               <el-descriptions-item label="适用人群">{{ store.currentRun.brief.target_population || "未指定" }}</el-descriptions-item>
@@ -60,6 +63,12 @@
                 </div>
               </el-descriptions-item>
             </el-descriptions>
+            <el-empty
+              v-else
+              class="brief-empty"
+              description="尚未生成 brief：启动研发工作流后，系统会把研发需求解析为结构化 brief 并展示在这里。"
+              :image-size="48"
+            />
           </div>
         </el-space>
       </el-card>
@@ -480,6 +489,7 @@ const router = useRouter();
 const store = useRndStore();
 const question = ref("");
 const reuseLastBrief = ref(false);
+const showBrief = ref(true);
 const activeTab = ref("plan");
 
 const agentLabels = {
@@ -1072,6 +1082,8 @@ const hydrate = async () => {
   } else if (route.params.sessionId) {
     await store.loadLatestRunForSession(route.params.sessionId);
   }
+  // 回填研发需求输入框：重载历史会话时展示用户原始问题
+  question.value = store.currentRun?.question || "";
 };
 
 watch(() => store.currentStepDetail?.id, () => {
@@ -1082,6 +1094,7 @@ watch(() => store.currentStepDetail?.id, () => {
 });
 
 watch(() => route.query.runId, hydrate);
+watch(() => route.params.sessionId, hydrate);
 onMounted(hydrate);
 onUnmounted(() => store.stopPolling());
 </script>
@@ -1251,6 +1264,14 @@ onUnmounted(() => store.stopPolling());
   color: #303133;
   font-weight: 600;
   font-size: 14px;
+}
+
+.brief-option-row {
+  margin-top: 14px;
+}
+
+.brief-empty {
+  padding: 8px 0;
 }
 
 .constraint-list {

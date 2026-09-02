@@ -299,6 +299,38 @@ export const useChatStore = defineStore("chat", {
       const { data } = await api.listSessions();
       this.sessions = data;
     },
+    async updateSession(sessionId, payload) {
+      const { data } = await api.updateChatSession(sessionId, payload);
+      const idx = this.sessions.findIndex((item) => item.id === sessionId);
+      if (idx >= 0) {
+        this.sessions[idx] = { ...this.sessions[idx], ...data };
+      }
+      return data;
+    },
+    async renameSession(sessionId, title) {
+      return this.updateSession(sessionId, { title });
+    },
+    async togglePin(sessionId) {
+      const target = this.sessions.find((item) => item.id === sessionId);
+      if (!target) return null;
+      const updated = await this.updateSession(sessionId, { pinned: !target.pinned });
+      // 服务端以「置顶优先 + 更新时间」排序，刷新列表顺序
+      await this.refreshSessions();
+      return updated;
+    },
+    async deleteSession(sessionId) {
+      await api.deleteChatSession(sessionId);
+      this.sessions = this.sessions.filter((item) => item.id !== sessionId);
+      if (this.currentSessionId === sessionId) {
+        this.resetCurrentSession();
+        const next = this.sessions[0];
+        if (next) {
+          await this.loadSession(next.id);
+        } else {
+          await this.ensureSession();
+        }
+      }
+    },
     async loadSession(sessionId) {
       this.currentSessionId = sessionId;
       const { data: messages } = await api.listMessages(sessionId);

@@ -30,6 +30,7 @@ class ChatSession(Base, TimestampMixin):
     title: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str] = mapped_column(String(32), default="active", nullable=False)
     last_question: Mapped[str | None] = mapped_column(Text)
+    pinned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     messages: Mapped[list["ChatMessage"]] = relationship(back_populates="session", cascade="all, delete-orphan")
     traces: Mapped[list["QATrace"]] = relationship(back_populates="session", cascade="all, delete-orphan")

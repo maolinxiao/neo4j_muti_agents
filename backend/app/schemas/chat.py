@@ -28,8 +28,14 @@ class ChatSessionRead(BaseModel):
     title: str | None = None
     status: str
     last_question: str | None = None
+    pinned: bool = False
     created_at: datetime
     updated_at: datetime
+
+
+class ChatSessionUpdate(BaseModel):
+    title: str | None = Field(default=None, max_length=255)
+    pinned: bool | None = None
 
 
 class QAResponse(BaseModel):

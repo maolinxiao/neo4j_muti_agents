@@ -19,11 +19,32 @@
         <div
           v-for="sess in store.sessions"
           :key="sess.id"
-          :class="['session-item', { active: sess.id === store.currentSessionId }]"
+          :class="['session-item', { active: sess.id === store.currentSessionId, pinned: sess.pinned }]"
           @click="switchSession(sess.id)"
         >
-          <span class="session-title">{{ sess.title || '新会话' }}</span>
+          <span class="session-title">
+            <el-icon v-if="sess.pinned" class="pin-icon" :size="12"><Top /></el-icon>
+            {{ sess.title || '新会话' }}
+          </span>
           <span class="session-time">{{ formatTime(sess.created_at) }}</span>
+          <el-dropdown
+            class="session-actions"
+            trigger="click"
+            @command="(cmd) => handleSessionCommand(cmd, sess)"
+            @click.stop
+          >
+            <el-icon class="more-btn" :size="14"><MoreFilled /></el-icon>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="pin">{{ sess.pinned ? '取消置顶' : '置顶' }}</el-dropdown-item>
+                <el-dropdown-item command="rename">重命名</el-dropdown-item>
+                <el-dropdown-item command="copy">复制链接</el-dropdown-item>
+                <el-dropdown-item command="delete" divided>
+                  <span class="danger-text">删除</span>
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
 
@@ -326,6 +347,21 @@
       </div>
     </div>
 
+    <!-- Rename session dialog -->
+    <el-dialog v-model="renameVisible" title="重命名会话" width="420px" append-to-body>
+      <el-input
+        v-model="renameTitle"
+        maxlength="60"
+        show-word-limit
+        placeholder="请输入新的会话标题"
+        @keyup.enter="submitRename"
+      />
+      <template #footer>
+        <el-button @click="renameVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!renameTitle.trim()" @click="submitRename">保存</el-button>
+      </template>
+    </el-dialog>
+
     <!-- All entities dialog -->
     <el-dialog v-model="allEntitiesVisible" title="参考来源 — 全部实体" width="560px">
       <el-table :data="allEntitiesData" size="small" border stripe max-height="400">
@@ -343,7 +379,8 @@
 <script setup>
 import { nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ChatDotRound, Cpu, Loading, Plus, Promotion, UserFilled } from "@element-plus/icons-vue";
+import { ChatDotRound, Cpu, Loading, MoreFilled, Plus, Promotion, Top, UserFilled } from "@element-plus/icons-vue";
+import { ElMessage, ElMessageBox } from "element-plus";
 
 import { api } from "../../api/client";
 import ConstitutionAssessmentPanel from "../../components/ConstitutionAssessmentPanel.vue";
@@ -461,6 +498,61 @@ const switchSession = async (sessionId) => {
   if (store.loading) return;
   await store.loadSession(sessionId);
   await router.push({ name: "chat", params: { sessionId } });
+};
+
+const renameVisible = ref(false);
+const renameId = ref("");
+const renameTitle = ref("");
+
+const handleSessionCommand = async (command, sess) => {
+  if (command === "pin") {
+    try {
+      await store.togglePin(sess.id);
+      ElMessage.success(sess.pinned ? "已取消置顶" : "已置顶");
+    } catch {
+      ElMessage.error("操作失败，请稍后重试");
+    }
+  } else if (command === "rename") {
+    renameId.value = sess.id;
+    renameTitle.value = sess.title || "";
+    renameVisible.value = true;
+  } else if (command === "copy") {
+    const url = `${window.location.origin}/app/chat/${sess.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      ElMessage.success("会话链接已复制");
+    } catch {
+      ElMessage.warning(`复制失败，请手动复制：${url}`);
+    }
+  } else if (command === "delete") {
+    try {
+      await ElMessageBox.confirm(
+        `确定删除会话「${sess.title || "新会话"}」吗？删除后该会话的问答记录不可恢复。`,
+        "删除确认",
+        { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" },
+      );
+    } catch {
+      return;
+    }
+    try {
+      await store.deleteSession(sess.id);
+      ElMessage.success("会话已删除");
+    } catch {
+      ElMessage.error("删除失败，请稍后重试");
+    }
+  }
+};
+
+const submitRename = async () => {
+  const title = renameTitle.value.trim();
+  if (!title || !renameId.value) return;
+  try {
+    await store.renameSession(renameId.value, title);
+    renameVisible.value = false;
+    ElMessage.success("已重命名");
+  } catch {
+    ElMessage.error("重命名失败，请稍后重试");
+  }
 };
 
 const openNode = async (id, msg) => {
@@ -586,7 +678,8 @@ onMounted(async () => {
   padding: 8px 0;
 }
 .session-item {
-  padding: 12px 16px;
+  position: relative;
+  padding: 12px 32px 12px 16px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -601,16 +694,55 @@ onMounted(async () => {
   background: #ecf5ff;
   border-left-color: #409eff;
 }
+.session-item.pinned {
+  border-left-color: #409eff;
+  background: rgba(64, 158, 255, 0.05);
+}
+.session-item.pinned:hover {
+  background: rgba(64, 158, 255, 0.1);
+}
 .session-title {
   font-size: 13px;
   color: #303133;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pin-icon {
+  color: #409eff;
+  flex-shrink: 0;
 }
 .session-time {
   font-size: 11px;
   color: #c0c4cc;
+}
+.session-actions {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.session-item:hover .session-actions,
+.session-item.active .session-actions {
+  opacity: 1;
+}
+.more-btn {
+  color: #909399;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+}
+.more-btn:hover {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.1);
+}
+.danger-text {
+  color: #f56c6c;
 }
 
 /* Chat main */

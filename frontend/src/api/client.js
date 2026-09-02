@@ -41,6 +41,8 @@ export const api = {
   createSession: () => client.post("/chat/sessions"),
   getSession: (sessionId) => client.get(`/chat/sessions/${sessionId}`),
   listSessions: () => client.get("/chat/sessions"),
+  updateChatSession: (sessionId, payload) => client.put(`/chat/sessions/${sessionId}`, payload),
+  deleteChatSession: (sessionId) => client.delete(`/chat/sessions/${sessionId}`),
   sendQuestion: (sessionId, question) =>
     client.post(`/chat/sessions/${sessionId}/messages`, { question }),
   sendQuestionStream(sessionId, question, callbacks) {

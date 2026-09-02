@@ -47,8 +47,9 @@ from app.schemas.chat import (
     ChatMessageCreate,
     ChatMessageRead,
     ChatSessionCreateResponse,
-    GraphSnapshotRead,
     ChatSessionRead,
+    ChatSessionUpdate,
+    GraphSnapshotRead,
     GraphResponse,
     QAResponse,
 )
@@ -371,6 +372,39 @@ def list_chat_sessions(
         ChatSessionRead.model_validate(item, from_attributes=True)
         for item in repository.list_chat_sessions(current_user.id)
     ]
+
+
+@chat_router.put("/chat/sessions/{session_id}", response_model=ChatSessionRead)
+def update_chat_session(
+    session_id: str,
+    payload: ChatSessionUpdate,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> ChatSessionRead:
+    repository = PostgresRepository(db)
+    session = repository.update_chat_session(
+        session_id,
+        current_user.id,
+        title=payload.title,
+        pinned=payload.pinned,
+    )
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.commit()
+    return ChatSessionRead.model_validate(session, from_attributes=True)
+
+
+@chat_router.delete("/chat/sessions/{session_id}")
+def delete_chat_session(
+    session_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> dict:
+    repository = PostgresRepository(db)
+    if not repository.delete_chat_session(session_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.commit()
+    return {"message": "ok"}
 
 
 @chat_router.post("/chat/sessions/{session_id}/messages", response_model=QAResponse)

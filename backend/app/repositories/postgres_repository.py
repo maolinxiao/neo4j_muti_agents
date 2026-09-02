@@ -42,8 +42,38 @@ class PostgresRepository:
         stmt = select(ChatSession).where(ChatSession.status != "workflow_shadow")
         if user_id is not None:
             stmt = stmt.where(ChatSession.user_id == user_id)
-        stmt = stmt.order_by(desc(ChatSession.updated_at))
+        stmt = stmt.order_by(desc(ChatSession.pinned), desc(ChatSession.updated_at))
         return list(self.session.scalars(stmt))
+
+    def update_chat_session(
+        self,
+        session_id: str,
+        user_id: str,
+        title: str | None = None,
+        pinned: bool | None = None,
+    ) -> ChatSession | None:
+        chat_session = self.get_chat_session(session_id, user_id)
+        if chat_session is None:
+            return None
+        if title is not None:
+            chat_session.title = title
+        if pinned is not None:
+            chat_session.pinned = pinned
+        self.session.flush()
+        return chat_session
+
+    def delete_chat_session(self, session_id: str, user_id: str) -> bool:
+        """删除单个聊天会话（按外键依赖顺序级联清理，与 delete_user_with_data 保持一致）。"""
+        chat_session = self.get_chat_session(session_id, user_id)
+        if chat_session is None:
+            return False
+        self.session.execute(delete(UserFeedback).where(UserFeedback.session_id == session_id))
+        self.session.execute(delete(QATrace).where(QATrace.session_id == session_id))
+        self.session.execute(delete(GraphSnapshot).where(GraphSnapshot.session_id == session_id))
+        self.session.execute(delete(ChatMessage).where(ChatMessage.session_id == session_id))
+        self.session.delete(chat_session)
+        self.session.flush()
+        return True
 
     def create_message(self, session_id: str, role: str, content: str, extra_payload: dict | None = None) -> ChatMessage:
         message = ChatMessage(session_id=session_id, role=role, content=content, extra_payload=extra_payload)

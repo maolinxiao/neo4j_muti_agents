@@ -112,6 +112,12 @@
   "home": {
     "welcomeTitle": "Welcome to the Medicinal Food R&D Collaboration Platform",
     "welcomeDesc": "Built on a knowledge graph and multi-agent technology, this system provides intelligent decision support for medicinal-food product R&D. Core features include graph retrieval, formula suggestions, efficacy prediction, flavor analysis and replacement mapping.",
+    "greeting": "Hello, {name}",
+    "recentChats": "Recent Sessions",
+    "viewAll": "View all",
+    "emptyRecent": "No Q&A sessions yet — go ask your first question",
+    "quickAsk": "Quick Ask",
+    "enter": "Enter",
     "statWorkbenches": "Core Workspaces",
     "statAgents": "R&D Agents",
     "statEvidenceBase": "Evidence Foundation",

@@ -112,6 +112,12 @@
   "home": {
     "welcomeTitle": "欢迎使用 药食同源研发协同平台",
     "welcomeDesc": "本系统基于知识图谱与多智能体技术，提供药食同源产品研发的智能化辅助决策。核心功能包括：图谱检索、组方建议、功效预测、风味分析和替代映射。",
+    "greeting": "你好，{name}",
+    "recentChats": "最近会话",
+    "viewAll": "查看全部",
+    "emptyRecent": "暂无问答会话，去提第一个问题吧",
+    "quickAsk": "快捷提问",
+    "enter": "进入",
     "statWorkbenches": "核心工作台",
     "statAgents": "研发 Agent",
     "statEvidenceBase": "证据底座",

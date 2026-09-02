@@ -284,6 +284,7 @@ export const useChatStore = defineStore("chat", {
     messages: [],
     loading: false,
     streamingMessageId: null,
+    pendingQuestion: "",
   }),
   actions: {
     resetCurrentSession() {
@@ -295,6 +296,7 @@ export const useChatStore = defineStore("chat", {
       // 登出/切换账号时清空全部会话状态，避免同浏览器残留上一账号数据
       this.sessions = [];
       this.loading = false;
+      this.pendingQuestion = "";
       this.resetCurrentSession();
     },
     async ensureSession() {

@@ -399,7 +399,10 @@ import {
 const route = useRoute();
 const router = useRouter();
 const store = useChatStore();
-const question = ref(route.query.q || "");
+const question = ref(route.query.q || store.pendingQuestion || "");
+if (store.pendingQuestion) {
+  store.pendingQuestion = "";
+}
 const messageListRef = ref(null);
 const drawerVisible = ref(false);
 const selectedEntity = ref(null);

@@ -65,6 +65,24 @@
               <el-form-item :label="t('account.confirmNewPassword')">
                 <el-input v-model="passwordForm.confirm_password" type="password" show-password />
               </el-form-item>
+              <el-form-item v-if="captchaEnabled" :label="t('account.captcha')">
+                <div class="captcha-row">
+                  <el-input
+                    v-model="captchaText"
+                    :placeholder="t('account.captchaPlaceholder')"
+                    @keyup.enter="changePassword"
+                  />
+                  <img
+                    v-if="captcha.image"
+                    :src="`data:${captcha.mime};base64,${captcha.image}`"
+                    class="captcha-img"
+                    :class="{ 'is-loading': captchaLoading }"
+                    :alt="t('account.captcha')"
+                    :title="t('account.captchaHint')"
+                    @click="loadCaptcha"
+                  />
+                </div>
+              </el-form-item>
               <el-button type="primary" :loading="changingPassword" @click="changePassword">
                 {{ t("account.changePassword") }}
               </el-button>
@@ -118,21 +136,60 @@
 
         <!-- 偏好设置 -->
         <el-tab-pane :label="t('account.preferences')" name="preferences">
-          <el-form label-position="top" class="pref-form">
-            <el-form-item :label="t('account.theme')">
-              <el-radio-group :model-value="theme.value" @update:model-value="(v) => setTheme(v)">
-                <el-radio-button value="light">{{ t("account.themeLight") }}</el-radio-button>
-                <el-radio-button value="dark">{{ t("account.themeDark") }}</el-radio-button>
-                <el-radio-button value="system">{{ t("account.themeSystem") }}</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-            <el-form-item :label="t('account.language')">
-              <el-radio-group :model-value="locale.value" @update:model-value="(v) => setLocale(v)">
-                <el-radio-button value="zh-CN">{{ t("account.langZh") }}</el-radio-button>
-                <el-radio-button value="en-US">{{ t("account.langEn") }}</el-radio-button>
-              </el-radio-group>
-            </el-form-item>
-          </el-form>
+          <div class="pref-section">
+            <div class="pref-section-title">{{ t("account.theme") }}</div>
+            <div class="pref-card-grid pref-theme-grid">
+              <div
+                v-for="item in themeOptions"
+                :key="item.value"
+                class="pref-card"
+                :class="{ 'is-active': theme === item.value }"
+                role="button"
+                :tabindex="0"
+                :aria-label="item.label"
+                @click="setTheme(item.value)"
+                @keyup.enter="setTheme(item.value)"
+              >
+                <div class="theme-preview" :class="`theme-preview-${item.value}`" aria-hidden="true">
+                  <span class="tp-sidebar"></span>
+                  <span class="tp-main">
+                    <span class="tp-line tp-line-1"></span>
+                    <span class="tp-line tp-line-2"></span>
+                    <span class="tp-chip"></span>
+                  </span>
+                </div>
+                <div class="pref-card-body">
+                  <div class="pref-card-title">{{ item.label }}</div>
+                  <div class="pref-card-desc">{{ item.desc }}</div>
+                </div>
+                <el-icon v-if="theme === item.value" class="pref-check"><CircleCheckFilled /></el-icon>
+              </div>
+            </div>
+          </div>
+
+          <div class="pref-section">
+            <div class="pref-section-title">{{ t("account.language") }}</div>
+            <div class="pref-card-grid pref-lang-grid">
+              <div
+                v-for="item in langOptions"
+                :key="item.value"
+                class="pref-card pref-lang-card"
+                :class="{ 'is-active': locale === item.value }"
+                role="button"
+                :tabindex="0"
+                :aria-label="item.label"
+                @click="setLocale(item.value)"
+                @keyup.enter="setLocale(item.value)"
+              >
+                <div class="lang-badge" aria-hidden="true">{{ item.badge }}</div>
+                <div class="pref-card-body">
+                  <div class="pref-card-title">{{ item.label }}</div>
+                  <div class="pref-card-desc">{{ item.desc }}</div>
+                </div>
+                <el-icon v-if="locale === item.value" class="pref-check"><CircleCheckFilled /></el-icon>
+              </div>
+            </div>
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -140,8 +197,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { CircleCheckFilled } from "@element-plus/icons-vue";
 
 import { api } from "../../api/client";
 import { useI18n } from "../../composables/useI18n";
@@ -151,7 +210,10 @@ import { useAuthStore } from "../../stores/auth";
 const { t, locale, setLocale } = useI18n();
 const { theme, setTheme } = useTheme();
 const auth = useAuthStore();
+const route = useRoute();
+const router = useRouter();
 
+const VALID_TABS = ["profile", "security", "stats", "preferences"];
 const activeTab = ref("profile");
 const savingProfile = ref(false);
 const changingPassword = ref(false);
@@ -161,10 +223,26 @@ const stats = ref({});
 const profileForm = reactive({ display_name: "", email: "" });
 const passwordForm = reactive({ old_password: "", new_password: "", confirm_password: "" });
 
+const captcha = reactive({ id: "", image: "", mime: "image/png" });
+const captchaEnabled = ref(false);
+const captchaLoading = ref(false);
+const captchaText = ref("");
+
 const avatarSrc = computed(() => auth.user?.avatar_url || "");
 const roleLabel = computed(() =>
   auth.user?.role === "admin" ? t("admin.users.roleAdmin") : t("admin.users.roleUser"),
 );
+
+const themeOptions = computed(() => [
+  { value: "light", label: t("account.themeLight"), desc: t("account.themeLightDesc") },
+  { value: "dark", label: t("account.themeDark"), desc: t("account.themeDarkDesc") },
+  { value: "system", label: t("account.themeSystem"), desc: t("account.themeSystemDesc") },
+]);
+
+const langOptions = computed(() => [
+  { value: "zh-CN", badge: "中", label: t("account.langZh"), desc: t("account.langZhDesc") },
+  { value: "en-US", badge: "EN", label: t("account.langEn"), desc: t("account.langEnDesc") },
+]);
 
 const deviceLabel = (ua) => {
   if (!ua) return "-";
@@ -248,9 +326,37 @@ const saveProfile = async () => {
   }
 };
 
+const loadCaptcha = async () => {
+  captchaLoading.value = true;
+  try {
+    const { data } = await api.getCaptcha();
+    // 原子更新 captcha_id 与图片，并清空输入框（点击刷新 / 失败自动刷新共用）
+    captcha.id = data.captcha_id || "";
+    captcha.image = data.image_base64 || "";
+    captcha.mime = data.mime || "image/png";
+    captchaEnabled.value = true;
+    captchaText.value = "";
+  } catch {
+    // 验证码功能未启用时，不展示验证码输入
+    captchaEnabled.value = false;
+    captcha.id = "";
+    captcha.image = "";
+  } finally {
+    captchaLoading.value = false;
+  }
+};
+
 const changePassword = async () => {
+  if (!passwordForm.old_password || !passwordForm.new_password || !passwordForm.confirm_password) {
+    ElMessage.error(t("account.passwordRequired"));
+    return;
+  }
   if (passwordForm.new_password !== passwordForm.confirm_password) {
     ElMessage.error(t("account.passwordMismatch"));
+    return;
+  }
+  if (captchaEnabled.value && (!captchaText.value.trim() || !captcha.id)) {
+    ElMessage.error(t("account.captchaRequired"));
     return;
   }
   changingPassword.value = true;
@@ -258,14 +364,31 @@ const changePassword = async () => {
     await api.changePassword({
       old_password: passwordForm.old_password,
       new_password: passwordForm.new_password,
+      captcha_id: captcha.id || "n/a",
+      captcha_text: captchaText.value.trim() || "n/a",
     });
     ElMessage.success(t("account.passwordChanged"));
     passwordForm.old_password = "";
     passwordForm.new_password = "";
     passwordForm.confirm_password = "";
-    setTimeout(() => auth.logout(), 800);
+    captchaText.value = "";
+    // 改密成功：后端已撤销全部会话，本地登出并强制跳转登录页重新登录
+    setTimeout(async () => {
+      await auth.logout();
+      await router.replace({ name: "login" });
+    }, 800);
   } catch (error) {
-    ElMessage.error(error?.response?.data?.detail || t("common.failed"));
+    const detail = error?.response?.data?.detail;
+    const detailText = typeof detail === "string" ? detail : "";
+    const isCaptchaError = detailText.includes("验证码");
+    ElMessage.error(
+      isCaptchaError ? `${detailText}，${t("account.captchaAutoRefreshed")}` : detailText || t("common.failed"),
+    );
+    // 验证码类 400：提示原因后自动刷新验证码并清空输入，避免复用旧验证码
+    if (isCaptchaError && captchaEnabled.value) {
+      captchaText.value = "";
+      await loadCaptcha();
+    }
   } finally {
     changingPassword.value = false;
   }
@@ -296,7 +419,26 @@ const revokeOthers = async () => {
   }
 };
 
+// 支持路由 query.tab 指定初始页签（如 /app/account?tab=security）
+const applyTabFromQuery = () => {
+  const tab = route.query.tab;
+  if (typeof tab === "string" && VALID_TABS.includes(tab)) {
+    activeTab.value = tab;
+  }
+};
+
+watch(
+  () => route.query.tab,
+  () => applyTabFromQuery(),
+);
+
+// 进入「账号安全」页签时拉取/刷新图形验证码
+watch(activeTab, (value) => {
+  if (value === "security") loadCaptcha();
+});
+
 onMounted(async () => {
+  applyTabFromQuery();
   profileForm.display_name = auth.user?.display_name || "";
   profileForm.email = auth.user?.email || "";
   await Promise.all([loadSessions(), loadStats()]);
@@ -349,9 +491,252 @@ onMounted(async () => {
   margin-bottom: 16px;
   background: var(--app-panel-2);
 }
-.security-form,
-.pref-form {
+.security-form {
   max-width: 420px;
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-img {
+  width: 120px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--app-border);
+  background: var(--app-panel-2);
+  cursor: pointer;
+  object-fit: cover;
+  flex-shrink: 0;
+  transition: transform 0.25s ease, opacity 0.2s ease, filter 0.2s ease, border-color 0.2s ease;
+}
+
+.captcha-img:hover {
+  opacity: 0.85;
+  border-color: var(--app-active-border);
+  transform: scale(1.03);
+}
+
+.captcha-img:active {
+  transform: scale(0.97);
+}
+
+.captcha-img.is-loading {
+  opacity: 0.55;
+  cursor: wait;
+  pointer-events: none;
+  animation: captcha-pulse 1s ease-in-out infinite;
+}
+
+@keyframes captcha-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.65;
+  }
+}
+
+.pref-section + .pref-section {
+  margin-top: 26px;
+}
+
+.pref-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+  margin-bottom: 12px;
+}
+
+.pref-card-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.pref-theme-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+.pref-lang-grid {
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  max-width: 500px;
+}
+
+.pref-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1.5px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-panel-2);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+}
+
+.pref-card:hover {
+  border-color: var(--app-active-border);
+  box-shadow: 0 6px 16px -8px rgba(64, 158, 255, 0.45);
+  transform: translateY(-2px);
+}
+
+.pref-card:focus-visible {
+  outline: 2px solid var(--app-active-border);
+  outline-offset: 2px;
+}
+
+.pref-card.is-active {
+  border-color: var(--app-active-border);
+  background: var(--app-active);
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.18), 0 6px 16px -8px rgba(64, 158, 255, 0.4);
+}
+
+.pref-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.pref-card-desc {
+  font-size: 12px;
+  color: var(--app-text-3);
+  line-height: 1.5;
+}
+
+.pref-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 18px;
+  color: var(--app-active-border);
+}
+
+/* 主题卡片迷你预览 */
+.theme-preview {
+  height: 62px;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.theme-preview .tp-sidebar {
+  width: 26%;
+}
+
+.theme-preview .tp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px;
+}
+
+.tp-line {
+  height: 5px;
+  border-radius: 3px;
+}
+
+.tp-line-1 {
+  width: 72%;
+}
+
+.tp-line-2 {
+  width: 45%;
+}
+
+.tp-chip {
+  width: 36%;
+  height: 13px;
+  border-radius: 4px;
+  margin-top: auto;
+}
+
+.theme-preview-light {
+  background: #eef1f6;
+}
+
+.theme-preview-light .tp-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e4e7ed;
+}
+
+.theme-preview-light .tp-line {
+  background: #d3d8e0;
+}
+
+.theme-preview-light .tp-chip {
+  background: #409eff;
+}
+
+.theme-preview-dark {
+  background: #0f1419;
+}
+
+.theme-preview-dark .tp-sidebar {
+  background: #1a2129;
+  border-right: 1px solid #333a45;
+}
+
+.theme-preview-dark .tp-line {
+  background: #3a4657;
+}
+
+.theme-preview-dark .tp-chip {
+  background: #409eff;
+}
+
+.theme-preview-system {
+  background: linear-gradient(90deg, #eef1f6 50%, #0f1419 50%);
+}
+
+.theme-preview-system .tp-sidebar {
+  background: linear-gradient(90deg, #ffffff 50%, #1a2129 50%);
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.theme-preview-system .tp-line {
+  background: linear-gradient(90deg, #d3d8e0 50%, #3a4657 50%);
+}
+
+.theme-preview-system .tp-chip {
+  background: #409eff;
+}
+
+/* 语言卡片徽标 */
+.lang-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #409eff 0%, #79bbff 100%);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+.pref-lang-card {
+  flex-direction: row;
+  align-items: center;
+}
+
+.pref-lang-card .pref-card-body {
+  flex: 1;
+  min-width: 0;
 }
 .session-header {
   display: flex;

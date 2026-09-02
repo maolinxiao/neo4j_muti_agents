@@ -70,7 +70,7 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="goAccount">{{ t("menu.account") }}</el-dropdown-item>
-                <el-dropdown-item @click="openChangePassword">{{ t("menu.changePassword") }}</el-dropdown-item>
+                <el-dropdown-item @click="goChangePassword">{{ t("menu.changePassword") }}</el-dropdown-item>
                 <el-dropdown-item divided @click="handleLogout">{{ t("menu.logout") }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -81,55 +81,12 @@
         <router-view />
       </el-main>
     </el-container>
-
-    <el-dialog
-      v-model="passwordDialogVisible"
-      title="修改密码"
-      width="440px"
-      :close-on-click-modal="false"
-      @closed="resetPasswordForm"
-    >
-      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="90px">
-        <el-form-item label="原密码" prop="oldPassword">
-          <el-input
-            v-model="passwordForm.oldPassword"
-            type="password"
-            show-password
-            placeholder="请输入原密码"
-          />
-        </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
-          <el-input
-            v-model="passwordForm.newPassword"
-            type="password"
-            show-password
-            placeholder="至少 8 位，须包含字母和数字"
-          />
-        </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
-          <el-input
-            v-model="passwordForm.confirmPassword"
-            type="password"
-            show-password
-            placeholder="请再次输入新密码"
-            @keyup.enter="submitChangePassword"
-          />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="passwordDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="passwordSubmitting" @click="submitChangePassword">
-          确认修改
-        </el-button>
-      </template>
-    </el-dialog>
   </el-container>
 </template>
 
 <script setup>
-import { computed, reactive, ref } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
 import {
   House,
   ChatDotRound,
@@ -140,7 +97,6 @@ import {
   CaretBottom
 } from "@element-plus/icons-vue";
 
-import { api } from "../api/client";
 import { useI18n } from "../composables/useI18n";
 import { useAuthStore } from "../stores/auth";
 
@@ -177,90 +133,14 @@ const goAccount = () => {
   router.push({ name: "account" });
 };
 
+// 修改密码：跳转个人中心「账号安全」页签（原弹窗已移除）
+const goChangePassword = () => {
+  router.push({ name: "account", query: { tab: "security" } });
+};
+
 const handleLogout = async () => {
   await auth.logout();
   await router.replace({ name: "login" });
-};
-
-// ---------------------------------------------------------------------------
-// 修改密码
-// ---------------------------------------------------------------------------
-const PASSWORD_STRENGTH_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-
-const passwordDialogVisible = ref(false);
-const passwordSubmitting = ref(false);
-const passwordFormRef = ref(null);
-const passwordForm = reactive({
-  oldPassword: "",
-  newPassword: "",
-  confirmPassword: "",
-});
-
-const passwordRules = {
-  oldPassword: [{ required: true, message: "请输入原密码", trigger: "blur" }],
-  newPassword: [
-    { required: true, message: "请输入新密码", trigger: "blur" },
-    {
-      validator: (_rule, value, callback) => {
-        if (!PASSWORD_STRENGTH_RE.test(value || "")) {
-          callback(new Error("密码至少 8 位，且须同时包含字母和数字"));
-        } else {
-          callback();
-        }
-      },
-      trigger: "blur",
-    },
-  ],
-  confirmPassword: [
-    { required: true, message: "请再次输入新密码", trigger: "blur" },
-    {
-      validator: (_rule, value, callback) => {
-        if (!value) {
-          callback(new Error("请再次输入新密码"));
-        } else if (value !== passwordForm.newPassword) {
-          callback(new Error("两次输入的密码不一致"));
-        } else {
-          callback();
-        }
-      },
-      trigger: "blur",
-    },
-  ],
-};
-
-const openChangePassword = () => {
-  resetPasswordForm();
-  passwordDialogVisible.value = true;
-};
-
-const resetPasswordForm = () => {
-  passwordForm.oldPassword = "";
-  passwordForm.newPassword = "";
-  passwordForm.confirmPassword = "";
-  passwordFormRef.value?.clearValidate();
-};
-
-const submitChangePassword = async () => {
-  try {
-    await passwordFormRef.value.validate();
-  } catch {
-    return;
-  }
-  passwordSubmitting.value = true;
-  try {
-    await api.changePassword({
-      old_password: passwordForm.oldPassword.trim(),
-      new_password: passwordForm.newPassword,
-    });
-    ElMessage.success("密码已修改，请重新登录");
-    passwordDialogVisible.value = false;
-    await handleLogout();
-  } catch (error) {
-    const detail = error?.response?.data?.detail || "修改密码失败，请稍后重试。";
-    ElMessage.error(detail);
-  } finally {
-    passwordSubmitting.value = false;
-  }
 };
 </script>
 

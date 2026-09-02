@@ -273,9 +273,15 @@ def register(payload: RegisterRequest, request: Request, db: Session = Depends(g
 @auth_router.post("/change-password")
 def change_password(
     payload: ChangePasswordRequest,
+    request: Request,
     current_user: AppUser = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ) -> dict:
+    ip = _client_ip(request)
+    if settings.captcha_enabled:
+        captcha_reason = captcha_store.verify(payload.captcha_id, payload.captcha_text, ip)
+        if captcha_reason != CAPTCHA_OK:
+            raise HTTPException(status_code=400, detail=_captcha_error_detail(captcha_reason))
     service = AuthService(db)
     try:
         service.change_password(current_user, payload.old_password, payload.new_password)

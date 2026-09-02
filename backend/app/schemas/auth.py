@@ -22,6 +22,9 @@ class RegisterRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str = Field(min_length=1, max_length=256)
     new_password: str = Field(min_length=1, max_length=256)
+    # 图形验证码（修改密码必填；与登录一致）
+    captcha_id: str = Field(min_length=1, max_length=64)
+    captcha_text: str = Field(min_length=1, max_length=16)
 
 
 class RegisterResponse(BaseModel):

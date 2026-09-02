@@ -2,6 +2,9 @@ import { ElMessage } from "element-plus";
 import { defineStore } from "pinia";
 
 import { api } from "../api/client";
+import { useI18n } from "../composables/useI18n";
+
+const { t } = useI18n();
 
 const mergeText = (...parts) => {
   const merged = [];
@@ -288,6 +291,12 @@ export const useChatStore = defineStore("chat", {
       this.messages = [];
       this.streamingMessageId = null;
     },
+    resetAll() {
+      // 登出/切换账号时清空全部会话状态，避免同浏览器残留上一账号数据
+      this.sessions = [];
+      this.loading = false;
+      this.resetCurrentSession();
+    },
     async ensureSession() {
       if (this.currentSessionId) return this.currentSessionId;
       const { data } = await api.createSession();
@@ -296,8 +305,13 @@ export const useChatStore = defineStore("chat", {
       return this.currentSessionId;
     },
     async refreshSessions() {
-      const { data } = await api.listSessions();
-      this.sessions = data;
+      try {
+        const { data } = await api.listSessions();
+        this.sessions = data;
+      } catch {
+        // 拉取失败时清空列表，宁可不展示也不残留其它账号的会话
+        this.sessions = [];
+      }
     },
     async updateSession(sessionId, payload) {
       const { data } = await api.updateChatSession(sessionId, payload);
@@ -459,7 +473,7 @@ export const useChatStore = defineStore("chat", {
               self.messages = self.messages.filter((m) => !m.id.startsWith(`${pendingId}-`));
               self.loading = false;
               self.streamingMessageId = null;
-              ElMessage.error("回答加载失败，请稍后重试。");
+              ElMessage.error(t("chat.answerLoadFailed"));
             },
           });
         })
@@ -467,7 +481,7 @@ export const useChatStore = defineStore("chat", {
           self.messages = self.messages.filter((m) => !m.id.startsWith(`${pendingId}-`));
           self.loading = false;
           self.streamingMessageId = null;
-          ElMessage.error("会话创建失败，请稍后重试。");
+          ElMessage.error(t("chat.sessionCreateFailed"));
         });
     },
   },

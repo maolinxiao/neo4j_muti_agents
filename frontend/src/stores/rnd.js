@@ -2,6 +2,9 @@ import { ElMessage } from "element-plus";
 import { defineStore } from "pinia";
 
 import { api } from "../api/client";
+import { useI18n } from "../composables/useI18n";
+
+const { t } = useI18n();
 
 const RUN_POLL_INTERVAL_MS = 1500;
 
@@ -44,6 +47,13 @@ export const useRndStore = defineStore("rnd", {
       this.currentStepDetail = null;
       this.selectedSnapshot = null;
     },
+    resetAll() {
+      // 登出/切换账号时清空全部会话状态，避免同浏览器残留上一账号数据
+      this.sessions = [];
+      this.loading = false;
+      this.submitting = false;
+      this.reset();
+    },
     stopPolling() {
       if (this.pollTimer) {
         window.clearTimeout(this.pollTimer);
@@ -77,8 +87,13 @@ export const useRndStore = defineStore("rnd", {
       return this.currentSessionId;
     },
     async refreshSessions() {
-      const { data } = await api.listWorkflowSessions();
-      this.sessions = data;
+      try {
+        const { data } = await api.listWorkflowSessions();
+        this.sessions = data;
+      } catch {
+        // 拉取失败时清空列表，宁可不展示也不残留其它账号的会话
+        this.sessions = [];
+      }
     },
     async runWorkflow(question, reuseLastBrief = false) {
       this.submitting = true;
@@ -91,7 +106,7 @@ export const useRndStore = defineStore("rnd", {
         await this.refreshSessions();
         this.startPolling(this.currentRun.id);
       } catch (error) {
-        ElMessage.error("研发工作流执行失败，请稍后重试。");
+        ElMessage.error(t("rnd.runFailed"));
         throw error;
       } finally {
         this.submitting = false;

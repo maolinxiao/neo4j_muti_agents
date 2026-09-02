@@ -39,9 +39,33 @@ class UserRead(BaseModel):
     id: str
     username: str
     display_name: str | None = None
+    email: str | None = None
+    avatar_url: str | None = None
     role: str
     is_active: bool
     last_login_at: datetime | None = None
+
+
+class ProfileUpdate(BaseModel):
+    display_name: str | None = Field(default=None, max_length=128)
+    email: str | None = Field(default=None, max_length=128)
+
+
+class SessionRead(BaseModel):
+    id: str
+    is_current: bool = False
+    created_at: datetime
+    expires_at: datetime
+    ip: str | None = None
+    user_agent: str | None = None
+
+
+class UserStats(BaseModel):
+    chat_sessions: int = 0
+    chat_messages: int = 0
+    workflow_sessions: int = 0
+    workflow_runs: int = 0
+    constitution_assessments: int = 0
 
 
 class LoginResponse(BaseModel):

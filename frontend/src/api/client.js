@@ -35,6 +35,13 @@ export const api = {
   getCaptcha: () => client.get("/auth/captcha"),
   register: (payload) => client.post("/auth/register", payload),
   changePassword: (payload) => client.post("/auth/change-password", payload),
+  updateProfile: (payload) => client.put("/auth/profile", payload),
+  uploadAvatar: (formData) =>
+    client.post("/auth/avatar", formData, { headers: { "Content-Type": "multipart/form-data" } }),
+  listMySessions: () => client.get("/auth/sessions"),
+  revokeSession: (sessionId) => client.delete(`/auth/sessions/${sessionId}`),
+  revokeOtherSessions: () => client.delete("/auth/sessions"),
+  getMyStats: () => client.get("/auth/stats"),
   getCurrentUser: () => client.get("/auth/me"),
   logout: () => client.post("/auth/logout"),
   getHealth: () => client.get("/health"),

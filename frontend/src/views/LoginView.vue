@@ -16,25 +16,25 @@
       <section class="brand-panel">
         <div class="brand-mark">
           <div class="mark-dot"></div>
-          药食同源图谱
+          {{ t("common.appName") }}
         </div>
-        <h1>多智能体研发协同平台</h1>
+        <h1>{{ t("login.title") }}</h1>
         <p class="subtitle">
-          基于 Neo4j 图谱证据链，串联知识问答与研发协同 Agent，让方剂、功效、风味与替代映射在同一工作台内可追溯、可验证。
+          {{ t("login.subtitle") }}
         </p>
 
         <div class="feature-list">
           <div class="feature-item">
             <el-icon><Monitor /></el-icon>
-            <span>工作台级图谱问答与交互</span>
+            <span>{{ t("login.feature1") }}</span>
           </div>
           <div class="feature-item">
             <el-icon><Connection /></el-icon>
-            <span>多 Agent 组方与风味推演</span>
+            <span>{{ t("login.feature2") }}</span>
           </div>
           <div class="feature-item">
             <el-icon><Cpu /></el-icon>
-            <span>循证驱动的替代映射引擎</span>
+            <span>{{ t("login.feature3") }}</span>
           </div>
         </div>
       </section>
@@ -42,12 +42,12 @@
       <section class="login-panel">
         <div class="login-card">
           <div class="card-header">
-            <h2>登录工作台</h2>
-            <p>请输入您的系统账号</p>
+            <h2>{{ t("login.loginCardTitle") }}</h2>
+            <p>{{ t("login.loginCardSub") }}</p>
           </div>
 
           <el-form :model="form" label-position="top" class="login-form" @submit.prevent>
-            <el-form-item label="账号">
+            <el-form-item :label="t('login.username')">
               <el-input
                 v-model="form.username"
                 size="large"
@@ -55,7 +55,7 @@
                 :prefix-icon="User"
               />
             </el-form-item>
-            <el-form-item label="密码">
+            <el-form-item :label="t('login.password')">
               <el-input
                 v-model="form.password"
                 size="large"
@@ -66,12 +66,12 @@
                 @keyup.enter="submit"
               />
             </el-form-item>
-            <el-form-item v-if="captchaEnabled" label="验证码">
+            <el-form-item v-if="captchaEnabled" :label="t('login.captcha')">
               <div class="captcha-row">
                 <el-input
                   v-model="form.captchaText"
                   size="large"
-                  placeholder="请输入验证码"
+                  :placeholder="t('login.captchaPlaceholder')"
                   @keyup.enter="submit"
                 />
                 <img
@@ -79,8 +79,8 @@
                   :src="`data:${captcha.mime};base64,${captcha.image}`"
                   class="captcha-img"
                   :class="{ 'is-loading': captchaLoading }"
-                  alt="验证码"
-                  title="点击刷新验证码"
+                  alt="captcha"
+                  :title="t('login.captcha')"
                   @click="loadCaptcha"
                 />
               </div>
@@ -93,19 +93,19 @@
               :disabled="!form.username.trim() || !form.password || (captchaEnabled && !form.captchaText.trim())"
               @click="submit"
             >
-              进入工作台
+              {{ t("login.submit") }}
               <el-icon class="btn-icon"><ArrowRight /></el-icon>
             </el-button>
           </el-form>
 
           <div class="login-footnote">
             <el-icon><InfoFilled /></el-icon>
-            <span>默认本地管理员账号由后端配置指定。</span>
+            <span>{{ t("login.footnote") }}</span>
           </div>
 
           <div class="login-register-link">
-            <span>还没有账号？</span>
-            <router-link to="/register" class="register-link">注册账号</router-link>
+            <span>{{ t("login.noAccount") }}</span>
+            <router-link to="/register" class="register-link">{{ t("login.register") }}</router-link>
           </div>
         </div>
       </section>
@@ -120,8 +120,10 @@ import { ElMessage } from "element-plus";
 import { ArrowRight, Key, User, Monitor, Connection, Cpu, InfoFilled } from "@element-plus/icons-vue";
 
 import { api } from "../api/client";
+import { useI18n } from "../composables/useI18n";
 import { useAuthStore } from "../stores/auth";
 
+const { t } = useI18n();
 const auth = useAuthStore();
 const route = useRoute();
 const router = useRouter();

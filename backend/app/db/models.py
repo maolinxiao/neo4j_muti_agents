@@ -47,6 +47,7 @@ class AppUser(Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(32), default="admin", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+    avatar_url: Mapped[str | None] = mapped_column(String(255))
 
     auth_sessions: Mapped[list["AuthSession"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     constitution_profiles: Mapped[list["ConstitutionProfile"]] = relationship(
@@ -66,6 +67,8 @@ class AuthSession(Base, TimestampMixin):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    user_agent: Mapped[str | None] = mapped_column(String(256))
+    ip: Mapped[str | None] = mapped_column(String(64))
 
     user: Mapped[AppUser] = relationship(back_populates="auth_sessions")
 

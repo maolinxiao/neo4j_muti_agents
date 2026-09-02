@@ -18,34 +18,34 @@
         >
           <el-menu-item index="/app">
             <el-icon><House /></el-icon>
-            <template #title>工作台首页</template>
+            <template #title>{{ t("menu.home") }}</template>
           </el-menu-item>
           <el-menu-item index="/app/chat">
             <el-icon><ChatDotRound /></el-icon>
-            <template #title>知识问答</template>
+            <template #title>{{ t("menu.chat") }}</template>
           </el-menu-item>
           <el-menu-item index="/app/constitution">
             <el-icon><List /></el-icon>
-            <template #title>体质辨识</template>
+            <template #title>{{ t("menu.constitution") }}</template>
           </el-menu-item>
           <el-menu-item index="/app/rnd">
             <el-icon><Cpu /></el-icon>
-            <template #title>研发协同</template>
+            <template #title>{{ t("menu.rnd") }}</template>
           </el-menu-item>
           <el-menu-item index="/app/history">
             <el-icon><Document /></el-icon>
-            <template #title>历史记录</template>
+            <template #title>{{ t("menu.history") }}</template>
           </el-menu-item>
           <el-sub-menu v-if="auth.isAdmin" index="/app/admin">
             <template #title>
               <el-icon><Setting /></el-icon>
-              <span>管理后台</span>
+              <span>{{ t("menu.admin") }}</span>
             </template>
-            <el-menu-item index="/app/admin/overview">数据概览</el-menu-item>
-            <el-menu-item index="/app/admin/users">用户管理</el-menu-item>
-            <el-menu-item index="/app/admin/logs">运行日志</el-menu-item>
-            <el-menu-item index="/app/admin/prompts">Prompt 管理</el-menu-item>
-            <el-menu-item index="/app/admin/templates">Cypher 模板</el-menu-item>
+            <el-menu-item index="/app/admin/overview">{{ t("menu.adminOverview") }}</el-menu-item>
+            <el-menu-item index="/app/admin/users">{{ t("menu.adminUsers") }}</el-menu-item>
+            <el-menu-item index="/app/admin/logs">{{ t("menu.adminLogs") }}</el-menu-item>
+            <el-menu-item index="/app/admin/prompts">{{ t("menu.adminPrompts") }}</el-menu-item>
+            <el-menu-item index="/app/admin/templates">{{ t("menu.adminTemplates") }}</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-scrollbar>
@@ -54,21 +54,24 @@
       <el-header class="topbar" height="50px">
         <div class="topbar-left">
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/app' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/app' }">{{ t("menu.home") }}</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentRouteName }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <div class="topbar-right">
           <el-dropdown trigger="click">
             <span class="el-dropdown-link user-dropdown">
-              <el-avatar :size="30" src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" />
+              <el-avatar :size="30" :src="auth.user?.avatar_url || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'">
+                {{ (auth.displayName || "U").slice(0, 1).toUpperCase() }}
+              </el-avatar>
               <span class="user-name">{{ auth.displayName }}</span>
               <el-icon class="el-icon--right"><CaretBottom /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="openChangePassword">修改密码</el-dropdown-item>
-                <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
+                <el-dropdown-item @click="goAccount">{{ t("menu.account") }}</el-dropdown-item>
+                <el-dropdown-item @click="openChangePassword">{{ t("menu.changePassword") }}</el-dropdown-item>
+                <el-dropdown-item divided @click="handleLogout">{{ t("menu.logout") }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -138,34 +141,41 @@ import {
 } from "@element-plus/icons-vue";
 
 import { api } from "../api/client";
+import { useI18n } from "../composables/useI18n";
 import { useAuthStore } from "../stores/auth";
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const activePath = computed(() => route.path);
 
 const routeNameMap = {
-  "/app": "工作台首页",
-  "/app/chat": "知识问答",
-  "/app/constitution": "体质辨识",
-  "/app/rnd": "研发协同",
-  "/app/history": "历史记录",
-  "/app/admin/overview": "数据概览",
-  "/app/admin/users": "用户管理",
-  "/app/admin/logs": "运行日志",
-  "/app/admin/prompts": "Prompt 管理",
-  "/app/admin/templates": "Cypher 模板",
+  "/app": "menu.home",
+  "/app/chat": "menu.chat",
+  "/app/constitution": "menu.constitution",
+  "/app/rnd": "menu.rnd",
+  "/app/history": "menu.history",
+  "/app/account": "menu.account",
+  "/app/admin/overview": "menu.adminOverview",
+  "/app/admin/users": "menu.adminUsers",
+  "/app/admin/logs": "menu.adminLogs",
+  "/app/admin/prompts": "menu.adminPrompts",
+  "/app/admin/templates": "menu.adminTemplates",
 };
 
 const currentRouteName = computed(() => {
   const path = route.path;
-  if (routeNameMap[path]) return routeNameMap[path];
-  if (path.startsWith("/app/chat")) return "知识问答";
-  if (path.startsWith("/app/rnd")) return "研发协同";
-  if (path.startsWith("/app/admin")) return "管理后台";
+  if (routeNameMap[path]) return t(routeNameMap[path]);
+  if (path.startsWith("/app/chat")) return t("menu.chat");
+  if (path.startsWith("/app/rnd")) return t("menu.rnd");
+  if (path.startsWith("/app/admin")) return t("menu.admin");
   return "";
 });
+
+const goAccount = () => {
+  router.push({ name: "account" });
+};
 
 const handleLogout = async () => {
   await auth.logout();
@@ -315,7 +325,7 @@ const submitChangePassword = async () => {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  background-color: #f3f3f4;
+  background-color: var(--app-bg);
 }
 
 .topbar {
@@ -323,7 +333,7 @@ const submitChangePassword = async () => {
   align-items: center;
   justify-content: space-between;
   height: 50px;
-  background: #fff;
+  background: var(--app-panel);
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
   padding: 0 20px;
   z-index: 9;
@@ -348,7 +358,7 @@ const submitChangePassword = async () => {
 .user-name {
   margin-left: 8px;
   font-size: 14px;
-  color: #5a5e66;
+  color: var(--app-text);
 }
 
 .content {

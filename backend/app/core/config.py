@@ -49,6 +49,9 @@ class Settings:
     auth_max_sessions_per_user: int = int(os.getenv("AUTH_MAX_SESSIONS_PER_USER", "5"))
     password_min_length: int = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
     login_fail_lock_minutes: int = int(os.getenv("LOGIN_FAIL_LOCK_MINUTES", "15"))
+    # --- 个人中心/上传 ---
+    upload_dir: str = os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parents[2] / "uploads"))
+    max_avatar_bytes: int = int(os.getenv("MAX_AVATAR_BYTES", str(2 * 1024 * 1024)))
 
     @property
     def minimax_api_base(self) -> str:

@@ -27,6 +27,7 @@ def initialize_database() -> None:
         # 先补齐物理列才能安全运行下方种子与 admin 初始化（迁移本身幂等，存量回填见 ensure_auth_migration）。
         ensure_auth_migration(session)
         ensure_chat_session_migration(session)
+        ensure_profile_migration(session)
         for item in DEFAULT_PROMPTS:
             exists = session.scalar(select(PromptTemplate).where(PromptTemplate.key == item["key"]))
             if not exists:
@@ -152,6 +153,13 @@ def ensure_auth_migration(session) -> None:
 def ensure_chat_session_migration(session) -> None:
     """幂等迁移：chat_session 增加 pinned（置顶）列（新库由 create_all 直接建好）。"""
     session.execute(text("ALTER TABLE chat_session ADD COLUMN IF NOT EXISTS pinned BOOLEAN NOT NULL DEFAULT FALSE"))
+
+
+def ensure_profile_migration(session) -> None:
+    """幂等迁移：个人中心相关列（app_user.avatar_url、auth_session.user_agent/ip）。"""
+    session.execute(text("ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255)"))
+    session.execute(text("ALTER TABLE auth_session ADD COLUMN IF NOT EXISTS user_agent VARCHAR(256)"))
+    session.execute(text("ALTER TABLE auth_session ADD COLUMN IF NOT EXISTS ip VARCHAR(64)"))
 
 
 def _seed_default_admin(session) -> None:

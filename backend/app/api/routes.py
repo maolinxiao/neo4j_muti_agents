@@ -2,7 +2,7 @@ import secrets
 import threading
 import time
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -39,9 +39,12 @@ from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
     LoginResponse,
+    ProfileUpdate,
     RegisterRequest,
     RegisterResponse,
+    SessionRead,
     UserRead,
+    UserStats,
 )
 from app.schemas.chat import (
     ChatMessageCreate,
@@ -302,7 +305,8 @@ def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db_
         login_fail_guard.record_failure(payload.username, ip)
         raise HTTPException(status_code=401, detail="用户名或密码错误")
     login_fail_guard.reset(payload.username, ip)
-    token, auth_session = service.create_session(user)
+    user_agent = (request.headers.get("user-agent") or "")[:256]
+    token, auth_session = service.create_session(user, ip=ip, user_agent=user_agent)
     db.commit()
     db.refresh(user)
     return LoginResponse(
@@ -325,6 +329,81 @@ def logout(
     AuthService(db).revoke_token(_bearer_from_header(authorization))
     db.commit()
     return {"message": "ok"}
+
+
+@auth_router.put("/profile", response_model=UserRead)
+def update_profile(
+    payload: ProfileUpdate,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> UserRead:
+    try:
+        user = AuthService(db).update_profile(
+            current_user,
+            display_name=payload.display_name,
+            email=payload.email,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    db.commit()
+    return UserRead.model_validate(user, from_attributes=True)
+
+
+@auth_router.post("/avatar", response_model=UserRead)
+def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> UserRead:
+    raw = file.file.read()
+    try:
+        AuthService(db).save_avatar(current_user, raw, file.filename or "")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return UserRead.model_validate(current_user, from_attributes=True)
+
+
+@auth_router.get("/sessions", response_model=list[SessionRead])
+def list_my_sessions(
+    authorization: str | None = Header(default=None),
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> list[SessionRead]:
+    token = _bearer_from_header(authorization)
+    rows = AuthService(db).list_my_sessions(current_user.id, token)
+    return [SessionRead(**row) for row in rows]
+
+
+@auth_router.delete("/sessions/{session_id}")
+def revoke_my_session(
+    session_id: str,
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> dict:
+    if not AuthService(db).revoke_session(current_user.id, session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+    db.commit()
+    return {"message": "ok"}
+
+
+@auth_router.delete("/sessions")
+def revoke_other_sessions(
+    authorization: str | None = Header(default=None),
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> dict:
+    count = AuthService(db).revoke_other_sessions(current_user.id, _bearer_from_header(authorization))
+    db.commit()
+    return {"message": "ok", "revoked": count}
+
+
+@auth_router.get("/stats", response_model=UserStats)
+def my_stats(
+    current_user: AppUser = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+) -> UserStats:
+    return UserStats(**AuthService(db).user_stats(current_user.id))
 
 
 @health_router.get("/health")

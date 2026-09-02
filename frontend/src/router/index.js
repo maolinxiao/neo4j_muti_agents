@@ -10,6 +10,7 @@ import ChatView from "../views/portal/ChatView.vue";
 import ConstitutionView from "../views/portal/ConstitutionView.vue";
 import RndWorkspaceView from "../views/portal/RndWorkspaceView.vue";
 import HistoryView from "../views/portal/HistoryView.vue";
+import AccountView from "../views/portal/AccountView.vue";
 import OverviewView from "../views/admin/OverviewView.vue";
 import UsersView from "../views/admin/UsersView.vue";
 import PromptView from "../views/admin/PromptView.vue";
@@ -30,6 +31,7 @@ const routes = [
       { path: "constitution", name: "constitution", component: ConstitutionView },
       { path: "rnd/:sessionId?", name: "rnd", component: RndWorkspaceView },
       { path: "history", name: "history", component: HistoryView },
+      { path: "account", name: "account", component: AccountView },
       { path: "admin/overview", name: "admin-overview", component: OverviewView, meta: { requiresAdmin: true } },
       { path: "admin/users", name: "admin-users", component: UsersView, meta: { requiresAdmin: true } },
       { path: "admin/prompts", name: "admin-prompts", component: PromptView, meta: { requiresAdmin: true } },

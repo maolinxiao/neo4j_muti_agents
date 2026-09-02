@@ -16,24 +16,24 @@
       <section class="brand-panel">
         <div class="brand-mark">
           <div class="mark-dot"></div>
-          药食同源图谱
+          {{ t("common.appName") }}
         </div>
-        <h1>创建您的账号</h1>
+        <h1>{{ t("register.title") }}</h1>
         <p class="subtitle">
-          注册账号后需等待管理员审核启用，审核通过后方可登录工作台，使用知识问答、体质辨识与研发协同能力。
+          {{ t("login.subtitle") }}
         </p>
         <div class="feature-list">
           <div class="feature-item">
             <el-icon><Monitor /></el-icon>
-            <span>图谱证据链知识问答</span>
+            <span>{{ t("login.feature1") }}</span>
           </div>
           <div class="feature-item">
             <el-icon><Connection /></el-icon>
-            <span>多 Agent 组方与风味推演</span>
+            <span>{{ t("login.feature2") }}</span>
           </div>
           <div class="feature-item">
             <el-icon><Cpu /></el-icon>
-            <span>循证驱动的替代映射引擎</span>
+            <span>{{ t("login.feature3") }}</span>
           </div>
         </div>
       </section>
@@ -41,8 +41,8 @@
       <section class="register-panel">
         <div class="register-card">
           <div class="card-header">
-            <h2>注册账号</h2>
-            <p>填写以下信息完成注册</p>
+            <h2>{{ t("register.title") }}</h2>
+            <p>{{ t("login.loginCardSub") }}</p>
           </div>
 
           <el-form
@@ -53,56 +53,56 @@
             class="register-form"
             @submit.prevent
           >
-            <el-form-item label="用户名" prop="username">
+            <el-form-item :label="t('register.username')" prop="username">
               <el-input
                 v-model="form.username"
                 size="large"
-                placeholder="请输入用户名"
+                :placeholder="t('register.usernamePlaceholder')"
                 :prefix-icon="User"
               />
             </el-form-item>
-            <el-form-item label="密码" prop="password">
+            <el-form-item :label="t('register.password')" prop="password">
               <el-input
                 v-model="form.password"
                 size="large"
-                placeholder="至少 8 位，须包含字母和数字"
+                :placeholder="t('register.passwordPlaceholder')"
                 type="password"
                 show-password
                 :prefix-icon="Key"
               />
             </el-form-item>
-            <el-form-item label="确认密码" prop="confirmPassword">
+            <el-form-item :label="t('register.confirmPassword')" prop="confirmPassword">
               <el-input
                 v-model="form.confirmPassword"
                 size="large"
-                placeholder="请再次输入密码"
+                :placeholder="t('register.confirmPlaceholder')"
                 type="password"
                 show-password
                 :prefix-icon="Key"
               />
             </el-form-item>
-            <el-form-item label="邮箱（选填）" prop="email">
+            <el-form-item :label="t('register.email')" prop="email">
               <el-input
                 v-model="form.email"
                 size="large"
-                placeholder="用于接收通知的邮箱"
+                :placeholder="t('register.emailPlaceholder')"
                 :prefix-icon="Message"
               />
             </el-form-item>
-            <el-form-item v-if="captchaEnabled" label="验证码" prop="captchaText">
+            <el-form-item v-if="captchaEnabled" :label="t('register.captcha')" prop="captchaText">
               <div class="captcha-row">
                 <el-input
                   v-model="form.captchaText"
                   size="large"
-                  placeholder="请输入验证码"
+                  :placeholder="t('login.captchaPlaceholder')"
                   @keyup.enter="submit"
                 />
                 <img
                   v-if="captcha.image"
                   :src="`data:${captcha.mime};base64,${captcha.image}`"
                   class="captcha-img"
-                  alt="验证码"
-                  title="点击刷新验证码"
+                  alt="captcha"
+                  :title="t('login.captcha')"
                   @click="loadCaptcha"
                 />
               </div>
@@ -115,19 +115,19 @@
               :disabled="!form.username.trim() || !form.password || !form.confirmPassword || (captchaEnabled && !form.captchaText.trim())"
               @click="submit"
             >
-              提交注册
+              {{ t("register.submit") }}
               <el-icon class="btn-icon"><ArrowRight /></el-icon>
             </el-button>
           </el-form>
 
           <div class="register-footnote">
             <el-icon><InfoFilled /></el-icon>
-            <span>注册成功后，账号需由管理员审核启用，请耐心等待。</span>
+            <span>{{ t("register.success") }}</span>
           </div>
 
           <div class="register-login-link">
-            <span>已有账号？</span>
-            <router-link to="/login" class="login-link">返回登录</router-link>
+            <span>{{ t("login.noAccount") }}</span>
+            <router-link to="/login" class="login-link">{{ t("register.backToLogin") }}</router-link>
           </div>
         </div>
       </section>
@@ -142,7 +142,9 @@ import { ElMessage } from "element-plus";
 import { ArrowRight, Key, User, Message, Monitor, Connection, Cpu, InfoFilled } from "@element-plus/icons-vue";
 
 import { api } from "../api/client";
+import { useI18n } from "../composables/useI18n";
 
+const { t } = useI18n();
 const router = useRouter();
 
 const PASSWORD_STRENGTH_RE = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;

@@ -3,12 +3,12 @@
     <!-- Header -->
     <div class="chat-header">
       <div class="header-left">
-        <span class="header-title">知识问答</span>
+        <span class="header-title">{{ t("menu.chat") }}</span>
       </div>
       <div class="header-right">
         <el-button type="primary" link @click="createNewSession">
           <el-icon><Plus /></el-icon>
-          新建会话
+          {{ t("chat.newSession") }}
         </el-button>
       </div>
     </div>
@@ -36,11 +36,11 @@
             <el-icon class="more-btn" :size="14"><MoreFilled /></el-icon>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="pin">{{ sess.pinned ? '取消置顶' : '置顶' }}</el-dropdown-item>
-                <el-dropdown-item command="rename">重命名</el-dropdown-item>
-                <el-dropdown-item command="copy">复制链接</el-dropdown-item>
+                <el-dropdown-item command="pin">{{ sess.pinned ? t("common.unpin") : t("common.pin") }}</el-dropdown-item>
+                <el-dropdown-item command="rename">{{ t("common.rename") }}</el-dropdown-item>
+                <el-dropdown-item command="copy">{{ t("common.copyLink") }}</el-dropdown-item>
                 <el-dropdown-item command="delete" divided>
-                  <span class="danger-text">删除</span>
+                  <span class="danger-text">{{ t("common.delete") }}</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -56,7 +56,7 @@
             <div class="empty-icon">
               <el-icon :size="48"><ChatDotRound /></el-icon>
             </div>
-            <div class="empty-text">输入问题，开始基于知识图谱的问答</div>
+            <div class="empty-text">{{ t("chat.emptyTitle") }}</div>
             <div class="empty-hints">
               <el-tag
                 v-for="hint in exampleQuestions"
@@ -323,7 +323,7 @@
             v-model="question"
             type="textarea"
             :rows="3"
-            placeholder="输入你的问题，例如：黄芪的功效是什么？"
+            :placeholder="t('chat.placeholder')"
             :disabled="store.loading"
             resize="none"
             @keydown.enter.exact.prevent="submit"
@@ -337,7 +337,7 @@
           >
             <template v-if="!store.loading">
               <el-icon><Promotion /></el-icon>
-              发送
+              {{ t("chat.send") }}
             </template>
             <template v-else>
               回答中...
@@ -348,22 +348,22 @@
     </div>
 
     <!-- Rename session dialog -->
-    <el-dialog v-model="renameVisible" title="重命名会话" width="420px" append-to-body>
+    <el-dialog v-model="renameVisible" :title="t('chat.renameTitle')" width="420px" append-to-body>
       <el-input
         v-model="renameTitle"
         maxlength="60"
         show-word-limit
-        placeholder="请输入新的会话标题"
+        :placeholder="t('chat.renamePlaceholder')"
         @keyup.enter="submitRename"
       />
       <template #footer>
-        <el-button @click="renameVisible = false">取消</el-button>
-        <el-button type="primary" :disabled="!renameTitle.trim()" @click="submitRename">保存</el-button>
+        <el-button @click="renameVisible = false">{{ t("common.cancel") }}</el-button>
+        <el-button type="primary" :disabled="!renameTitle.trim()" @click="submitRename">{{ t("common.save") }}</el-button>
       </template>
     </el-dialog>
 
     <!-- All entities dialog -->
-    <el-dialog v-model="allEntitiesVisible" title="参考来源 — 全部实体" width="560px">
+    <el-dialog v-model="allEntitiesVisible" :title="t('chat.referenceSources')" width="560px">
       <el-table :data="allEntitiesData" size="small" border stripe max-height="400">
         <el-table-column prop="name" label="名称" min-width="140" />
         <el-table-column prop="entity_type" label="类型" width="120" />
@@ -387,6 +387,8 @@ import ConstitutionAssessmentPanel from "../../components/ConstitutionAssessment
 import GraphCanvas from "../../components/GraphCanvas.vue";
 import EntityDrawer from "../../components/EntityDrawer.vue";
 import { normalizeThinkContent, useChatStore } from "../../stores/chat";
+import { useI18n } from "../../composables/useI18n";
+const { t } = useI18n();
 import {
   cleanAnswerText,
   formatSectionBody,
@@ -508,9 +510,9 @@ const handleSessionCommand = async (command, sess) => {
   if (command === "pin") {
     try {
       await store.togglePin(sess.id);
-      ElMessage.success(sess.pinned ? "已取消置顶" : "已置顶");
+      ElMessage.success(sess.pinned ? t("chat.unpinned") : t("chat.pinned"));
     } catch {
-      ElMessage.error("操作失败，请稍后重试");
+      ElMessage.error(t("common.failed"));
     }
   } else if (command === "rename") {
     renameId.value = sess.id;
@@ -520,25 +522,25 @@ const handleSessionCommand = async (command, sess) => {
     const url = `${window.location.origin}/app/chat/${sess.id}`;
     try {
       await navigator.clipboard.writeText(url);
-      ElMessage.success("会话链接已复制");
+      ElMessage.success(t("chat.linkCopied"));
     } catch {
-      ElMessage.warning(`复制失败，请手动复制：${url}`);
+      ElMessage.warning(`${t("chat.linkCopyFailed")}${url}`);
     }
   } else if (command === "delete") {
     try {
       await ElMessageBox.confirm(
-        `确定删除会话「${sess.title || "新会话"}」吗？删除后该会话的问答记录不可恢复。`,
-        "删除确认",
-        { type: "warning", confirmButtonText: "删除", cancelButtonText: "取消" },
+        t("chat.deleteConfirm", { title: sess.title || t("chat.newSessionTitle") }),
+        t("chat.deleteConfirmTitle"),
+        { type: "warning", confirmButtonText: t("common.delete"), cancelButtonText: t("common.cancel") },
       );
     } catch {
       return;
     }
     try {
       await store.deleteSession(sess.id);
-      ElMessage.success("会话已删除");
+      ElMessage.success(t("chat.deleted"));
     } catch {
-      ElMessage.error("删除失败，请稍后重试");
+      ElMessage.error(t("common.failed"));
     }
   }
 };
@@ -549,9 +551,9 @@ const submitRename = async () => {
   try {
     await store.renameSession(renameId.value, title);
     renameVisible.value = false;
-    ElMessage.success("已重命名");
+    ElMessage.success(t("chat.renamed"));
   } catch {
-    ElMessage.error("重命名失败，请稍后重试");
+    ElMessage.error(t("common.failed"));
   }
 };
 
@@ -637,7 +639,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   height: calc(100vh - 84px);
-  background: #f5f5f5;
+  background: var(--app-bg);
 }
 
 /* Header */
@@ -646,14 +648,14 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 20px;
-  background: #fff;
+  background: var(--app-panel);
   border-bottom: 1px solid #e4e7ed;
   flex-shrink: 0;
 }
 .header-title {
   font-size: 16px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
 }
 .header-right {
   display: flex;
@@ -671,7 +673,7 @@ onMounted(async () => {
 /* Session sidebar */
 .session-sidebar {
   width: 240px;
-  background: #fff;
+  background: var(--app-panel);
   border-right: 1px solid #e4e7ed;
   overflow-y: auto;
   flex-shrink: 0;
@@ -688,11 +690,11 @@ onMounted(async () => {
   transition: all 0.15s;
 }
 .session-item:hover {
-  background: #f5f7fa;
+  background: var(--app-hover);
 }
 .session-item.active {
-  background: #ecf5ff;
-  border-left-color: #409eff;
+  background: var(--app-active);
+  border-left-color: var(--app-active-border);
 }
 .session-item.pinned {
   border-left-color: #409eff;
@@ -703,7 +705,7 @@ onMounted(async () => {
 }
 .session-title {
   font-size: 13px;
-  color: #303133;
+  color: var(--app-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -717,7 +719,7 @@ onMounted(async () => {
 }
 .session-time {
   font-size: 11px;
-  color: #c0c4cc;
+  color: var(--app-text-3);
 }
 .session-actions {
   position: absolute;
@@ -732,7 +734,7 @@ onMounted(async () => {
   opacity: 1;
 }
 .more-btn {
-  color: #909399;
+  color: var(--app-text-3);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -766,7 +768,7 @@ onMounted(async () => {
   width: 6px;
 }
 .message-list::-webkit-scrollbar-thumb {
-  background: #dcdfe6;
+  background: var(--app-border);
   border-radius: 3px;
 }
 
@@ -785,7 +787,7 @@ onMounted(async () => {
 }
 .empty-text {
   font-size: 15px;
-  color: #909399;
+  color: var(--app-text-3);
 }
 .empty-hints {
   display: flex;
@@ -798,7 +800,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .hint-tag:hover {
-  background: #ecf5ff;
+  background: var(--app-active);
 }
 
 /* Message row */
@@ -845,7 +847,7 @@ onMounted(async () => {
   min-width: 0;
 }
 .assistant-body {
-  background: #fff;
+  background: var(--app-panel);
   border: 1px solid #e4e7ed;
   border-radius: 4px 12px 12px 12px;
 }
@@ -864,7 +866,7 @@ onMounted(async () => {
   overflow-wrap: anywhere;
 }
 .answer-text {
-  color: #303133;
+  color: var(--app-text);
 }
 .structured-answer {
   display: block;
@@ -904,7 +906,7 @@ onMounted(async () => {
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   margin-bottom: 8px;
 }
 .answer-section-title::before {
@@ -930,7 +932,7 @@ onMounted(async () => {
 .answer-section-body {
   font-size: 14px;
   line-height: 1.7;
-  color: #303133;
+  color: var(--app-text);
   word-break: break-word;
 }
 .answer-paragraph {
@@ -959,7 +961,7 @@ onMounted(async () => {
 }
 .answer-definition-text {
   min-width: 0;
-  color: #606266;
+  color: var(--app-text-2);
   overflow-wrap: anywhere;
 }
 .answer-formula-group {
@@ -978,7 +980,7 @@ onMounted(async () => {
 }
 .answer-formula-group-title {
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
 }
 .answer-formula-group-meta {
   color: #7a8494;
@@ -993,7 +995,7 @@ onMounted(async () => {
   border-bottom: 1px dashed #ebeef5;
 }
 .answer-ingredient-name {
-  color: #303133;
+  color: var(--app-text);
   font-weight: 500;
   overflow-wrap: anywhere;
 }
@@ -1007,13 +1009,13 @@ onMounted(async () => {
   border-radius: 4px;
   font-size: 12px;
   line-height: 1;
-  color: #606266;
-  background: #f5f7fa;
+  color: var(--app-text-2);
+  background: var(--app-hover);
 }
 .answer-role.is-primary {
   color: #337ecc;
   border-color: #a0cfff;
-  background: #ecf5ff;
+  background: var(--app-active);
 }
 .answer-role.is-success {
   color: #529b2e;
@@ -1027,7 +1029,7 @@ onMounted(async () => {
 }
 .answer-ingredient-text {
   min-width: 0;
-  color: #606266;
+  color: var(--app-text-2);
   overflow-wrap: anywhere;
 }
 .answer-note {
@@ -1036,7 +1038,7 @@ onMounted(async () => {
   border-left: 2px solid #dcdfe6;
   color: #7a8494;
   font-size: 13px;
-  background: #fafafa;
+  background: var(--app-panel-2);
 }
 .answer-list {
   margin: 0 0 8px;
@@ -1072,7 +1074,7 @@ onMounted(async () => {
   51%, 100% { opacity: 0; }
 }
 .thinking-text {
-  color: #909399;
+  color: var(--app-text-3);
   font-style: italic;
 }
 
@@ -1086,7 +1088,7 @@ onMounted(async () => {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-3);
 }
 
 .think-streaming-badge {
@@ -1103,10 +1105,10 @@ onMounted(async () => {
 
 .think-inner {
   font-size: 13px;
-  color: #909399;
+  color: var(--app-text-3);
   line-height: 1.7;
   white-space: pre-wrap;
-  background: #fbfcfd;
+  background: var(--app-panel-2);
   border: 1px solid #ebeef5;
   border-radius: 6px;
   padding: 10px 12px;
@@ -1124,7 +1126,7 @@ onMounted(async () => {
 
 .missing-slot-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-3);
 }
 
 .missing-slot-tag {
@@ -1147,7 +1149,7 @@ onMounted(async () => {
 }
 .msg-section :deep(.el-collapse-item__header) {
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-2);
   height: 32px;
   line-height: 32px;
   border: none;
@@ -1165,13 +1167,13 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
   padding: 8px 12px;
-  background: #fafafa;
+  background: var(--app-panel-2);
   border-radius: 6px;
   border: 1px solid #ebeef5;
 }
 .evidence-summary {
   font-size: 13px;
-  color: #606266;
+  color: var(--app-text-2);
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -1189,7 +1191,7 @@ onMounted(async () => {
   gap: 12px;
   margin-top: 6px;
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-3);
 }
 .metrics-sep {
   color: #dcdfe6;
@@ -1226,7 +1228,7 @@ onMounted(async () => {
   overflow-wrap: anywhere;
 }
 .follow-up-tag:hover {
-  background: #ecf5ff;
+  background: var(--app-active);
   color: #409eff;
   border-color: #409eff;
 }
@@ -1246,7 +1248,7 @@ onMounted(async () => {
 /* Loading */
 .loading-row {
   text-align: center;
-  color: #909399;
+  color: var(--app-text-3);
   font-size: 13px;
   padding: 16px;
 }
@@ -1254,7 +1256,7 @@ onMounted(async () => {
 /* Input area */
 .input-area {
   padding: 16px 24px;
-  background: #fff;
+  background: var(--app-panel);
   border-top: 1px solid #e4e7ed;
   display: flex;
   gap: 12px;
@@ -1265,11 +1267,11 @@ onMounted(async () => {
   border-radius: 8px;
   font-size: 14px;
   line-height: 1.6;
-  background: #f5f7fa;
+  background: var(--app-hover);
   border-color: #e4e7ed;
 }
 .input-area :deep(.el-textarea__inner:focus) {
-  background: #fff;
+  background: var(--app-panel);
   border-color: #409eff;
 }
 .send-btn {

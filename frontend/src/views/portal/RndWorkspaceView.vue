@@ -3,12 +3,12 @@
     <el-card shadow="never" class="mb-20 rnd-intro-card">
       <div class="rnd-intro">
         <div>
-          <h2>研发协同工作台</h2>
-          <p class="text-secondary">把产品目标、约束条件和研发偏好整理成 brief，系统会按顺序完成主控拆解、组方、功效、风味和替代映射。</p>
+          <h2>{{ t("rnd.title") }}</h2>
+          <p class="text-secondary">{{ t("rnd.intro") }}</p>
         </div>
         <el-space wrap>
-          <el-tag type="success" effect="light">正式替代以 GNN 为主</el-tag>
-          <el-tag type="warning" effect="light">配方推荐仅保留药食同源目录药材</el-tag>
+          <el-tag type="success" effect="light">{{ t("rnd.tagGnn") }}</el-tag>
+          <el-tag type="warning" effect="light">{{ t("rnd.tagHomology") }}</el-tag>
         </el-space>
       </div>
     </el-card>
@@ -18,17 +18,17 @@
         <el-card shadow="hover" class="box-card panel-card">
         <template #header>
           <div class="card-header">
-            <span>研发需求</span>
-            <el-button type="primary" link @click="createNewSession">新建会话</el-button>
+            <span>{{ t("rnd.requirement") }}</span>
+            <el-button type="primary" link @click="createNewSession">{{ t("rnd.newSession") }}</el-button>
           </div>
         </template>
         <el-space direction="vertical" fill class="panel-body">
-          <el-input v-model="question" type="textarea" :rows="8" placeholder="例如：开发一款增强免疫力的固体饮料，成分只使用药食同源目录，预算有限，3个月内完成配方。" />
-          <el-checkbox v-model="reuseLastBrief">复用上次 brief 里的约束信息</el-checkbox>
-          <el-button type="primary" :loading="store.submitting" :disabled="workflowBusy" @click="runWorkflow" style="width: 100%;">启动研发工作流</el-button>
+          <el-input v-model="question" type="textarea" :rows="8" :placeholder="t('rnd.requirementPlaceholder')" />
+          <el-checkbox v-model="reuseLastBrief">{{ t("rnd.reuseBrief") }}</el-checkbox>
+          <el-button type="primary" :loading="store.submitting" :disabled="workflowBusy" @click="runWorkflow" style="width: 100%;">{{ t("rnd.run") }}</el-button>
           <el-alert
             v-if="workflowBusy"
-            title="工作流正在持续生成中，页面会自动刷新阶段结果。"
+            :title="t('rnd.runningTip')"
             type="info"
             :closable="false"
             show-icon
@@ -46,18 +46,18 @@
           </div>
 
           <div class="brief-option-row">
-            <el-checkbox v-model="showBrief" size="small">显示当前 brief（研发需求解析结果）</el-checkbox>
+            <el-checkbox v-model="showBrief" size="small">{{ t("rnd.briefToggle") }}</el-checkbox>
           </div>
           <el-divider v-if="showBrief" />
           <div v-if="showBrief" class="brief-preview">
-            <div class="brief-heading">当前 brief</div>
+            <div class="brief-heading">{{ t("rnd.briefHeading") }}</div>
             <el-descriptions v-if="store.currentRun.brief" :column="1" border size="small">
-              <el-descriptions-item label="目标">{{ store.currentRun.brief.goal }}</el-descriptions-item>
-              <el-descriptions-item label="剂型">{{ store.currentRun.brief.dosage_form || "未指定" }}</el-descriptions-item>
-              <el-descriptions-item label="适用人群">{{ store.currentRun.brief.target_population || "未指定" }}</el-descriptions-item>
-              <el-descriptions-item label="周期">{{ store.currentRun.brief.timeline || "未指定" }}</el-descriptions-item>
-              <el-descriptions-item label="预算">{{ store.currentRun.brief.budget || "未指定" }}</el-descriptions-item>
-              <el-descriptions-item label="约束">
+              <el-descriptions-item :label="t('rnd.goal')">{{ store.currentRun.brief.goal }}</el-descriptions-item>
+              <el-descriptions-item :label="t('rnd.dosageForm')">{{ store.currentRun.brief.dosage_form || t("rnd.unspecified") }}</el-descriptions-item>
+              <el-descriptions-item :label="t('rnd.population')">{{ store.currentRun.brief.target_population || t("rnd.unspecified") }}</el-descriptions-item>
+              <el-descriptions-item :label="t('rnd.timeline')">{{ store.currentRun.brief.timeline || t("rnd.unspecified") }}</el-descriptions-item>
+              <el-descriptions-item :label="t('rnd.budget')">{{ store.currentRun.brief.budget || t("rnd.unspecified") }}</el-descriptions-item>
+              <el-descriptions-item :label="t('rnd.constraints')">
                 <div class="constraint-list">
                   <el-tag v-for="item in store.currentRun.brief.constraints || []" :key="item" size="small" type="info">{{ item }}</el-tag>
                 </div>
@@ -66,7 +66,7 @@
             <el-empty
               v-else
               class="brief-empty"
-              description="尚未生成 brief：启动研发工作流后，系统会把研发需求解析为结构化 brief 并展示在这里。"
+              :description="t('rnd.briefEmpty')"
               :image-size="48"
             />
           </div>
@@ -76,14 +76,14 @@
         <el-card shadow="hover" class="box-card panel-card">
         <template #header>
           <div class="card-header">
-            <span>阶段卡片流</span>
+            <span>{{ t("rnd.stageFlow") }}</span>
             <el-tag v-if="store.currentRun.status" :type="statusTagType(store.currentRun.status)" size="small">
               {{ store.currentRun.status }}
             </el-tag>
           </div>
         </template>
         <div v-if="workflowBusy" class="streaming-tip">
-          正在执行 {{ runningStepLabel }}，结果会随着步骤完成逐步刷新。
+          {{ t("rnd.executingStep", { step: runningStepLabel }) }}
         </div>
         <div v-if="store.currentRun.steps?.length" class="step-list">
           <el-card
@@ -102,8 +102,8 @@
               <el-tag size="small" :type="statusTagType(step.status)">{{ step.status }}</el-tag>
             </div>
             <div class="step-metrics">
-              <span>耗时 {{ step.latency_ms }} ms</span>
-              <span>证据 {{ step.graph_snapshot_id ? 1 : 0 }}</span>
+              <span>{{ t("rnd.latency", { ms: step.latency_ms }) }}</span>
+              <span>{{ t("rnd.evidenceCount", { count: step.graph_snapshot_id ? 1 : 0 }) }}</span>
             </div>
             <div class="step-summary">{{ summarizeStep(step.output_payload) }}</div>
             <div v-if="getStepHighlights(step.output_payload).length" class="step-highlight-list">
@@ -116,32 +116,32 @@
               </div>
             </div>
             <details class="step-detail">
-              <summary>查看结构化原文</summary>
+              <summary>{{ t("rnd.viewRaw") }}</summary>
               <pre>{{ formatJson(step.output_payload) }}</pre>
             </details>
           </el-card>
         </div>
-        <el-empty v-else description="运行一次研发工作流后，这里会展示各 Agent 的阶段结果。" />
+        <el-empty v-else :description="t('rnd.stepsEmpty')" />
       </el-card>
 
         <el-card shadow="hover" class="box-card panel-card">
         <template #header>
           <div class="card-header">
-            <span>证据与结果</span>
+            <span>{{ t("rnd.evidenceResults") }}</span>
             <el-tag v-if="store.currentStepDetail" size="small" type="primary">{{ agentLabels[store.currentStepDetail.agent_key] || store.currentStepDetail.agent_key }}</el-tag>
           </div>
         </template>
         <div class="result-overview" v-if="store.currentRun.steps?.length">
           <div class="overview-item">
-            <div class="overview-label">总步骤</div>
+            <div class="overview-label">{{ t("rnd.totalSteps") }}</div>
             <div class="overview-value">{{ store.currentRun.steps.length }}</div>
           </div>
           <div class="overview-item">
-            <div class="overview-label">已完成</div>
+            <div class="overview-label">{{ t("rnd.completed") }}</div>
             <div class="overview-value">{{ completedStepCount }}</div>
           </div>
           <div class="overview-item">
-            <div class="overview-label">证据快照</div>
+            <div class="overview-label">{{ t("rnd.evidenceSnapshots") }}</div>
             <div class="overview-value">{{ evidenceSnapshotCount }}</div>
           </div>
         </div>
@@ -154,7 +154,7 @@
           >
             <!-- 任务计划：主控 Agent -->
             <div v-if="tab.key === 'plan'" class="tab-content">
-              <el-empty v-if="!planSections.length" description="无结构化计划" :image-size="60" />
+              <el-empty v-if="!planSections.length" :description="t('rnd.noPlan')" :image-size="60" />
               <div v-for="section in planSections" :key="section.label" class="report-section">
                 <strong>{{ section.label }}</strong>
                 <ul class="section-list">
@@ -165,24 +165,24 @@
 
             <!-- 配方组成：方剂生成 Agent -->
             <div v-else-if="tab.key === 'formula'" class="tab-content">
-              <el-empty v-if="!formulaCards.length" description="方剂生成结果暂无结构化配方" :image-size="60" />
+              <el-empty v-if="!formulaCards.length" :description="t('rnd.noFormula')" :image-size="60" />
               <template v-else>
                 <div v-for="(card, cardIndex) in formulaCards" :key="cardIndex" class="report-section formula-card-block">
                   <div class="formula-card-head">
                     <strong>{{ card.name }}</strong>
-                    <el-tag v-if="formulaCards.length > 1" size="small" type="info">候选 {{ cardIndex + 1 }} / {{ formulaCards.length }}</el-tag>
+                    <el-tag v-if="formulaCards.length > 1" size="small" type="info">{{ t("rnd.candidate", { index: cardIndex + 1, total: formulaCards.length }) }}</el-tag>
                   </div>
                   <el-table :data="card.ingredients" size="small" border class="mt-10">
-                    <el-table-column prop="name" label="药材" min-width="90" />
-                    <el-table-column prop="role" label="角色" width="80" />
-                    <el-table-column prop="dose" label="剂量" min-width="110" show-overflow-tooltip />
-                    <el-table-column prop="rationale" label="作用依据" min-width="170" show-overflow-tooltip />
+                    <el-table-column prop="name" :label="t('rnd.herb')" min-width="90" />
+                    <el-table-column prop="role" :label="t('rnd.role')" width="80" />
+                    <el-table-column prop="dose" :label="t('rnd.dose')" min-width="110" show-overflow-tooltip />
+                    <el-table-column prop="rationale" :label="t('rnd.rationale')" min-width="170" show-overflow-tooltip />
                   </el-table>
                   <p v-if="card.fangJie" class="report-copy mt-10">{{ card.fangJie }}</p>
                 </div>
 
                 <div v-if="roleGroups.length" class="report-section">
-                  <strong>君臣佐使分组</strong>
+                  <strong>{{ t("rnd.roleGroupsTitle") }}</strong>
                   <div class="role-grid">
                     <div v-for="group in roleGroups" :key="group.role" class="role-card">
                       <div class="role-title">{{ group.role }}</div>
@@ -196,24 +196,24 @@
                 </div>
 
                 <div v-if="originalFormula" class="report-section">
-                  <strong>原方依据</strong>
+                  <strong>{{ t("rnd.sourceBasis") }}</strong>
                   <p class="report-copy mt-8">{{ originalFormula }}</p>
                 </div>
 
                 <div v-if="selectionRationale" class="report-section">
-                  <strong>选方说明</strong>
+                  <strong>{{ t("rnd.selectionRationale") }}</strong>
                   <p class="report-copy mt-8">{{ selectionRationale }}</p>
                 </div>
 
                 <div v-if="complianceNotes.length || risks.length" class="report-section">
                   <div v-if="complianceNotes.length" class="mb-10">
-                    <strong>合规说明</strong>
+                    <strong>{{ t("rnd.complianceNotes") }}</strong>
                     <ul class="section-list">
                       <li v-for="item in complianceNotes" :key="item">{{ item }}</li>
                     </ul>
                   </div>
                   <div v-if="risks.length">
-                    <strong>风险提示</strong>
+                    <strong>{{ t("rnd.risks") }}</strong>
                     <ul class="section-list">
                       <li v-for="item in risks" :key="item">{{ item }}</li>
                     </ul>
@@ -224,7 +224,7 @@
 
             <!-- 功效评估：功效预测 Agent -->
             <div v-else-if="tab.key === 'efficacy'" class="tab-content">
-              <el-empty v-if="!efficacySections.length" description="该步骤暂无结构化功效结果" :image-size="60" />
+              <el-empty v-if="!efficacySections.length" :description="t('rnd.noEfficacy')" :image-size="60" />
               <div v-for="section in efficacySections" :key="section.label" class="report-section">
                 <strong>{{ section.label }}</strong>
                 <ul class="section-list">
@@ -235,7 +235,7 @@
 
             <!-- 风味评估：风味预测 Agent -->
             <div v-else-if="tab.key === 'flavor'" class="tab-content">
-              <el-empty v-if="!flavorSections.length" description="该步骤暂无结构化风味结果" :image-size="60" />
+              <el-empty v-if="!flavorSections.length" :description="t('rnd.noFlavor')" :image-size="60" />
               <div v-for="section in flavorSections" :key="section.label" class="report-section">
                 <strong>{{ section.label }}</strong>
                 <ul class="section-list">
@@ -246,57 +246,57 @@
 
             <!-- 替代对比：替代映射 Agent -->
             <div v-else-if="tab.key === 'replacement'" class="tab-content">
-              <el-empty v-if="!replacementRows.length" description="替代映射阶段完成后，这里会展示 GNN 正式替代和 Baseline 对比。" :image-size="60" />
+              <el-empty v-if="!replacementRows.length" :description="t('rnd.replacementEmpty')" :image-size="60" />
               <template v-else>
                 <div class="report-section">
-                  <strong>替代对比</strong>
+                  <strong>{{ t("rnd.replacementCompare") }}</strong>
                   <el-table :data="replacementRows" size="small" border class="mt-10">
-                    <el-table-column prop="source_herb" label="原药材" min-width="90" />
-                    <el-table-column prop="recommended_herb" label="推荐替代" min-width="90" />
-                    <el-table-column prop="score" label="GNN分数" width="80" />
-                    <el-table-column prop="flavor_acceptance" label="风味接受度" width="100" />
-                    <el-table-column prop="flavor_similarity" label="风味相似度" width="100" />
-                    <el-table-column prop="safety_score" label="安全分" width="80" />
-                    <el-table-column prop="population_fit" label="人群适配" min-width="180" show-overflow-tooltip />
-                    <el-table-column prop="reason" label="说明" min-width="140" show-overflow-tooltip />
+                    <el-table-column prop="source_herb" :label="t('rnd.sourceHerb')" min-width="90" />
+                    <el-table-column prop="recommended_herb" :label="t('rnd.recommendedHerb')" min-width="90" />
+                    <el-table-column prop="score" :label="t('rnd.gnnScore')" width="80" />
+                    <el-table-column prop="flavor_acceptance" :label="t('rnd.flavorAcceptance')" width="100" />
+                    <el-table-column prop="flavor_similarity" :label="t('rnd.flavorSimilarity')" width="100" />
+                    <el-table-column prop="safety_score" :label="t('rnd.safetyScore')" width="80" />
+                    <el-table-column prop="population_fit" :label="t('rnd.populationFit')" min-width="180" show-overflow-tooltip />
+                    <el-table-column prop="reason" :label="t('rnd.reason')" min-width="140" show-overflow-tooltip />
                   </el-table>
                 </div>
 
                 <div v-if="baselineRows.length" class="report-section">
-                  <strong>Baseline 对比</strong>
+                  <strong>{{ t("rnd.baselineCompare") }}</strong>
                   <el-table :data="baselineRows" size="small" border class="mt-10">
-                    <el-table-column prop="source_herb" label="原药材" min-width="80" />
-                    <el-table-column prop="candidate_herb" label="候选替代" min-width="80" />
-                    <el-table-column label="功效分" width="80">
+                    <el-table-column prop="source_herb" :label="t('rnd.sourceHerb')" min-width="80" />
+                    <el-table-column prop="candidate_herb" :label="t('rnd.candidateHerb')" min-width="80" />
+                    <el-table-column :label="t('rnd.efficacyScore')" width="80">
                       <template #default="{ row }">{{ formatCell(row.efficacy_score) }}</template>
                     </el-table-column>
-                    <el-table-column label="风味替换前" min-width="150" show-overflow-tooltip>
+                    <el-table-column :label="t('rnd.flavorBefore')" min-width="150" show-overflow-tooltip>
                       <template #default="{ row }">{{ shortText(row.flavor_before, 60) }}</template>
                     </el-table-column>
-                    <el-table-column label="风味替换后" min-width="150" show-overflow-tooltip>
+                    <el-table-column :label="t('rnd.flavorAfter')" min-width="150" show-overflow-tooltip>
                       <template #default="{ row }">{{ shortText(row.flavor_after, 60) }}</template>
                     </el-table-column>
-                    <el-table-column prop="flavor_acceptance" label="接受度" width="80" />
-                    <el-table-column prop="flavor_similarity" label="相似度" width="80" />
-                    <el-table-column prop="safety_score" label="安全分" width="80" />
-                    <el-table-column prop="decision" label="决策" width="90" />
+                    <el-table-column prop="flavor_acceptance" :label="t('rnd.acceptance')" width="80" />
+                    <el-table-column prop="flavor_similarity" :label="t('rnd.similarity')" width="80" />
+                    <el-table-column prop="safety_score" :label="t('rnd.safetyScore')" width="80" />
+                    <el-table-column prop="decision" :label="t('rnd.decision')" width="90" />
                   </el-table>
                 </div>
 
                 <div v-if="impactSummary" class="report-section">
-                  <strong>影响评估</strong>
+                  <strong>{{ t("rnd.impactSummary") }}</strong>
                   <p class="report-copy mt-8">{{ impactSummary }}</p>
                 </div>
 
                 <div v-if="replacementComplianceNotes.length || replacementScenarios.length" class="report-section">
                   <div v-if="replacementComplianceNotes.length" class="mb-10">
-                    <strong>合规说明</strong>
+                    <strong>{{ t("rnd.complianceNotes") }}</strong>
                     <ul class="section-list">
                       <li v-for="item in replacementComplianceNotes" :key="item">{{ item }}</li>
                     </ul>
                   </div>
                   <div v-if="replacementScenarios.length">
-                    <strong>适用场景</strong>
+                    <strong>{{ t("rnd.scenarios") }}</strong>
                     <ul class="section-list">
                       <li v-for="item in replacementScenarios" :key="item">{{ item }}</li>
                     </ul>
@@ -307,31 +307,31 @@
 
             <!-- 最终方案：主控汇总 Agent -->
             <div v-else-if="tab.key === 'report'" class="tab-content">
-              <el-empty v-if="!reportHasContent" :description="workflowBusy ? '工作流正在运行，完成的主控汇总结果会自动刷新到这里。' : '完成工作流后会在这里展示最终研发方案。'" :image-size="60" />
+              <el-empty v-if="!reportHasContent" :description="workflowBusy ? t('rnd.reportBusy') : t('rnd.reportEmpty')" :image-size="60" />
               <div v-else class="report-block">
                 <h3>{{ reportTitle }}</h3>
                 <p v-if="reportIntro" class="report-copy">{{ reportIntro }}</p>
                 <div v-if="reportBriefTags.length" class="report-section">
-                  <strong>需求要点</strong>
+                  <strong>{{ t("rnd.requirementPoints") }}</strong>
                   <div class="tag-list mt-8">
                     <el-tag v-for="tag in reportBriefTags" :key="tag" size="small" type="info">{{ tag }}</el-tag>
                   </div>
                 </div>
 
                 <div v-if="reportComposition.length" class="report-section">
-                  <strong>最终配方</strong>
+                  <strong>{{ t("rnd.finalFormula") }}</strong>
                   <el-table :data="reportComposition" size="small" border class="mt-10">
-                    <el-table-column prop="name" label="药材" min-width="90" />
-                    <el-table-column prop="role" label="角色" width="80" />
-                    <el-table-column prop="dose" label="建议剂量" min-width="110" show-overflow-tooltip />
-                    <el-table-column prop="rationale" label="作用与剂量依据" min-width="170" show-overflow-tooltip />
-                    <el-table-column prop="basis" label="方解" min-width="140" show-overflow-tooltip />
-                    <el-table-column prop="source" label="依据来源" min-width="130" show-overflow-tooltip />
+                    <el-table-column prop="name" :label="t('rnd.herb')" min-width="90" />
+                    <el-table-column prop="role" :label="t('rnd.role')" width="80" />
+                    <el-table-column prop="dose" :label="t('rnd.suggestedDose')" min-width="110" show-overflow-tooltip />
+                    <el-table-column prop="rationale" :label="t('rnd.doseRationale')" min-width="170" show-overflow-tooltip />
+                    <el-table-column prop="basis" :label="t('rnd.fangJie')" min-width="140" show-overflow-tooltip />
+                    <el-table-column prop="source" :label="t('rnd.basisSource')" min-width="130" show-overflow-tooltip />
                   </el-table>
                 </div>
 
                 <div v-if="reportMonarchSummary.length" class="report-section">
-                  <strong>君臣佐使一览</strong>
+                  <strong>{{ t("rnd.monarchSummary") }}</strong>
                   <div class="role-grid">
                     <div v-for="group in reportMonarchSummary" :key="group.role" class="role-card">
                       <div class="role-title">{{ group.role }}</div>
@@ -342,33 +342,33 @@
                 </div>
 
                 <div v-if="reportOriginalName" class="report-section">
-                  <strong>原方依据</strong>
-                  <p class="report-copy mt-8">{{ reportOriginalName }}<span v-if="reportOriginalSource">（来源：{{ reportOriginalSource }}）</span></p>
+                  <strong>{{ t("rnd.sourceBasis") }}</strong>
+                  <p class="report-copy mt-8">{{ reportOriginalName }}<span v-if="reportOriginalSource">{{ t("rnd.sourceWith", { sources: reportOriginalSource }) }}</span></p>
                   <div v-if="reportOriginalRetained.length" class="mt-10">
-                    <div class="change-label">保留</div>
+                    <div class="change-label">{{ t("rnd.retained") }}</div>
                     <div class="tag-list mt-8">
                       <el-tag v-for="item in reportOriginalRetained" :key="item" size="small" type="success">{{ item }}</el-tag>
                     </div>
                   </div>
                   <div v-if="reportOriginalReplacedRows.length" class="mt-10">
-                    <div class="change-label">替换</div>
+                    <div class="change-label">{{ t("rnd.replaced") }}</div>
                     <el-table :data="reportOriginalReplacedRows" size="small" border class="mt-8">
-                      <el-table-column prop="from" label="原药材" min-width="90" />
-                      <el-table-column prop="to" label="替代药材" min-width="90" />
-                      <el-table-column label="KB4 评分" width="100">
+                      <el-table-column prop="from" :label="t('rnd.sourceHerb')" min-width="90" />
+                      <el-table-column prop="to" :label="t('rnd.replacementHerb')" min-width="90" />
+                      <el-table-column :label="t('rnd.kb4Score')" width="100">
                         <template #default="{ row }">{{ formatCell(row.score) }}</template>
                       </el-table-column>
-                      <el-table-column prop="confidence" label="综合可信度" min-width="110" show-overflow-tooltip />
+                      <el-table-column prop="confidence" :label="t('rnd.confidence')" min-width="110" show-overflow-tooltip />
                     </el-table>
                   </div>
                   <div v-if="reportOriginalAdded.length" class="mt-10">
-                    <div class="change-label">新增</div>
+                    <div class="change-label">{{ t("rnd.added") }}</div>
                     <div class="tag-list mt-8">
                       <el-tag v-for="item in reportOriginalAdded" :key="item" size="small" type="warning">{{ item }}</el-tag>
                     </div>
                   </div>
                   <div v-if="reportOriginalRemoved.length" class="mt-10">
-                    <div class="change-label">删除</div>
+                    <div class="change-label">{{ t("rnd.removed") }}</div>
                     <div class="tag-list mt-8">
                       <el-tag v-for="item in reportOriginalRemoved" :key="item" size="small" type="danger" effect="plain">{{ item }}</el-tag>
                     </div>
@@ -376,17 +376,17 @@
                 </div>
 
                 <div v-if="reportEfficacyEffects.length || reportEfficacyMechanisms.length" class="report-section">
-                  <strong>功效与机制</strong>
+                  <strong>{{ t("rnd.efficacyMechanism") }}</strong>
                   <ul v-if="reportEfficacyEffects.length" class="section-list">
-                    <li v-for="item in reportEfficacyEffects" :key="item">功效：{{ item }}</li>
+                    <li v-for="item in reportEfficacyEffects" :key="item">{{ t("rnd.effectItem", { item }) }}</li>
                   </ul>
                   <ul v-if="reportEfficacyMechanisms.length" class="section-list">
-                    <li v-for="item in reportEfficacyMechanisms" :key="item">机制：{{ item }}</li>
+                    <li v-for="item in reportEfficacyMechanisms" :key="item">{{ t("rnd.mechanismItem", { item }) }}</li>
                   </ul>
                 </div>
 
                 <div v-if="reportFlavorNotes.length || reportFlavorAcceptance" class="report-section">
-                  <strong>风味与适配</strong>
+                  <strong>{{ t("rnd.flavorFit") }}</strong>
                   <ul v-if="reportFlavorNotes.length" class="section-list">
                     <li v-for="item in reportFlavorNotes" :key="item">{{ item }}</li>
                   </ul>
@@ -394,36 +394,36 @@
                 </div>
 
                 <div v-if="reportReplacementPoints.length" class="report-section">
-                  <strong>替代对比要点</strong>
+                  <strong>{{ t("rnd.replacementPoints") }}</strong>
                   <ul class="section-list">
                     <li v-for="item in reportReplacementPoints" :key="item">{{ item }}</li>
                   </ul>
-                  <p class="text-secondary small-note">完整替代比对请切换至「替代映射 Agent」的阶段面板。</p>
+                  <p class="text-secondary small-note">{{ t("rnd.replacementNote") }}</p>
                 </div>
 
                 <div v-if="reportComplianceRisks.length" class="report-section">
-                  <strong>合规与风险</strong>
+                  <strong>{{ t("rnd.complianceRisks") }}</strong>
                   <ul class="section-list">
                     <li v-for="item in reportComplianceRisks" :key="item">{{ item }}</li>
                   </ul>
                 </div>
 
                 <div v-if="reportEvidenceGaps.length" class="report-section">
-                  <strong>证据缺口</strong>
+                  <strong>{{ t("rnd.evidenceGaps") }}</strong>
                   <ul class="section-list">
                     <li v-for="item in reportEvidenceGaps" :key="item">{{ item }}</li>
                   </ul>
                 </div>
 
                 <div v-if="reportConsistencyChecks.length" class="report-section">
-                  <strong>一致性检查</strong>
+                  <strong>{{ t("rnd.consistencyChecks") }}</strong>
                   <ul class="section-list">
                     <li v-for="item in reportConsistencyChecks" :key="item">{{ item }}</li>
                   </ul>
                 </div>
 
                 <div v-if="reportNextActions.length" class="report-section">
-                  <strong>下一步建议</strong>
+                  <strong>{{ t("rnd.nextSteps") }}</strong>
                   <ul class="section-list">
                     <li v-for="item in reportNextActions" :key="item">{{ item }}</li>
                   </ul>
@@ -431,7 +431,7 @@
 
                 <!-- 旧版 final_report 兼容：仅当新结构化键缺失时展示分阶段汇总 -->
                 <div v-if="!reportHasStructured && legacyModuleSummaries.length" class="report-section">
-                  <strong>分阶段汇总</strong>
+                  <strong>{{ t("rnd.moduleSummary") }}</strong>
                   <div class="module-grid">
                     <div v-for="moduleItem in legacyModuleSummaries" :key="moduleItem.key" class="module-card">
                       <div class="module-title">{{ moduleItem.title }}</div>
@@ -441,7 +441,7 @@
                 </div>
 
                 <div v-if="reportDataSources.length" class="report-section">
-                  <strong>数据来源</strong>
+                  <strong>{{ t("rnd.dataSources") }}</strong>
                   <div class="tag-list mt-8">
                     <el-tag v-for="item in reportDataSources" :key="item" size="small" type="info" effect="plain">{{ item }}</el-tag>
                   </div>
@@ -468,8 +468,8 @@
         <el-empty
           v-else
           :description="store.currentRun.steps?.length
-            ? '请选择左侧阶段卡片，查看对应 Agent 的证据与结果。'
-            : (workflowBusy ? '工作流正在运行，完成的阶段结果会自动刷新到这里。' : '运行一次研发工作流后，这里会展示各 Agent 的阶段结果。')"
+            ? t('rnd.selectStepHint')
+            : (workflowBusy ? t('rnd.resultsBusy') : t('rnd.stepsEmpty'))"
         />
       </el-card>
       </div>
@@ -482,8 +482,10 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import GraphCanvas from "../../components/GraphCanvas.vue";
+import { useI18n } from "../../composables/useI18n";
 import { useRndStore } from "../../stores/rnd";
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const store = useRndStore();
@@ -492,20 +494,20 @@ const reuseLastBrief = ref(false);
 const showBrief = ref(true);
 const activeTab = ref("plan");
 
-const agentLabels = {
-  master_control: "主控 Agent",
-  master_control_final: "主控汇总 Agent",
-  formula_generation: "方剂生成 Agent",
-  efficacy_prediction: "功效预测 Agent",
-  flavor_prediction: "风味预测 Agent",
-  replacement_mapping: "替代映射 Agent",
-};
+const agentLabels = computed(() => ({
+  master_control: t("rnd.agents.master_control"),
+  master_control_final: t("rnd.agents.master_control_final"),
+  formula_generation: t("rnd.agents.formula_generation"),
+  efficacy_prediction: t("rnd.agents.efficacy_prediction"),
+  flavor_prediction: t("rnd.agents.flavor_prediction"),
+  replacement_mapping: t("rnd.agents.replacement_mapping"),
+}));
 
-const suggestions = [
-  "开发一款增强免疫力的固体饮料，成分只使用药食同源目录，预算有限，3个月内完成配方。",
-  "设计一款健脾养胃的代用茶，适合白领人群，强调温和口感和合规性。",
-  "做一款主打抗氧化的咀嚼片，要求药食同源目录内成分，便于做替代优化。",
-];
+const suggestions = computed(() => [
+  t("rnd.suggestion1"),
+  t("rnd.suggestion2"),
+  t("rnd.suggestion3"),
+]);
 
 const completedStepCount = computed(
   () => store.currentRun.steps?.filter((item) => item.status === "completed").length || 0,
@@ -522,17 +524,17 @@ const workflowBusy = computed(
 const runningStepLabel = computed(() => {
   const runningStep = store.currentRun.steps?.find((item) => item.status === "running");
   if (runningStep) {
-    return agentLabels[runningStep.agent_key] || runningStep.agent_key;
+    return agentLabels.value[runningStep.agent_key] || runningStep.agent_key;
   }
   if (store.currentRun.status === "queued") {
-    return "主控 Agent";
+    return t("rnd.agents.master_control");
   }
-  return "当前工作流";
+  return t("rnd.currentWorkflow");
 });
 
 const briefTitle = computed(() => {
-  if (store.currentRun.brief?.goal) return `面向“${store.currentRun.brief.goal}”的研发建议`;
-  return "最终研发建议";
+  if (store.currentRun.brief?.goal) return t("rnd.briefTitleWithGoal", { goal: store.currentRun.brief.goal });
+  return t("rnd.finalRecommendation");
 });
 
 /* ---------- 数据源 ---------- */
@@ -553,22 +555,22 @@ const stepPanelTabs = computed(() => {
   const tabs = [];
   const key = step.agent_key;
   if (key === "master_control") {
-    tabs.push({ key: "plan", label: "任务计划" });
+    tabs.push({ key: "plan", label: t("rnd.taskPlan") });
   } else if (key === "formula_generation") {
-    tabs.push({ key: "formula", label: "配方组成" });
+    tabs.push({ key: "formula", label: t("rnd.formulaComposition") });
   } else if (key === "efficacy_prediction") {
-    tabs.push({ key: "efficacy", label: "功效评估" });
+    tabs.push({ key: "efficacy", label: t("rnd.efficacyEval") });
   } else if (key === "flavor_prediction") {
-    tabs.push({ key: "flavor", label: "风味评估" });
+    tabs.push({ key: "flavor", label: t("rnd.flavorEval") });
   } else if (key === "replacement_mapping") {
-    tabs.push({ key: "replacement", label: "替代对比" });
+    tabs.push({ key: "replacement", label: t("rnd.replacementCompare") });
   } else if (key === "master_control_final") {
-    tabs.push({ key: "report", label: "最终方案" });
+    tabs.push({ key: "report", label: t("rnd.finalPlan") });
   } else {
-    tabs.push({ key: "raw", label: "结构化结果" });
+    tabs.push({ key: "raw", label: t("rnd.rawResult") });
   }
   if (step.graph_snapshot_id || step.graph_snapshot) {
-    tabs.push({ key: "graph", label: "证据图谱" });
+    tabs.push({ key: "graph", label: t("rnd.evidenceGraph") });
   }
   return tabs;
 });
@@ -610,16 +612,16 @@ const planSections = computed(() => {
   const payload = selectedStepPayload.value;
   if (!payload || typeof payload !== "object") return [];
   const defs = [
-    ["brief_summary", "需求摘要"],
-    ["task_plan", "任务计划"],
-    ["plan", "需求拆解"],
-    ["tasks", "任务清单"],
-    ["checkpoints", "检查点"],
-    ["target_population", "目标人群"],
-    ["deliverables", "交付物"],
-    ["consistency_checks", "一致性检查"],
-    ["next_actions", "下一步行动"],
-    ["data_sources", "数据来源"],
+    ["brief_summary", t("rnd.sections.briefSummary")],
+    ["task_plan", t("rnd.sections.taskPlan")],
+    ["plan", t("rnd.sections.planBreakdown")],
+    ["tasks", t("rnd.sections.tasks")],
+    ["checkpoints", t("rnd.sections.checkpoints")],
+    ["target_population", t("rnd.sections.targetPopulation")],
+    ["deliverables", t("rnd.sections.deliverables")],
+    ["consistency_checks", t("rnd.sections.consistencyChecks")],
+    ["next_actions", t("rnd.sections.nextActions")],
+    ["data_sources", t("rnd.sections.dataSources")],
   ];
   const sections = [];
   const seenLabels = new Set();
@@ -641,24 +643,26 @@ const formulaCards = computed(() => {
   const formulas = Array.isArray(payload?.formulas) ? payload.formulas : [];
   if (!formulas.length) return [];
   return formulas.map((formula) => ({
-    name: formula.name || "候选方",
+    name: formula.name || t("rnd.candidateFormula"),
     ingredients: (formula.ingredients || []).map((item) => ({
-      name: item.name || item.herb_key || "未命名药材",
-      role: item.role || "配伍药",
-      dose: item.dose_range || item.dose || "待校验",
-      rationale: item.rationale || item.fang_jie_role || item.dose_rationale || "与目标功效相关",
+      name: item.name || item.herb_key || t("rnd.unnamedHerb"),
+      role: item.role || t("rnd.compatHerb"),
+      dose: item.dose_range || item.dose || t("rnd.pendingVerify"),
+      rationale: item.rationale || item.fang_jie_role || item.dose_rationale || t("rnd.efficacyRelated"),
     })),
     fangJie: formula.fang_jie || "",
   }));
 });
 
-const ROLE_DUTY = {
-  君药: "针对目标需求与核心功效起主导作用",
-  臣药: "辅助君药增强功效或针对兼证",
-  佐药: "佐助主药或制约偏性，平衡药性与口感",
-  使药: "调和诸药、改善整体协调性",
-  配伍药: "协同配方整体目标，起辅助配伍作用",
+const ROLE_DUTY_KEYS = {
+  君药: "rnd.roleDuty.monarch",
+  臣药: "rnd.roleDuty.minister",
+  佐药: "rnd.roleDuty.assistant",
+  使药: "rnd.roleDuty.guide",
+  配伍药: "rnd.roleDuty.compat",
 };
+
+const roleDutyText = (role) => t(ROLE_DUTY_KEYS[role] || "rnd.roleDuty.compat");
 
 const roleGroups = computed(() => {
   const first = formulaCards.value[0];
@@ -671,7 +675,7 @@ const roleGroups = computed(() => {
       return {
         role,
         herbs: matched.map((item) => item.name).join("、"),
-        duty: ROLE_DUTY[role] || "协同配方整体目标，起辅助配伍作用",
+        duty: roleDutyText(role),
         notes: matched.map((item) => [item.name, item.rationale].filter(Boolean).join("：")),
       };
     })
@@ -689,7 +693,7 @@ const originalFormula = computed(() => {
       .map((item) => item.name)
       .filter(Boolean)
       .join("、");
-    return `KB5 原方「${context.formula_name}」${sources ? `（来源：${sources}）` : ""}${herbs ? `，组成：${herbs}` : ""}`;
+    return `${t("rnd.kb5Source", { name: context.formula_name })}${sources ? t("rnd.sourceWith", { sources }) : ""}${herbs ? t("rnd.compositionWith", { herbs }) : ""}`;
   }
   return payload?.formulas?.[0]?.classic_reference || "";
 });
@@ -710,14 +714,14 @@ const efficacySections = computed(() => {
   const payload = selectedStepPayload.value;
   if (!payload || typeof payload !== "object") return [];
   const defs = [
-    ["core_tcm_efficacy", "中医功效"],
-    ["core_modern_efficacy", "现代药理功效"],
-    ["mechanisms", "作用机制"],
-    ["target_population", "适用人群"],
-    ["avoid_population", "不适宜人群"],
-    ["contraindicated_population", "禁忌人群"],
-    ["risks", "风险提示"],
-    ["literature_basis", "文献依据"],
+    ["core_tcm_efficacy", t("rnd.sections.tcmEfficacy")],
+    ["core_modern_efficacy", t("rnd.sections.modernEfficacy")],
+    ["mechanisms", t("rnd.sections.mechanisms")],
+    ["target_population", t("rnd.sections.suitablePopulation")],
+    ["avoid_population", t("rnd.sections.avoidPopulation")],
+    ["contraindicated_population", t("rnd.sections.contraindicatedPopulation")],
+    ["risks", t("rnd.sections.riskNotes")],
+    ["literature_basis", t("rnd.sections.literatureBasis")],
   ];
   const sections = [];
   for (const [key, label] of defs) {
@@ -734,9 +738,9 @@ const flavorSections = computed(() => {
   if (!payload || typeof payload !== "object") return [];
   const profile = payload.flavor_profile || {};
   const defs = [
-    ["taste", "味觉"],
-    ["aroma", "香气"],
-    ["mouthfeel", "口感"],
+    ["taste", t("rnd.sections.taste")],
+    ["aroma", t("rnd.sections.aroma")],
+    ["mouthfeel", t("rnd.sections.mouthfeel")],
   ];
   const sections = [];
   for (const [key, label] of defs) {
@@ -744,11 +748,11 @@ const flavorSections = computed(() => {
     if (items.length) sections.push({ label, items });
   }
   const extraDefs = [
-    ["coordination_summary", "协调性"],
-    ["defects", "风味缺陷"],
-    ["optimization_suggestions", "优化建议"],
-    ["consumer_acceptance", "消费者接受度"],
-    ["data_sources", "数据来源"],
+    ["coordination_summary", t("rnd.sections.coordination")],
+    ["defects", t("rnd.sections.flavorDefects")],
+    ["optimization_suggestions", t("rnd.sections.optimization")],
+    ["consumer_acceptance", t("rnd.sections.consumerAcceptance")],
+    ["data_sources", t("rnd.sections.dataSources")],
   ];
   for (const [key, label] of extraDefs) {
     const items = toTextList(payload[key]);
@@ -805,11 +809,11 @@ const reportIntro = computed(() => {
 const reportBriefTags = computed(() => {
   const tags = [];
   const brief = store.currentRun.brief;
-  if (brief?.goal) tags.push(`目标：${brief.goal}`);
-  if (brief?.target_population) tags.push(`人群：${brief.target_population}`);
-  if (brief?.dosage_form) tags.push(`剂型：${brief.dosage_form}`);
+  if (brief?.goal) tags.push(t("rnd.briefGoal", { value: brief.goal }));
+  if (brief?.target_population) tags.push(t("rnd.briefPopulation", { value: brief.target_population }));
+  if (brief?.dosage_form) tags.push(t("rnd.briefForm", { value: brief.dosage_form }));
   if (Array.isArray(brief?.constraints)) {
-    tags.push(...brief.constraints.filter(Boolean).map((item) => `约束：${item}`));
+    tags.push(...brief.constraints.filter(Boolean).map((item) => t("rnd.briefConstraint", { value: item })));
   }
   return tags;
 });
@@ -819,9 +823,9 @@ const reportComposition = computed(() => {
   const composition = report?.final_formula?.composition;
   if (!Array.isArray(composition)) return [];
   return composition.map((item) => ({
-    name: item.name || "未命名药材",
-    role: item.role || "配伍药",
-    dose: item.dose || "待校验",
+    name: item.name || t("rnd.unnamedHerb"),
+    role: item.role || t("rnd.compatHerb"),
+    dose: item.dose || t("rnd.pendingVerify"),
     rationale: item.rationale || item.dose_rationale || "",
     basis: item.basis || "",
     source: item.source || "",
@@ -833,9 +837,9 @@ const reportMonarchSummary = computed(() => {
   if (!Array.isArray(items)) return [];
   return items
     .map((item) => ({
-      role: item.role || "配伍药",
+      role: item.role || t("rnd.compatHerb"),
       herbs: Array.isArray(item.herbs) ? item.herbs : [],
-      duty: item.duty || ROLE_DUTY[item.role] || "协同配方整体目标，起辅助配伍作用",
+      duty: item.duty || roleDutyText(item.role),
     }))
     .filter((item) => item.role && item.herbs.length);
 });
@@ -894,7 +898,7 @@ const reportReplacementPoints = computed(() => {
   return rows.slice(0, 6).map((row) => {
     const parts = [
       `${row.source_herb || "?"} → ${row.recommended_herb || "?"}`,
-      `评分 ${formatCell(row.score)}`,
+      t("rnd.scoreOf", { score: formatCell(row.score) }),
     ];
     if (row.recommendation_status) parts.push(row.recommendation_status);
     return parts.join(" · ");
@@ -973,7 +977,7 @@ const pickFirstMeaningfulText = (payload) => {
       return shortText(value, 140);
     }
   }
-  return "已生成结构化结果";
+  return t("rnd.generatedResult");
 };
 
 const summarizeFormulaGeneration = (payload) => {
@@ -982,17 +986,17 @@ const summarizeFormulaGeneration = (payload) => {
     return pickFirstMeaningfulText(payload);
   }
   return ingredients
-    .map((item) => `${item.role || "配伍"}：${item.name || "未命名药材"}`)
+    .map((item) => `${item.role || t("rnd.compatRoleShort")}：${item.name || t("rnd.unnamedHerb")}`)
     .join("；");
 };
 
-const legacyModuleLabelMap = {
-  master_control: "主控拆解",
-  formula_generation: "方剂生成",
-  efficacy_prediction: "功效预测",
-  flavor_prediction: "风味预测",
-  replacement_mapping: "替代映射",
-};
+const legacyModuleLabelMap = computed(() => ({
+  master_control: t("rnd.moduleLabels.master_control"),
+  formula_generation: t("rnd.moduleLabels.formula_generation"),
+  efficacy_prediction: t("rnd.moduleLabels.efficacy_prediction"),
+  flavor_prediction: t("rnd.moduleLabels.flavor_prediction"),
+  replacement_mapping: t("rnd.moduleLabels.replacement_mapping"),
+}));
 
 const legacyModuleSummaries = computed(() => {
   const modules =
@@ -1000,7 +1004,7 @@ const legacyModuleSummaries = computed(() => {
     (selectedStepPayload.value?.modules || {});
   return Object.entries(modules).map(([key, payload]) => ({
     key,
-    title: legacyModuleLabelMap[key] || key,
+    title: legacyModuleLabelMap.value[key] || key,
     summary: key === "formula_generation" ? summarizeFormulaGeneration(payload) : pickFirstMeaningfulText(payload),
   }));
 });
@@ -1036,13 +1040,13 @@ const createNewSession = async () => {
 };
 
 const summarizeStep = (payload) => {
-  if (!payload) return "等待结果";
+  if (!payload) return t("rnd.waitingResult");
   if (payload.final_recommendation) return shortText(payload.final_recommendation, 140);
   if (payload.selection_rationale) return shortText(payload.selection_rationale, 140);
   if (payload.coordination_summary) return shortText(payload.coordination_summary, 140);
   if (payload.impact_summary) return shortText(payload.impact_summary, 140);
   if (payload.core_tcm_efficacy?.length) return payload.core_tcm_efficacy.join("；");
-  return "已生成结构化结果";
+  return t("rnd.generatedResult");
 };
 
 const getStepHighlights = (payload) => {
@@ -1051,13 +1055,13 @@ const getStepHighlights = (payload) => {
   for (const [key, value] of Object.entries(payload)) {
     if (points.length >= 4) break;
     if (typeof value === "string" && value.trim()) {
-      points.push(`${key}：${shortText(value, 48)}`);
+      points.push(t("rnd.kv", { key, value: shortText(value, 48) }));
       continue;
     }
     if (Array.isArray(value) && value.length) {
       const first = value[0];
       if (typeof first === "string") {
-        points.push(`${key}：${shortText(value.slice(0, 3).join("；"), 48)}`);
+        points.push(t("rnd.kv", { key, value: shortText(value.slice(0, 3).join("；"), 48) }));
       }
     }
   }
@@ -1121,7 +1125,7 @@ onUnmounted(() => store.stopPolling());
 }
 
 .text-secondary {
-  color: #909399;
+  color: var(--app-text-3);
 }
 
 .rnd-page {
@@ -1131,7 +1135,7 @@ onUnmounted(() => store.stopPolling());
 
 .rnd-intro-card {
   border: none;
-  background-color: #f8f8f9;
+  background-color: var(--app-panel-2);
 }
 
 .rnd-intro {
@@ -1143,7 +1147,7 @@ onUnmounted(() => store.stopPolling());
 
 .rnd-intro h2 {
   margin: 0 0 8px;
-  color: #303133;
+  color: var(--app-text);
   font-size: 18px;
   font-weight: 600;
 }
@@ -1190,7 +1194,7 @@ onUnmounted(() => store.stopPolling());
 
 .streaming-tip {
   margin-bottom: 12px;
-  color: #909399;
+  color: var(--app-text-3);
   font-size: 13px;
 }
 
@@ -1202,15 +1206,15 @@ onUnmounted(() => store.stopPolling());
 }
 
 .role-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
   padding: 12px;
-  background: #fafafa;
+  background: var(--app-panel-2);
 }
 
 .role-title {
   font-weight: 600;
-  color: #303133;
+  color: var(--app-text);
   margin-bottom: 8px;
 }
 
@@ -1222,14 +1226,14 @@ onUnmounted(() => store.stopPolling());
 }
 
 .role-duty {
-  color: #909399;
+  color: var(--app-text-3);
   font-size: 12px;
   line-height: 1.6;
   margin-bottom: 6px;
 }
 
 .role-notes {
-  color: #606266;
+  color: var(--app-text-2);
   font-size: 12px;
   line-height: 1.6;
 }
@@ -1261,7 +1265,7 @@ onUnmounted(() => store.stopPolling());
 
 .brief-heading {
   margin-bottom: 10px;
-  color: #303133;
+  color: var(--app-text);
   font-weight: 600;
   font-size: 14px;
 }
@@ -1289,7 +1293,7 @@ onUnmounted(() => store.stopPolling());
 .step-card {
   cursor: pointer;
   border-radius: 4px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   transition: all 0.3s;
 }
 
@@ -1309,14 +1313,14 @@ onUnmounted(() => store.stopPolling());
 }
 
 .step-seq {
-  color: #909399;
+  color: var(--app-text-3);
   font-size: 12px;
   text-transform: uppercase;
 }
 
 .step-agent {
   margin-top: 4px;
-  color: #303133;
+  color: var(--app-text);
   font-weight: 600;
   font-size: 14px;
 }
@@ -1325,7 +1329,7 @@ onUnmounted(() => store.stopPolling());
   margin-top: 10px;
   display: flex;
   gap: 12px;
-  color: #909399;
+  color: var(--app-text-3);
   font-size: 12px;
 }
 
@@ -1333,7 +1337,7 @@ onUnmounted(() => store.stopPolling());
   margin-top: 12px;
   line-height: 1.6;
   font-size: 13px;
-  color: #303133;
+  color: var(--app-text);
   font-weight: 500;
 }
 
@@ -1347,8 +1351,8 @@ onUnmounted(() => store.stopPolling());
 .step-highlight-item {
   padding: 8px 10px;
   border-radius: 4px;
-  background: #f5f7fa;
-  color: #606266;
+  background: var(--app-hover);
+  color: var(--app-text-2);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -1356,7 +1360,7 @@ onUnmounted(() => store.stopPolling());
 .step-detail {
   margin-top: 12px;
   padding-top: 10px;
-  border-top: 1px dashed #ebeef5;
+  border-top: 1px dashed var(--app-border);
 }
 
 .step-detail summary {
@@ -1371,22 +1375,22 @@ onUnmounted(() => store.stopPolling());
   margin: 10px 0 0;
   padding: 12px;
   border-radius: 4px;
-  background: #f5f7fa;
-  color: #606266;
+  background: var(--app-hover);
+  color: var(--app-text-2);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: 12px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
 }
 
 .report-block h3 {
   margin: 0 0 12px;
-  color: #303133;
+  color: var(--app-text);
   font-size: 16px;
 }
 
 .report-copy {
-  color: #606266;
+  color: var(--app-text-2);
   line-height: 1.6;
   font-size: 14px;
 }
@@ -1396,14 +1400,14 @@ onUnmounted(() => store.stopPolling());
 }
 
 .report-section strong {
-  color: #303133;
+  color: var(--app-text);
   font-size: 14px;
 }
 
 .report-section ul {
   margin: 8px 0 0;
   padding-left: 20px;
-  color: #606266;
+  color: var(--app-text-2);
   line-height: 1.6;
   font-size: 14px;
 }
@@ -1411,7 +1415,7 @@ onUnmounted(() => store.stopPolling());
 .section-list {
   margin: 8px 0 0;
   padding-left: 20px;
-  color: #606266;
+  color: var(--app-text-2);
   line-height: 1.6;
   font-size: 13px;
 }
@@ -1422,9 +1426,9 @@ onUnmounted(() => store.stopPolling());
 
 .formula-card-block {
   padding: 12px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--app-panel-2);
 }
 
 .formula-card-head {
@@ -1441,7 +1445,7 @@ onUnmounted(() => store.stopPolling());
 }
 
 .change-label {
-  color: #606266;
+  color: var(--app-text-2);
   font-size: 13px;
   font-weight: 500;
 }
@@ -1459,21 +1463,21 @@ onUnmounted(() => store.stopPolling());
 }
 
 .overview-item {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
-  background: #f8fafc;
+  background: var(--app-panel-2);
   padding: 10px;
 }
 
 .overview-label {
   font-size: 12px;
-  color: #909399;
+  color: var(--app-text-3);
 }
 
 .overview-value {
   margin-top: 4px;
   font-size: 18px;
-  color: #303133;
+  color: var(--app-text);
   font-weight: 600;
 }
 
@@ -1485,21 +1489,21 @@ onUnmounted(() => store.stopPolling());
 }
 
 .module-card {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--app-border);
   border-radius: 4px;
   padding: 10px;
-  background: #fff;
+  background: var(--app-panel);
 }
 
 .module-title {
-  color: #303133;
+  color: var(--app-text);
   font-weight: 600;
   font-size: 13px;
 }
 
 .module-copy {
   margin-top: 6px;
-  color: #606266;
+  color: var(--app-text-2);
   line-height: 1.5;
   font-size: 12px;
 }

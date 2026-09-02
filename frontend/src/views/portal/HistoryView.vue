@@ -3,22 +3,22 @@
     <el-card shadow="hover" class="box-card">
       <template #header>
         <div class="card-header">
-          <span>历史记录</span>
+          <span>{{ t("history.title") }}</span>
         </div>
       </template>
       <el-tabs v-model="activeTab">
-        <el-tab-pane label="知识问答" name="chat">
+        <el-tab-pane :label="t('menu.chat')" name="chat">
           <el-table :data="pagedChatSessions" border stripe size="small">
-            <el-table-column prop="title" label="标题" min-width="260" show-overflow-tooltip />
-            <el-table-column prop="status" label="状态" width="120">
+            <el-table-column prop="title" :label="t('history.sessionTitle')" min-width="260" show-overflow-tooltip />
+            <el-table-column prop="status" :label="t('history.status')" width="120">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'completed' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="updated_at" label="更新时间" width="180" />
-            <el-table-column label="操作" width="140" align="center">
+            <el-table-column prop="updated_at" :label="t('history.updatedAt')" width="180" />
+            <el-table-column :label="t('common.actions')" width="140" align="center">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="goChat(row.id)">查看</el-button>
+                <el-button link type="primary" size="small" @click="goChat(row.id)">{{ t("history.view") }}</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -33,18 +33,18 @@
             />
           </div>
         </el-tab-pane>
-        <el-tab-pane label="研发协同" name="rnd">
+        <el-tab-pane :label="t('menu.rnd')" name="rnd">
           <el-table :data="pagedRndSessions" border stripe size="small">
-            <el-table-column prop="title" label="标题" min-width="260" show-overflow-tooltip />
-            <el-table-column prop="status" label="状态" width="120">
+            <el-table-column prop="title" :label="t('history.sessionTitle')" min-width="260" show-overflow-tooltip />
+            <el-table-column prop="status" :label="t('history.status')" width="120">
               <template #default="{ row }">
                 <el-tag :type="row.status === 'completed' ? 'success' : 'info'" size="small">{{ row.status }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="updated_at" label="更新时间" width="180" />
-            <el-table-column label="操作" width="140" align="center">
+            <el-table-column prop="updated_at" :label="t('history.updatedAt')" width="180" />
+            <el-table-column :label="t('common.actions')" width="140" align="center">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="goRnd(row.id)">进入</el-button>
+                <el-button link type="primary" size="small" @click="goRnd(row.id)">{{ t("history.enter") }}</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -68,9 +68,11 @@
 import { onMounted, ref, computed } from "vue";
 import { useRouter } from "vue-router";
 
+import { useI18n } from "../../composables/useI18n";
 import { useChatStore } from "../../stores/chat";
 import { useRndStore } from "../../stores/rnd";
 
+const { t } = useI18n();
 const activeTab = ref("chat");
 const chatStore = useChatStore();
 const rndStore = useRndStore();
@@ -119,7 +121,7 @@ onMounted(async () => {
 :deep(.el-table th.el-table__cell) {
   font-size: 14px;
   font-weight: 600;
-  background-color: #f5f7fa;
+  background-color: var(--el-table-header-bg-color);
 }
 :deep(.el-pagination) {
   font-size: 14px;

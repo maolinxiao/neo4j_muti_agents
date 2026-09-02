@@ -4,10 +4,9 @@
       <el-col :sm="24" :lg="24">
         <el-card shadow="never" class="welcome-card">
           <div class="welcome-content">
-            <h1 class="welcome-title">欢迎使用 药食同源研发协同平台</h1>
+            <h1 class="welcome-title">{{ t("home.welcomeTitle") }}</h1>
             <p class="welcome-desc">
-              本系统基于知识图谱与多智能体技术，提供药食同源产品研发的智能化辅助决策。
-              核心功能包括：图谱检索、组方建议、功效预测、风味分析和替代映射。
+              {{ t("home.welcomeDesc") }}
             </p>
           </div>
         </el-card>
@@ -22,7 +21,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">3</div>
-            <div class="stat-label">核心工作台</div>
+            <div class="stat-label">{{ t("home.statWorkbenches") }}</div>
           </div>
         </el-card>
       </el-col>
@@ -33,7 +32,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">5</div>
-            <div class="stat-label">研发 Agent</div>
+            <div class="stat-label">{{ t("home.statAgents") }}</div>
           </div>
         </el-card>
       </el-col>
@@ -44,7 +43,7 @@
           </div>
           <div class="stat-info">
             <div class="stat-value">Neo4j</div>
-            <div class="stat-label">证据底座</div>
+            <div class="stat-label">{{ t("home.statEvidenceBase") }}</div>
           </div>
         </el-card>
       </el-col>
@@ -55,17 +54,17 @@
         <el-card shadow="hover" class="feature-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">体质辨识工作台</span>
+              <span class="card-title">{{ t("home.constitutionTitle") }}</span>
             </div>
           </template>
           <div class="feature-body">
-            <p class="feature-desc">适合先建立个人体质档案，完成量表测评或手动选择体质，让后续知识问答自动带入个体化背景。</p>
+            <p class="feature-desc">{{ t("home.constitutionDesc") }}</p>
             <ul class="feature-list">
-              <li>九种体质规则表格</li>
-              <li>标准量表逐题测评</li>
-              <li>体质档案与历史记录</li>
+              <li>{{ t("home.constitutionItem1") }}</li>
+              <li>{{ t("home.constitutionItem2") }}</li>
+              <li>{{ t("home.constitutionItem3") }}</li>
             </ul>
-            <el-button type="warning" @click="goConstitution">进入体质辨识</el-button>
+            <el-button type="warning" @click="goConstitution">{{ t("home.enterConstitution") }}</el-button>
           </div>
         </el-card>
       </el-col>
@@ -73,17 +72,17 @@
         <el-card shadow="hover" class="feature-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">知识问答工作台</span>
+              <span class="card-title">{{ t("home.qaTitle") }}</span>
             </div>
           </template>
           <div class="feature-body">
-            <p class="feature-desc">适合快速检索药材、方剂、功效、风味、替代和合规证据，查看证据图谱并追溯节点详情。</p>
+            <p class="feature-desc">{{ t("home.qaDesc") }}</p>
             <ul class="feature-list">
-              <li>药材 / 方剂 / 功效 / 合规检索</li>
-              <li>证据子图与参考来源</li>
-              <li>历史知识问答回看</li>
+              <li>{{ t("home.qaItem1") }}</li>
+              <li>{{ t("home.qaItem2") }}</li>
+              <li>{{ t("home.qaItem3") }}</li>
             </ul>
-            <el-button type="primary" @click="goKnowledge">进入知识问答</el-button>
+            <el-button type="primary" @click="goKnowledge">{{ t("home.enterQa") }}</el-button>
           </div>
         </el-card>
       </el-col>
@@ -92,17 +91,17 @@
         <el-card shadow="hover" class="feature-card">
           <template #header>
             <div class="card-header">
-              <span class="card-title">研发协同工作台</span>
+              <span class="card-title">{{ t("home.rndTitle") }}</span>
             </div>
           </template>
           <div class="feature-body">
-            <p class="feature-desc">适合围绕产品目标发起研发工作流，查看方剂生成、功效预测、风味分析与替代映射结果。</p>
+            <p class="feature-desc">{{ t("home.rndDesc") }}</p>
             <ul class="feature-list">
-              <li>结构化研发需求解析</li>
-              <li>多阶段 Agent 自动化执行</li>
-              <li>替代对比与最终方案输出</li>
+              <li>{{ t("home.rndItem1") }}</li>
+              <li>{{ t("home.rndItem2") }}</li>
+              <li>{{ t("home.rndItem3") }}</li>
             </ul>
-            <el-button type="success" @click="goRnd">进入研发协同</el-button>
+            <el-button type="success" @click="goRnd">{{ t("home.enterRnd") }}</el-button>
           </div>
         </el-card>
       </el-col>
@@ -114,6 +113,9 @@
 import { useRouter } from "vue-router";
 import { Monitor, Cpu, Share } from "@element-plus/icons-vue";
 
+import { useI18n } from "../../composables/useI18n";
+
+const { t } = useI18n();
 const router = useRouter();
 
 const goConstitution = () => router.push({ name: "constitution" });
@@ -195,13 +197,13 @@ const goRnd = () => router.push({ name: "rnd" });
 .stat-value {
   font-size: 24px;
   font-weight: bold;
-  color: #303133;
+  color: var(--app-text);
   margin-bottom: 8px;
 }
 
 .stat-label {
   font-size: 14px;
-  color: #909399;
+  color: var(--app-text-3);
 }
 
 .feature-card {
@@ -217,7 +219,7 @@ const goRnd = () => router.push({ name: "rnd" });
 .card-title {
   font-size: 16px;
   font-weight: 500;
-  color: #303133;
+  color: var(--app-text);
 }
 
 .feature-body {
@@ -225,7 +227,7 @@ const goRnd = () => router.push({ name: "rnd" });
 }
 
 .feature-desc {
-  color: #606266;
+  color: var(--app-text-2);
   font-size: 14px;
   line-height: 1.6;
   margin-bottom: 16px;
@@ -234,7 +236,7 @@ const goRnd = () => router.push({ name: "rnd" });
 .feature-list {
   padding-left: 20px;
   margin-bottom: 24px;
-  color: #606266;
+  color: var(--app-text-2);
   font-size: 14px;
   line-height: 2;
 }

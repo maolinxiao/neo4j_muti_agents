@@ -45,7 +45,10 @@ backend/app/
 │   └── seed_data.py           # Prompt / Cypher / SystemConfig 种子
 ├── domain/                    # 预留领域层目录
 ├── prompts/
-│   └── knowledge_qa_answer_rules.md  # 知识问答回答规则
+│   ├── knowledge_qa_answer_rules.md  # 知识问答安全边界与长文本回答约束
+│   ├── qa_reasoning_flow.md          # 五步思考过程、企业/个人任务清单、图谱缺口
+│   ├── qa_route_rules.json           # 机器可读路由、KB、缺失槽位、回答小标题（v2）
+│   └── qa_route_eval_cases.json      # 路由回归用例（validate_qa_routing.py）
 ├── repositories/
 │   ├── postgres_repository.py
 │   └── neo4j_repository.py
@@ -64,6 +67,7 @@ backend/app/
 │   ├── minimax_client.py      # 历史兼容，新增逻辑不要优先使用
 │   ├── qa_answer_templates.py
 │   ├── qa_orchestrator.py
+│   ├── qa_routing.py              # qa_route_rules.json 解析、受众判定、缺失槽位追问
 │   ├── question_classifier.py
 │   └── rnd_workflow_orchestrator.py
 └── utils/                     # 预留工具目录
@@ -105,6 +109,8 @@ frontend/src/
 其他目录：
 
 - `scripts/import_agent_kg_0604.py`：0604 KB1-KB8 + CDB1 Neo4j 全量重建脚本。
+- `scripts/restore_neo4j_backup.py`：从 `neo4j_backups/` JSON 备份回退图谱。
+- `scripts/validate_qa_routing.py`：读取 `qa_route_eval_cases.json` 做路由回归。
 - `scripts/import_neo4j_graph_v3.py`、`scripts/import_agent_project_data.py`：历史/参考脚本，非当前主线。
 - `frontend/remotion/`：登录背景等视频/视觉生成相关代码。
 - `frontend/public/` 与 `frontend/dist/`：登录背景资源和构建产物。
@@ -309,7 +315,8 @@ frontend/src/
 - 问答业务分流以 `qa_route` 为唯一细分路由入口；`question_type` 只保留为旧模板和检索兼容字段。
 - 企业端：产品研发、名方/方剂药食同源化、单味药替代、风味优化、剂型工艺、竞品市场、合规审查。
 - 个人端：9 种体质辨识、个性化食养推荐、产品适配判断、禁忌风险提醒。
-- 可以展示清洗后的分析摘要，让用户看到问题理解、证据取舍和边界判断。
+- 可以展示清洗后的分析摘要，让用户看到问题理解、证据取舍和边界判断；摘要必须按五步编号：任务分流 → 核心信息检查 → KB 路由 → 风险/合规边界 → 回答与追问。
+- 个人端缺少体质档案、年龄人群、风险状态、主要诉求或口味偏好时，必须在【追问建议】中按 `missing_slots.priority` 主动追问；企业端缺少目标功效、剂型、人群、风味或合规约束时同理。
 - 不暴露提示词、系统设定、JSON 字段冲突、内部推理标签或原始 `<think>` 标签。
 - 前端展示的过程说明名称仍使用“图谱检索与证据整理摘要”。
 - `evidence_summary` 应描述检索到的 KB、实体、关系和下一步验证动作，不要复读 `conclusion`。
@@ -318,18 +325,43 @@ frontend/src/
 - 产品研发回答必须逐味说明最终配方相对参考原方的“保留、替换、新增、删除”；“替换”必须有 `CAN_REPLACE` 关系，KB4 原始分与系统综合可信度按 100 分制分列，且不得表述为临床有效率。
 - `product_development` 使用 `graph_grounded` 回答模式，检索完成后按回答小标题直接发送确定性图谱答案；不得先流式展示模型自拟配方，再通过 `answer_reset` 纠正名方、原料或替换关系。
 
-### 6.3 关键模板文件
+### 6.3 规则文件分工
 
-- `qa_orchestrator.py`：问答编排、上下文构建、本地兜底、检索摘要。
-- `qa_route_rules.json`：企业/个人端路由、必检 KB、缺失槽位、回答小标题、证据要求和优先实体类型。
-- `qa_reasoning_flow.md`：五步过程摘要规则，统一“任务分流 -> 核心信息检查 -> KB 路由 -> 风险/合规边界 -> 回答与追问”。
-- `qa_answer_templates.py`：不同问题类型的小标题顺序和后处理。
-- `knowledge_qa_answer_rules.md`：业务回答规则主约束。
-- `question_classifier.py`：问题类型关键词分类。
-- `graph_retriever.py`：证据子图召回。
+| 文件 | 格式 | 维护内容 | 由谁读取 |
+|---|---|---|---|
+| `qa_route_rules.json` | JSON | `qa_route` 路由表、`required_kbs`、`missing_slots`（含 `priority`/`required`）、`answer_outline`、`evidence_requirements`、`audience_signals`、`reasoning_templates` | `qa_routing.py` |
+| `qa_reasoning_flow.md` | Markdown | 五步思考顺序、企业 6 类/个人 5 类任务说明、典型问题、图谱缺口（禁止模型补全） | 人工维护；`qa_orchestrator` / LLM 提示引用 |
+| `knowledge_qa_answer_rules.md` | Markdown | 安全边界、企业/个人分流、KB 路由、评分展示、禁止项 | `QAOrchestrator` 拼入系统提示 |
+| `qa_route_eval_cases.json` | JSON | 路由回归用例（`question` + 期望 `qa_route`/`audience`） | `scripts/validate_qa_routing.py` |
+
+新增或调整问答路由时，优先改 `qa_route_rules.json`；涉及思考过程展示顺序或业务叙事时同步改 `qa_reasoning_flow.md`；涉及安全边界或评分表述时同步改 `knowledge_qa_answer_rules.md`；新增典型验收问题必须同步更新 `qa_route_eval_cases.json`。
+
+### 6.4 关键代码文件
+
+- `qa_routing.py`：`QARoute` 解析、`detect_audience()`、`missing_slot_questions()`、`reasoning_steps_for()`、`data_gap_notes()`。
+- `qa_orchestrator.py`：问答编排、五步 `evidence_summary`、缺失信息追问、上下文构建、本地兜底。
+- `qa_answer_templates.py`：按 `qa_route` 的小标题顺序、LLM 约束与后处理。
+- `question_classifier.py`：问题类型关键词分类（兼容 `question_type`）。
+- `graph_retriever.py`：按路由优先实体与证据子图召回。
 - `frontend/src/utils/qaAnswerFormat.js`：前端小标题解析、排序和样式分类。
 
-### 6.4 验收问题类型
+### 6.5 企业/个人 `qa_route` 一览
+
+| 端 | `qa_route` | 说明 |
+|---|---|---|
+| 企业 | `product_development` | 产品研发与配方生成 |
+| 企业 | `formula_foodification` | 名方/方剂药食同源化 |
+| 企业 | `herb_replacement` | 单味药替代 |
+| 企业 | `flavor_form_factor` | 风味优化与剂型工艺 |
+| 企业 | `market_analysis` | 竞品与市场 |
+| 企业 | `compliance_review` | 合规审查 |
+| 个人 | `constitution_assessment` | 九种体质辨识 |
+| 个人 | `personalized_food_recommendation` | 个性化食养推荐 |
+| 个人 | `personal_product_fit` | 产品适配判断 |
+| 个人 | `personal_product_recommendation` | 成品选购推荐 |
+| 个人 | `risk_boundary` | 禁忌与风险边界 |
+
+### 6.6 验收问题类型
 
 以下问题必须能路由到合理模板：
 
@@ -581,10 +613,11 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 至少检查：
 
 - 分类器对 5 个业务验收问题的分类。
-- `scripts\validate_qa_routing.py` 中典型问题的 `qa_route/question_type/audience` 全部通过。
-- 回答正文使用 `【】` 小标题。
+- `scripts\validate_qa_routing.py` 中 `qa_route_eval_cases.json` 全部用例的 `qa_route/question_type/audience` 通过。
+- 回答正文使用 `【】` 小标题；`evidence_summary` 含五步编号。
+- 个人端缺信息时 `follow_up_questions` 含体质/人群/风险/口味等追问。
 - 前端过程区标题为“图谱检索与证据整理摘要”。
-- 回答和证据摘要不出现 `<think>`、提示词、系统设定、JSON 字段冲突。
+- 回答和证据摘要不出现 `<think>`、提示词、系统设定、JSON 字段冲突、“图谱未提供”等系统视角措辞。
 
 ---
 
@@ -608,9 +641,15 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 | `backend/app/db/seed_data.py` | Prompt/Cypher/SystemConfig 种子 | 高 |
 | `backend/app/repositories/neo4j_repository.py` | Neo4j 查询、图谱转换、节点/边优先级 | 高 |
 | `backend/app/repositories/postgres_repository.py` | PostgreSQL CRUD | 中 |
-| `backend/app/services/qa_orchestrator.py` | 知识问答编排、上下文、fallback、检索摘要 | 高 |
+| `backend/app/services/qa_orchestrator.py` | 知识问答编排、五步摘要、追问、fallback | 高 |
+| `backend/app/services/qa_routing.py` | 路由解析、受众判定、缺失槽位、思考步骤 | 高 |
 | `backend/app/services/qa_answer_templates.py` | QA 小标题模板与后处理 | 高 |
-| `backend/app/prompts/knowledge_qa_answer_rules.md` | 知识问答回答规则 | 高 |
+| `backend/app/prompts/qa_route_rules.json` | 机器可读 QA 路由 v2 | 高 |
+| `backend/app/prompts/qa_reasoning_flow.md` | 五步思考过程与任务清单 | 高 |
+| `backend/app/prompts/knowledge_qa_answer_rules.md` | 知识问答安全边界与回答规则 | 高 |
+| `backend/app/prompts/qa_route_eval_cases.json` | 路由回归用例 | 中 |
+| `scripts/validate_qa_routing.py` | QA 路由回归脚本 | 中 |
+| `scripts/restore_neo4j_backup.py` | Neo4j JSON 备份回退 | 低 |
 | `backend/app/services/graph_retriever.py` | 图谱证据召回与裁剪 | 高 |
 | `backend/app/services/question_classifier.py` | 问题类型分类 | 中 |
 | `backend/app/services/entity_resolver.py` | 实体识别与消歧 | 中 |
@@ -637,7 +676,7 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 - [ ] Route：在 `routes.py` 添加 API 端点。
 - [ ] 种子数据：如需 Prompt/Cypher/SystemConfig，更新 `seed_data.py`。
 - [ ] 图谱建模：涉及新节点/关系时完成第 5 节 Checklist。
-- [ ] QA 规则：影响问答框架时更新 `knowledge_qa_answer_rules.md` 和 `qa_answer_templates.py`。
+- [ ] QA 规则：影响路由时更新 `qa_route_rules.json`、`qa_reasoning_flow.md`、`knowledge_qa_answer_rules.md`、`qa_answer_templates.py`，并同步 `qa_route_eval_cases.json`。
 - [ ] 前端 API：在 `client.js` 添加接口方法。
 - [ ] 前端 Store：如需全局状态，更新 `stores/`。
 - [ ] 前端页面：新增或更新 `views/`。

@@ -1,0 +1,62 @@
+{
+  "name": "inner-orbit-redesign",
+  "id": "inner-orbit-redesign",
+  "description": "执行已批准的特写重设计计划：移除小圆圈与大圆圈之间的连线，小圆圈改为三环轨道（原子模型风）均匀布局+绽放展开动画+标签朝向策略，构建验收并部署前端上线。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788083398492,
+  "members": [
+    {
+      "id": "bebf0c94-4f45-4cb5-853b-0e7644c87c1a",
+      "name": "fe-3d",
+      "role": "3D 场景工程师：去连线+三环轨道+绽放动画+标签朝向",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788083403165,
+      "status": "removed"
+    },
+    {
+      "id": "18324278-946e-45e0-bfb8-b296de01d13b",
+      "name": "deploy-qa",
+      "role": "验收与上线：构建/Playwright 截图验收/部署/公网回归",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788083403187,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "t1 特写重设计（去连线+三环轨道）",
+      "description": "t1 特写内部展开重设计（去连线 + 三环轨道 + 绽放动画 + 标签朝向）。\n文件：frontend/src/components/showcase/HeroKnowledgeScene.vue（先完整读，当前 1563 行；上一轮 t2 遮挡修复已合入，勿破坏）。工作区 D:\\python_workspace\\neo4j_muti_agents。按批准计划执行：\n1. 删除连线：移除 innerLinks 的创建（buildInnerNetwork 中 config.links 的渲染循环）、animate 中 innerLinks 的更新引用、dispose 相关引用；createInnerLink 函数可删除或保留不调用（建议删除并清理 INNER_TUBE_* 常量）；config.links 数据字段保留不动。\n2. 三环轨道布局（替代 innerSpherePos 与 PLATFORM_INNER_LAYOUT）：\n   - 新函数 ringPosition(nodeId, index, total, radius)：RING_COUNT=3；第 i 环半径 R_i=radius*(1+0.18*i)、倾角 tilt_i=(-0.42, +0.08, +0.52) rad（绕 X 或 Z 轴错开实现）、卫星按 index%3 轮询分配、每环内等角间距 2π/n_i + 黄金相位（φ=π(3-√5)）偏移；平台节点同样算法仅半径基数更大（保持其 8 个卫星与名称/副标题）。\n   - 卫星球体半径 1.15→1.05（平台 0.96→0.90）。\n   - 每环一个子 Group（记录环参数：radius/tilt/axis/speed/direction/phase），卫星 pos 相对环局部坐标（落在环平面圆周上）；animate 中环绕自身法向轴缓慢公转（0.09/0.12/0.15 rad/s 交替方向）+ 卫星环面内相位错开轻呼吸（±0.1）。\n3. 绽放展开：innerReveal 提升时环整体 scale 0.35→1.0 平滑展开（用现有 exp 平滑与 inner.group.scale 揭示节奏兼容），卫星 opacity 0→1 同步；特写极值（innerReveal>0.85）整体 ×1.06 轻微外扩。\n4. 标签朝向：animate 中对每个卫星标签计算 dot(卫星世界方向, 相机视线)（用 camera 视向），背对隐藏/正面显示，opacity 0.2s 平滑；沿用现有标签按相机距离排序 renderOrder；保证不挡大球。\n5. 规范：新常量置顶；不破坏上一轮 t2 的视线遮挡淡出/链接聚焦/标签分层逻辑（该逻辑作用于主节点系统，本任务只重构 innerNetwork 内部）；尊重 useShowcaseMotionPreference；不动 HeroGraphFallback。\n6. 验证：cd frontend && npm run build 通过；本地 npm run dev 冒烟（SFC 转换 200、无报错）。git commit -m \"fix: 特写内部展开重设计（去连线+三环轨道小圆圈）\"（含重建的 dist）。\n输出：改动摘要（新常量/函数/删除项）、build 结果、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "fe-3d",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788083424794,
+      "updatedAt": 1788084015466,
+      "attemptId": "f6190888-c60e-45c0-b0ae-4b2df6ba5c28",
+      "reassigning": false,
+      "output": "t1 完成。文件 frontend/src/components/showcase/HeroKnowledgeScene.vue（+118/−117 行）：\n1. 去连线：删除 createInnerLink、INNER_TUBE_SEGMENTS/INNER_TUBE_RADIAL、buildInnerNetwork 中 config.links 渲染循环与 animate 中 innerLinks 更新；config.links 数据字段保留不动（JSON 未改）；dispose 无 innerLinks 引用。\n2. 三环轨道：新常量置顶（INNER_RING_COUNT=3、INNER_RING_TILTS=[-0.42,0.08,0.52]、轴 x/z/x、INNER_RING_RADIUS_STEP=0.18、INNER_RING_SPEEDS=[0.09,0.12,0.15] 交替方向、INNER_GOLDEN_ANGLE）；新函数 innerRingOf/innerRingNodeCount/innerRingRadiusOf/ringPosition(nodeId,index,total,radius) 替代 innerSpherePos/PLATFORM_INNER_LAYOUT/innerNodePosition（index%3 轮询、环内等角 2π/n_i+黄金相位+节点种子）；buildInnerNetwork 每环一个子 Group 记录 radius/tilt/axis/speed/direction/phase，卫星 pos 为环局部坐标，平台同算法仅半径基数更大（保持 8 卫星与名称/副标题）；卫星半径 1.15→1.05、平台 0.96→0.90。\n3. 绽放：inner.group.scale 0.35→1.0（原 0.45→1.0），innerReveal>0.85 整体 ×1.06；卫星 opacity 0→1 同步。\n4. 标签朝向：animate 中 dot(卫星世界方向, 相机视线)（已修正符号：相机与球心之间的卫星为正面）背对淡出，≈0.2s exp 平滑（SAT_LABEL_FACING_FADE_K=5）；沿用现有 labelEntries 按相机距离 renderOrder 分层，mini label depthTest 保持开启不挡大球。\n5. 兼容：t2 视线遮挡/链接聚焦/标签分层逻辑未动；reducedMotion 下公转 ×0.4、呼吸 ×0.5；未动 HeroGraphFallback。\n验证：npm run build 通过（10.59s，仅 chunk>500kB 已知警告）；npm run dev 冒烟 SFC 转换 200（527KB 响应含新代码），dev server 日志无报错。\ncommit：2f9ea2f2 \"fix: 特写内部展开重设计（去连线+三环轨道小圆圈）\"，含重建 dist（8 文件：HeroKnowledgeScene-*.css/js、index-*.js、showcase-3d-*.js、index.html）。未部署。"
+    },
+    {
+      "id": "t2",
+      "subject": "t2 构建验收与部署上线",
+      "description": "t2 构建 + Playwright 截图验收 + 部署 + 公网回归。\n前置：t1 已提交。工作区 D:\\python_workspace\\neo4j_muti_agents。服务器 root@118.24.185.45（SSH 密码 mmfh2025KS686 不回显）；前端目录 /www/wwwroot/neo4j-agents/frontend-dist；后端不重启。\n步骤：\n1. cd frontend && npm run build（确保 dist 最新）。\n2. 本机验收（Playwright 用本机 Edge：executablePath C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe 或 channel:'msedge'；可 load 本会话 webapp-testing skill）：起 npm run dev -- --host 127.0.0.1 --port 5173 后台 → 打开 http://127.0.0.1:5173/ 连拍（每 3-4s 一张，20+ 帧覆盖完整特写轮播周期）→ 挑特写帧核对验收标准：小圆圈与大球之间【无任何连线】、三环轨道清晰可见、卫星均匀无聚堆、小标签无遮挡乱叠、画面无过曝白斑、整体风格与之前一致；截图存 .tmp-inner-check/shots/。\n3. 部署：SSH cp -r frontend-dist frontend-dist.bak-$(date +%Y%m%d%H%M%S)（回滚点）→ SFTP 上传 frontend/dist/** 覆盖 → 清理旧 hash 资源（保留 index.html 引用项）。\n4. 公网回归：http://118.24.185.45/ 200 且新 bundle 生效；/login 200；/api/health 200；登录冒烟（captcha→login→logout）。\n5. DEPLOY.md（服务器+本地 deploy/DEPLOY.md）追加「2026-09 特写内部展开重设计」记录。\n6. 汇总验收报告（截图路径 + 逐项 PASS/FAIL）。关键项失败 → failed 附现象/原因/建议。",
+      "status": "completed",
+      "assignee": "deploy-qa",
+      "dependencies": [
+        "t1"
+      ],
+      "attempt": 1,
+      "createdAt": 1788083424827,
+      "updatedAt": 1788085702950,
+      "attemptId": "6ef11feb-a99b-4248-b22d-7b7e3a40a232",
+      "reassigning": false,
+      "output": "t2 完成，全部 PASS 并已上线。\n1) 构建：frontend npm run build（Vite 5.4.21）exit 0，dist 9 文件，新 hash：index-DhdqM3mh.js / index-CAw3ZOu8.css / HeroKnowledgeScene-x0ezEfm_.js / HeroKnowledgeScene-DVgML9Jm.css / showcase-3d-CjTivXqx.js。\n2) 本机验收：Playwright（本机 Edge headless）连拍 32 帧（3-4s/帧、132s，覆盖开场+完整 8 节点特写轮播；大球半径 36↔187px 周期振荡确认轮播正常）。截图 .tmp-inner-check/shots/frame_00-31.png。逐项：无连线 PASS（createInnerLink/innerLinks/INNER_TUBE 已删，grep 零命中；像素级近球线段密度 64.0→38.1 降幅 40%，无径向连线）；三环轨道 PASS（3 环 Group、倾角 [-0.42,0.08,0.52]、半径步进 0.18、交替公转；卫星多角度多半径绕球分布）；卫星均匀无聚堆 PASS（环内等角+黄金相位；最小成对距离/r 均值 0.40 优于旧版 0.22）；标签无遮挡乱叠 PASS（16 帧面板两两 IoU 重叠=0）；无过曝白斑 PASS（近白 0.23%<旧基线 0.53%，最大连通块 0.077%<0.14%）；风格一致 PASS（新旧 HSV 直方图相关性 0.9922）。控制台仅 favicon 404（既有非阻塞）+THREE.Clock deprecation 警告。\n3) 部署：回滚点 /www/wwwroot/neo4j-agents/frontend-dist.bak-20260830182321；SFTP 上传 9 文件；权限 755/644。⚠ 首轮清理按\"保留 index.html 引用项\"误删了动态 import 的 HeroKnowledgeScene-*.js/css 两个 chunk（不在 index.html 引用表内），已当场补传、服务器 sha256 MATCH，生产浏览器级验证 canvas 渲染正常、fallback 未启用、控制台零错误。教训已写入 DEPLOY.md。\n4) 公网回归：/ 200 且新 bundle 生效；5 个新资源全 200；/login 200；/api/health 200（postgres/neo4j/llm 均 true）；登录冒烟 captcha→login(admin)→me→logout 全 200（验证码 OCR 用服务器同款 DejaVuSans.ttf）。\n5) DEPLOY.md：服务器 /www/wwwroot/neo4j-agents/deploy/DEPLOY.md 与本地 deploy/DEPLOY.md 均追加「2026-09 特写内部展开重设计（P6）」记录（含上述教训）。后端未重启。"
+    }
+  ],
+  "taskSeq": 2
+}

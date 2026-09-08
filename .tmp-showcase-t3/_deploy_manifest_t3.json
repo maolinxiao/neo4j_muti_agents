@@ -1,0 +1,74 @@
+{
+ "bak_dir": "/www/wwwroot/neo4j-agents/frontend-dist.bak-20260831000611",
+ "refs_before": [
+  "/assets/index-CAw3ZOu8.css",
+  "/assets/index-DhdqM3mh.js",
+  "/assets/showcase-3d-CjTivXqx.js",
+  "https://fonts.googleapis.com",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap",
+  "https://fonts.gstatic.com"
+ ],
+ "refs_after": [
+  "/assets/index-AzZonmcz.css",
+  "/assets/index-CDUurgba.js",
+  "/assets/showcase-3d-BbLLm7wP.js",
+  "https://fonts.googleapis.com",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap",
+  "https://fonts.gstatic.com"
+ ],
+ "keep_assets": [
+  "HeroKnowledgeScene-BmkO4RJu.js",
+  "HeroKnowledgeScene-DVgML9Jm.css",
+  "css2",
+  "fonts.googleapis.com",
+  "fonts.gstatic.com",
+  "index-AzZonmcz.css",
+  "index-CDUurgba.js",
+  "showcase-3d-BbLLm7wP.js"
+ ],
+ "assets_before_count": 5,
+ "stale_removed": [
+  "HeroKnowledgeScene-x0ezEfm_.js",
+  "index-CAw3ZOu8.css",
+  "index-DhdqM3mh.js",
+  "showcase-3d-CjTivXqx.js"
+ ],
+ "files": {
+  "index.html": {
+   "size": 794,
+   "sha256": "345839bd768523f608b15b63d235ccc4c3bc48e7f33748dabc3743aeb7e13f3f"
+  },
+  "login-bg-poster.svg": {
+   "size": 833,
+   "sha256": "1699cde3bd285c15e84df2ce8cdc33f418fc158a13969b9874f4a79a7b5ddc6a"
+  },
+  "login-bg-still.png": {
+   "size": 2023058,
+   "sha256": "78335cedee32f35d89a2b0f528bdd0359b3dffae1f8c0332bd74456b81ee9b87"
+  },
+  "login-bg.mp4": {
+   "size": 1916063,
+   "sha256": "ce759ea04c089a125b067c35ac85eba92c860d239f27ae5ea2d8db3108280b17"
+  },
+  "assets/HeroKnowledgeScene-BmkO4RJu.js": {
+   "size": 37075,
+   "sha256": "db4ac6eb6654cf58269a23909b084cdf77baa331dbb207c2e52af90dc75a6638"
+  },
+  "assets/HeroKnowledgeScene-DVgML9Jm.css": {
+   "size": 686,
+   "sha256": "a2ea04b4179bfbc989ea478d664c7acae0aecf05f86eb189dff8abc5a87451eb"
+  },
+  "assets/index-AzZonmcz.css": {
+   "size": 447510,
+   "sha256": "7f760743b727d19564f514b6efff7078b9b71174e8fe19f12f73b579671f1a42"
+  },
+  "assets/index-CDUurgba.js": {
+   "size": 1302609,
+   "sha256": "812178ace3df501d35040ac952b0f106500f4133db932ed4515ab7e776a6fb13"
+  },
+  "assets/showcase-3d-BbLLm7wP.js": {
+   "size": 536556,
+   "sha256": "166fe939c0b4eb215f26c6fc927e9c3d08bade83ababbd6c14a46f26c4538897"
+  }
+ }
+}

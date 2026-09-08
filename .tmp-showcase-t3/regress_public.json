@@ -1,0 +1,47 @@
+[
+ {
+  "item": "GET / 200",
+  "ok": true,
+  "detail": "status=200"
+ },
+ {
+  "item": "index.html has new main bundle",
+  "ok": true,
+  "detail": "refs=['/assets/index-AzZonmcz.css', '/assets/index-CDUurgba.js', '/assets/showcase-3d-BbLLm7wP.js', 'https://fonts.googleapis.com', 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap', 'https://fonts.gstatic.com']"
+ },
+ {
+  "item": "all new dist resources 200",
+  "ok": true,
+  "detail": "assets/HeroKnowledgeScene-BmkO4RJu.js=200; assets/HeroKnowledgeScene-DVgML9Jm.css=200; assets/index-AzZonmcz.css=200; assets/index-CDUurgba.js=200; assets/showcase-3d-BbLLm7wP.js=200; index.html=200; login-bg-poster.svg=200; login-bg-still.png=200; login-bg.mp4=200"
+ },
+ {
+  "item": "GET /login 200",
+  "ok": true,
+  "detail": "status=200"
+ },
+ {
+  "item": "health 200 (postgres/neo4j/llm)",
+  "ok": true,
+  "detail": "status=200 {\"status\": \"ok\", \"postgres\": true, \"neo4j\": true, \"llm_configured\": true}"
+ },
+ {
+  "item": "captcha-auto OCR",
+  "ok": true,
+  "detail": "rc=0"
+ },
+ {
+  "item": "login (admin-env) 200",
+  "ok": true,
+  "detail": "rc=0"
+ },
+ {
+  "item": "me 200",
+  "ok": true,
+  "detail": "rc=0"
+ },
+ {
+  "item": "logout 200",
+  "ok": true,
+  "detail": "status=200"
+ }
+]

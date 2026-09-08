@@ -1,0 +1,111 @@
+{
+  "name": "ui-polish",
+  "id": "ui-polish",
+  "description": "执行已批准的 UI 优化计划：修复首页 HeroKnowledgeScene 特写阶段遮挡问题（视线遮挡淡出/链接聚焦/标签分层/内部展开减熵），登录页升级为玻璃拟态深色系，并行调研可复用 three.js 模板，最终构建+Playwright 截图验收+部署上线（仅前端）。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788078740835,
+  "members": [
+    {
+      "id": "60d25426-0fc5-4666-a538-6ba0a841150d",
+      "name": "researcher",
+      "role": "模板调研员：调研可复用 three.js 网络图模板并输出对比报告",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788078747448,
+      "status": "removed"
+    },
+    {
+      "id": "ba10136a-7474-42f6-81be-c7f2b132a85e",
+      "name": "fe-3d",
+      "role": "3D 场景工程师：修复 HeroKnowledgeScene 特写遮挡（保留风格）",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788078747474,
+      "status": "removed"
+    },
+    {
+      "id": "a1600cba-6f16-43c0-b1d2-987a683d9b61",
+      "name": "fe-login",
+      "role": "登录页工程师：LoginView 玻璃拟态深色系美化",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788078747494,
+      "status": "removed"
+    },
+    {
+      "id": "d1cd3902-db6a-44c6-af86-0b35af214de6",
+      "name": "deploy-qa",
+      "role": "验收与上线：构建/Playwright 截图验收/部署/公网回归",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788078747521,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "t1 three.js 模板调研与对比报告",
+      "description": "t1 调研可复用的 three.js 网络图模板（备选/灵感，不替换代码）。\n背景：本项目首页 HeroKnowledgeScene（frontend/src/components/showcase/HeroKnowledgeScene.vue）是自研 three.js 知识图谱展示场景（球体节点+贝塞尔连线+CanvasTexture 标签 Sprite+UnrealBloom 后处理+聚光灯轮播特写），存在特写阶段遮挡问题（另由 fe-3d 修复）。当前依赖已含 three@0.184、3d-force-graph@1.80。\n任务：\n1. 用 web_search 检索（至少 3 个候选）：vasturiano/3d-force-graph 的 highlight/dim/标签深度处理机制与官方示例；codrops/tympanus.net 的 three.js 网络/粒子 showcase；GitHub 高星 three.js 知识图谱/神经网络/粒子网络模板（如 particle-network、force-graph 类、galaxy 类）。查星数、最近更新、许可证、运行方式（npm 包/独立 demo）、WebGL 特写/标签遮挡处理方式。\n2. 对照本项目需求评估：节点-连线-标签视觉、特写淡出/聚焦能力、与现有\"聚光灯轮播+内部展开\"叙事兼容性、接入成本（是否需重写/新增依赖/构建兼容 Vite5）、许可证（MIT 优先）。\n3. 输出对比表（候选/星数/遮挡处理/风格/接入成本/许可证）与结论建议（默认结论：保留现有场景+修复优于整体替换；若某模板显著更优且迁移成本可控，说明理由与迁移步骤，由 captain/用户决定是否替换）。\n注意：只调研，不改代码；所有链接注明来源 URL。",
+      "status": "completed",
+      "assignee": "researcher",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788078803301,
+      "updatedAt": 1788079250987,
+      "attemptId": "9ca35446-843e-496b-af4d-37251f68e3c8",
+      "reassigning": false,
+      "output": "# three.js 网络图模板调研与对比报告（t1）\n\n调研方法：web_search + GitHub API（星数/许可证/最近 push 均为 2026-08 实时数据）+ npm registry 元数据；另读取本地 `frontend/src/components/showcase/HeroKnowledgeScene.vue`（1363 行）做需求对照。未改任何代码。\n\n## 一、候选对比表\n\n| 候选 | 星数 | 最近更新 | 许可证 | 运行方式 | 特写/标签遮挡处理 | 风格 | 接入成本（Vue3+Vite5） |\n|---|---|---|---|---|---|---|---|\n| vasturiano/3d-force-graph（npm 1.80.0，**本项目已有依赖**） | 6,354 | 2026-04（活跃） | MIT | npm ESM+UMD；依赖 `three \">=0.179 <1\"`、three-forcegraph、kapsule | `highlightNodes/highlightLinks` 自动淡化无关元素；`onNodeHover/onNodeClick` 回调喂高亮集合；`cameraPosition({x,y,z},lookAt,ms)` 内置推近聚焦；标签=three-spritetext 精灵（随深度被遮挡）或 CSS2D 对象（永远置顶不遮挡）；**无自动标签避让/遮挡剔除** | 默认数据可视化风格（素球+直线），需 `nodeThreeObject/linkThreeObject` 注入自定义网格才能达到 showcase 质感 | 依赖已存在且版本兼容；但现有\"聚光灯轮播状态机+内部展开\"需重写为其 accessor/回调，并引入 d3-force-3d 物理布局替代静态球壳 |\n| vasturiano/react-force-graph | 3,289 | 2026-02 | MIT | React 组件（同族） | 同上 | 同上 | **排除**：本项目是 Vue 3，不适用 |\n| tensorspace-team/tensorspace | 5,191 | 2022-12（停更~3.5 年） | Apache-2.0 | npm+独立 demo | 神经网络层级 3D 可视化（three.js），非通用知识图谱；标签遮挡无专门机制 | 深度学习模型叙事（Layer/模型堆叠） | **排除**：领域不符 + 停更 |\n| anvaka/ngraph（+ngraph.pixel） | 1,510 | 2026-06 | MIT | npm 模块集 | 2D WebGL 像素渲染器，无 3D 场景/标签面板 | 超大图性能向（百万级） | 仅可作布局引擎；渲染风格与本项目不符 |\n| cosmosgl/graph（cosmos.gl） | 1,262 | 2026-08（很活跃） | MIT | npm（TypeScript） | 自研 WebGL（**非 three.js**）GPU 加速 2D 力导向图，DOM 标签 | 大数据图分析仪表盘风格 | 另一套渲染栈，风格不符，**排除** |\n| tsparticles/tsparticles | 8,972 | 2026-08（活跃） | MIT | npm+官方 Vue3 组件 | 2D canvas/WebGL 粒子背景，支持粒子间 links（粒子网） | 背景氛围效果 | 只能替换尘埃/氛围层，不能承载知识图谱本体 |\n| Codrops：Interactive 3D Cluster（Francesco Michelini，2026-08，three.js+TSL） | 文章/教程 | 2026-08 | 教程（demo 无独立 npm 包；作者仓库未在 codrops org 找到） | 独立 demo（tympanus.net/Tutorials/3DCluster/） | hover 聚焦节点、淡化/隐藏无关元素的手法示范 | 高端粒子簇 showcase | 仅手法借鉴，不可作模板直接接入 |\n| Codrops：Phantom.land Interactive Grid + 3D Face Particle（2025-06）、UntilLabs Living Particle System（2025-12）、mcwi/animated-mesh-lines（MeshLine 教程，MIT 仓库） | 文章/教程 | 2025-2026 | 文章+配套仓库（部分 MIT） | 独立 demo | 粒子网格化布局天然避免节点互相遮挡；无 3D 标签 | 高端粒子/网格 showcase | 仅手法借鉴（实例化粒子、Shader 网格、MeshLine 弧线） |\n| Galaxy 类：Bruno Simon Three.js Journey galaxy generator | 课程 | 持续 | 课程内容（**非开源模板**，不可直接复用） | 课程代码 | 无标签/聚焦概念 | 银河粒子盘 | 手法已由本项目 dustField 实现（instanced+additive），无增量收益 |\n| Galaxy 类：abdulmubeen/galaxy-generator | 0 | 2023 | **无许可证** | 独立 demo | 无 | 银河粒子盘 | **排除**（0 星、无 license、停更） |\n\n## 二、与本项目需求对照\n\n1. **节点-连线-标签视觉**：现有自研场景（菲涅尔辉光球+渐变 CanvasTexture 标签+贝塞尔管状连线+UnrealBloom）显著高于所有模板的默认渲染。3d-force-graph 要达到同等质感必须用 nodeThreeObject 注入现有网格——等于重做现有工作，无净收益。\n2. **特写淡出/聚焦能力**：3d-force-graph 的 `highlightNodes`（淡化其他）与 `cameraPosition`（聚焦推近）与现有 `dimOthers`+相机平滑完全等价，无增量。**关键发现：没有任何模板自动解决\"特写时标签/球体互相遮挡\"**——3d-force-graph 的精灵标签只随深度遮挡、无避让；CSS2D 置顶又破坏纵深。即 fe-3d 正在修的遮挡问题，模板不提供现成方案。\n3. **与\"聚光灯轮播+内部展开\"叙事兼容性**：轮播状态机、桥接权重、内部卫星网络展开都是自研逻辑；换模板需将全部逻辑重写为 accessor/回调 + 引入力导向物理（破坏现有\"静态球壳+轨道环\"构图）。成本≈重写场景。\n4. **接入成本**：3d-force-graph@1.80 已在依赖中且与 three@0.184 版本兼容（`three >=0.179 <1`）、Vite5 无碍——瓶颈是逻辑重写而非依赖安装。其余候选要么领域不符、要么无许可证、要么是 2D/粒子背景。\n5. **许可证**：主候选（3d-force-graph/react-force-graph/ngraph/cosmos/tsparticles）均 MIT ✓；tensorspace 为 Apache-2.0 但停更；galaxy 类无可用开源模板。\n\n## 三、结论与建议（默认结论成立）\n\n**保留现有场景 + fe-3d 修复遮挡，优于整体替换。** 没有任何候选在\"视觉+特写叙事\"上显著更优且迁移成本可控。\n\n可**手法级借鉴（不改代码，供 fe-3d 参考）**：\n1. 特写期间对非焦点标签/节点整体隐藏或置近透明（Codrops 3DCluster/Phantom 手法，语义同 3d-force-graph highlightNodes），而非现有 0.32 的部分淡化——这是最便宜的遮挡解法。\n2. 焦点标签特写时可临时提升 renderOrder/关闭 depthTest 或换 CSS2D 思路置顶（3d-force-graph CSS2D 手法），需与纵深感权衡。\n3. 非焦点节点特写时可按\"朝向相机夹角\"整体缩小（现有 facing highlight 已有雏形，可加大衰减系数）。\n4. 若未来产品需求变为\"可拖拽/可悬停的真实知识图谱\"（而非装饰性 hero），再考虑基于现有依赖 3d-force-graph 新建独立组件（nodeThreeObject 复用现有球/标签、highlightNodes 绑定 hover、cameraPosition 做聚焦），**不要动 HeroKnowledgeScene**——新增组件路径，成本可控。\n\n## 四、来源 URL\n\n- https://github.com/vasturiano/3d-force-graph （README/官方示例 large-graph）\n- https://www.npmjs.com/package/3d-force-graph （1.80.0 依赖与入口，registry 数据）\n- https://github.com/vasturiano/react-force-graph\n- https://github.com/tensorspace-team/tensorspace\n- https://github.com/anvaka/ngraph\n- https://github.com/cosmosgl/graph\n- https://github.com/tsparticles/tsparticles\n- https://tympanus.net/codrops/2026/08/12/creating-an-interactive-3d-cluster-with-three-js-tsl-and-three-start/ （demo: https://tympanus.net/Tutorials/3DCluster/）\n- https://tympanus.net/codrops/2025/06/30/invisible-forces-the-making-of-phantom-lands-interactive-grid-and-3d-face-particle-system/\n- https://tympanus.net/codrops/2025/12/10/simulating-life-in-the-browser-creating-a-living-particle-system-for-the-untillabs-website/\n- https://github.com/mcwi/animated-mesh-lines\n- https://github.com/abdulmubeen/galaxy-generator\n- https://juejin.cn/post/7224402365453140026 （3d-force-graph 关联高亮用法参考）"
+    },
+    {
+      "id": "t2",
+      "subject": "t2 场景特写遮挡修复",
+      "description": "t2 修复 HeroKnowledgeScene 特写遮挡（保留现有视觉风格与聚光灯节奏，不新增依赖）。\n文件：frontend/src/components/showcase/HeroKnowledgeScene.vue（先完整读一遍，约 1360 行；参照 utils/heroGraphColors.js、composables/useShowcaseMotionPreference.js）。工作区 D:\\python_workspace\\neo4j_muti_agents。\n按批准计划 §3 实施：\n1. 视线遮挡淡出：animate 循环中，用 camera 视向对每个节点做\"相对焦点的深度判定\"——位于相机与焦点球之间（在前的）非焦点节点，随 spotWeight 平滑淡出（core/shell/wire/glow/label 整体 opacity 收敛到 ~0.02）；焦点后方节点沿用现有 dimOthers 并增强；全部用 exp 平滑（1-exp(-k·delta) 式 lerp），无跳变。注意 inner 子网络（satellite/cage/links）一并参与淡出。\n2. 链接聚焦策略：特写权重>阈值（建议 0.55，常量置顶）时，与焦点节点不相邻的 linkMeshes 淡出至 0.02；相邻链接保持；链路中点位于焦点球与相机之间时额外淡出（防\"线盖球\"）；particles 随所属链接淡出（particleFade 与所属 link 的 opacity 挂钩）。\n3. 标签分层：焦点节点标签在特写时 material.depthTest=false + renderOrder 高（如 200+）保证可读，scale 平滑放大，innerReveal>0.7 时淡出防满屏；非焦点标签 opacity ×(1−spotWeight·0.85)（比现有更激进）；所有标签每帧按相机距离排序赋 renderOrder（近者在上，避免文字互叠）。\n4. 内部展开减熵：innerReveal>0.6 时非焦点大球 core/shell/surfaceWire 完全淡出（opacity→0 平滑）；orbitRings/gyroRings/dustField 随特写权重收敛（在现有基础上再降一档）；bloomPass.strength 在特写极值段收敛，防焦点球过曝成白斑。\n5. 数值规范：所有新阈值/速度常量置顶命名清晰；尊重 useShowcaseMotionPreference（减少动效偏好下，淡出更直接、不放大标签）；不影响 HeroGraphFallback 路径。\n6. 验证：cd frontend && npm run build 通过；本机起 npm run dev 自测（如可，用 Playwright/浏览器截图特写阶段对比；否则代码走查+构建）。git commit -m \"fix: 首页图谱特写遮挡（视线淡出/链接聚焦/标签分层/内部展开减熵）\"。\n输出：改动摘要（含新常量与逻辑位置）、build 结果、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "fe-3d",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788078803338,
+      "updatedAt": 1788079695870,
+      "attemptId": "159a2a5c-6258-4395-b6fb-f7d18bebc513",
+      "reassigning": false,
+      "output": "已完成 HeroKnowledgeScene 特写遮挡修复（保留原有视觉风格/聚光灯节奏/无新增依赖）。仅改 frontend/src/components/showcase/HeroKnowledgeScene.vue（1363→1563 行）。\n\n【新常量（置顶，§3 常量区）】OCCLUSION_MIN_OPACITY=0.02、OCCLUSION_DEPTH_MARGIN=1.25、OCCLUSION_CONE_MARGIN=1.35、OCCLUSION_FADE_K=3.2 / _REDUCED=9.0、LINK_FOCUS_WEIGHT_THRESHOLD=0.55、LINK_FOCUS_MIN_OPACITY=0.02、LINK_FADE_K=3.0、LINK_MID_FRONT_KEEP=0.3、LINK_MID_CONE=2.4、DIM_OTHERS_FADE=0.42 / _REDUCED=0.55、LABEL_NON_FOCUS_FADE=0.85、LABEL_FOCUS_RENDER_ORDER=210、LABEL_DIST_SORT_BASE=30 / _RANGE=140、LABEL_INNER_FADE_THRESHOLD=0.7 / _RANGE=0.15、LABEL_FOCUS_SCALE_BOOST=0.2、INNER_FADE_THRESHOLD=0.6 / _RANGE=0.3、RING_SPOT_FADE=0.6、GYRO_SPOT_FADE=0.78、DUST_SPOT_FADE=0.24、BLOOM_CONVERGE_START=0.86 / _RANGE=0.14 / BLOOM_EXTREME_CONVERGE=0.28。\n\n【逻辑位置】①视线遮挡：animate() 相机定帧后算焦点深度基准（focusDist/focusFrontDepth/focusConeRadius，blendFocusRadius 混合主次焦点半径），节点循环内按 camera 视向+视线锥判定\"相机与焦点球之间\"的非焦点节点，occlusionSmooth 用 1-exp(-k·delta) 平滑，core/shell/wire/glow/label 及 inner 子网络（cage/satellite/links）整体 opacity 收敛到 0.02；焦点后方节点 dimOthers 由 0.32 增强到 0.42（减少动效 0.55）。②链接聚焦：linkFocusSmooth（阈值 0.55）非相邻链接淡出至 0.02、相邻保持；链接二次贝塞尔中点（cStart/cControl/cEnd 加权 0.25/0.5/0.25，转 world 后与焦点前表面+锥判定）在焦点球与相机之间时额外淡出至 30%；particles 透明度与所属链接 currentOpacity/LINK_BASE_OPACITY 挂钩。③标签分层：焦点标签 depthTest=false + renderOrder=210 + scale 平滑放大（0.2 系数，reducedMotion 下不放大），innerReveal>0.7 淡出防满屏；非焦点标签 ×(1−spotWeight·0.85)；全部标签（含 mini label）每帧按相机距离排序赋 renderOrder 30–170（近者在上）。④内部展开减熵：globalInnerReveal>0.6 时非焦点大球 core/shell/surfaceWire（及 glow 光环，防空壳残留）平滑淡出至 0；orbitRings 新增随权重淡出 0.6、gyroRings 0.55→0.78、dustField 0.14→0.24；bloom 特写极值段（>0.86）收敛 28% 防白斑。⑤useShowcaseMotionPreference：引入 preferReducedMotion，减少动效下淡出更直接（k=9.0）、不放大标签、dimOthers 更强。HeroGraphFallback 未动。帧循环零新增分配（复用预分配 Vector3/Float32Array）。\n\n【验证】cd frontend && npm run build 通过（9.59s，仅既有 chunk>500kB 提示，非失败）；本地 npm run dev 冒烟：Vite 按需转换 SFC 返回 HTTP 200 且新逻辑全部存在于产物中，dev 日志无报错（无 Playwright 依赖，按任务约定以代码走查+构建+冒烟替代截图对比，截图验收交由 deploy-qa）。\n\n【提交】git commit fa432f73（分支 codex/rnd-fix-2026-08-26）：\"fix: 首页图谱特写遮挡（视线淡出/链接聚焦/标签分层/内部展开减熵）\"，7 files（源码 + dist 重建，仓库约定 dist 随源码提交）。工作树其余 dirty 文件均为他人任务产物，未触碰。未部署。"
+    },
+    {
+      "id": "t3",
+      "subject": "t3 登录页玻璃拟态美化",
+      "description": "t3 登录页玻璃拟态深色系美化（用户已选定方向）。\n文件：frontend/src/views/LoginView.vue（先完整读；保持全部功能逻辑不动：验证码加载/点击刷新/失败自动刷新、登录提交、注册链接跳转）。工作区 D:\\python_workspace\\neo4j_muti_agents。\n按批准计划 §5 实施：\n1. 深色玻璃卡片：.login-card 改为 backdrop-filter: blur(18px) saturate(140%) + 半透明渐变描边（border: 1px solid rgba(255,255,255,.14) 或伪元素渐变边）+ 顶部高光边 + 多层柔和阴影；背景 rgba(15,23,42,.55) 左右；不支持 backdrop-filter 的浏览器回退更不透明的深色面板（@supports 判断）。文字整体转浅色（标题白、说明 slate-300），表单标签/占位符适配深色。\n2. 品牌区：h1 用青→蓝渐变（background: linear-gradient(90deg,#34d399,#38bdf8); background-clip:text; color:transparent）；.brand-mark 升级为发光徽章（圆点 glow + 渐变边框）；subtitle/feature-item 层次与间距优化。\n3. 表单：.el-input__wrapper 深色玻璃化（bg rgba(255,255,255,.06)、边框 rgba(255,255,255,.12)、focus 青色光晕 box-shadow）；验证码图片加刷新 hover 动效（旋转/变暗）+ 加载态；登录按钮青蓝渐变 + hover 发光抬升（阴影 rgba(56,189,248,.45)）；ElMessage 样式不必改。\n4. 微动效：卡片与品牌区错峰入场（现有 fade-in-up 保留并微调 stagger）；注册链接改为描边胶囊按钮样式更醒目；移动端适配（<1024/<640 断点沿用并微调）；加 :focus-visible 样式。\n5. 验证：cd frontend && npm run build 通过；npm run dev 目测（如可截图）；确认登录/注册/验证码交互逻辑代码未改动（diff 中 script 部分应只有样式无关的微调或零改动）。git commit -m \"style: 登录页玻璃拟态深色系美化\"。\n输出：改动摘要、build 结果、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "fe-login",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788078803412,
+      "updatedAt": 1788079281013,
+      "attemptId": "4108de31-69b9-481a-b30e-84e8f9ea73cb",
+      "reassigning": false,
+      "output": "LoginView 玻璃拟态深色系美化完成，仅改 frontend/src/views/LoginView.vue（+242/-61）。①深色玻璃卡片：rgba(15,23,42,.55)+backdrop-filter blur(18px) saturate(140%)（@supports 回退 0.85 不透明面板）、1px rgba(255,255,255,.14) 描边、顶部青绿渐变高光边（::before）、多层阴影+内高光；文字全转浅色。②品牌区：h1 青→蓝渐变文字（background-clip:text）、brand-mark 发光胶囊徽章（渐变圆点 dot-pulse 呼吸光）、subtitle/feature-item 青蓝渐变图标框与间距优化。③表单：el-input__wrapper 深色玻璃（bg .06/边框 .12/focus 青色三层光晕）、placeholder/autofill 深色适配、验证码 hover 旋转+变暗、新增 captchaLoading 加载脉冲态（script 仅加 4 行 ref+finally，零逻辑改动）、登录按钮青蓝渐变+hover 发光抬升（shadow rgba(56,189,248,.45)）。④微动效：品牌/卡片错峰入场（0.05s/0.22s both）、注册链接改描边胶囊按钮、:focus-visible 全套、prefers-reduced-motion、<1024 改为可滚动布局（bg 固定）+<640 微调。⑤验证：npm run build 通过（exit 0，仅既有 chunk 警告）；Playwright 无头实测 /login——computed style 全部命中（backdrop blur(18px) saturate(1.4)、h1 渐变、focus 青色光晕、按钮启用态渐变+hover -2px、移动端 390px 无横向滚动卡片 342px）；登录提交错误提示、注册链接跳 /register 均正常；验证码因后端 8000 未启动按设计自动隐藏（捕获路径正常）。commit 86acdb3e（分支 codex/rnd-fix-2026-08-26，仅此一文件）。构建同步更新了 frontend/dist/（未提交）。截图：.tmp-login-check/login_desktop.png、login_mobile.png、login_tablet.png（未跟踪临时文件，可查看后删除）。"
+    },
+    {
+      "id": "t4",
+      "subject": "t4 构建验收与部署上线",
+      "description": "t4 构建 + Playwright 截图验收 + 部署 + 公网回归。\n前置：t2/t3 已提交（git log 可见）。工作区 D:\\python_workspace\\neo4j_muti_agents。服务器：root@118.24.185.45（SSH 密码 mmfh2025KS686，不回显）；前端目录 /www/wwwroot/neo4j-agents/frontend-dist；后端不动、不重启。\n步骤：\n1. cd frontend && npm run build（确保 dist 最新）。\n2. 本机验收（Playwright，临时安装不进项目依赖；可先 load 本会话的 `webapp-testing` skill 获取工具指引；Chromium 下载受限时用本机 Edge/Chrome：executablePath 指向 C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe 或 channel:'msedge'）：起 npm run dev -- --host 127.0.0.1 --port 5173（后台），打开 http://127.0.0.1:5173/ 等待聚光灯特写阶段（建议连续截图：每 4s 一张共 20+ 张，覆盖 ≥1 个完整轮播周期），挑特写帧核对验收标准：焦点球清晰、无前景球/标签/连线明显遮挡乱象、标签可读、画面无过曝白斑；打开 /login 截图核对玻璃拟态效果（深色玻璃卡片/渐变标题/验证码区域）；做一次登录接口联调回归（验证码取码→登录 admin 成功，密码从本地 backend/.env 读不回显，或直接以 UI 走通）。\n3. 部署：SSH cp -r /www/wwwroot/neo4j-agents/frontend-dist /www/wwwroot/neo4j-agents/frontend-dist.bak-$(date +%Y%m%d%H%M%S)（回滚点）→ SFTP 上传 frontend/dist/** 覆盖 frontend-dist（先删除旧 hash 资源？保留亦可，旧资源残留不影响——按上次 P4 做法清理旧 hash 资源，留 index.html 引用项）。\n4. 公网回归：http://118.24.185.45/ 200 且引用新 hash 资源 200；http://118.24.185.45/login 200；http://118.24.185.45/api/health 200；登录接口冒烟（captcha→login 200，测试会话 logout 清理）。\n5. DEPLOY.md（服务器 + 本地副本 deploy/DEPLOY.md）追加「2026-09 前端 UI 优化」记录（场景遮挡修复/登录页玻璃拟态/回滚点路径）。\n6. 汇总验收报告（截图保存路径 + 逐项 PASS/FAIL）。任一关键项失败 → failed 并附现象/原因/建议。",
+      "status": "completed",
+      "assignee": "deploy-qa",
+      "dependencies": [
+        "t2",
+        "t3"
+      ],
+      "attempt": 1,
+      "createdAt": 1788078803581,
+      "updatedAt": 1788080762668,
+      "attemptId": "9505a537-b52e-458e-995c-f5514630da71",
+      "reassigning": false,
+      "output": "t4 构建验收与部署上线：全部 PASS。\n1) 构建：frontend npm run build（Vite 5.4.21）成功，dist 9 文件；新 hash 资源 index-BzeEW-N2.js / index-CAw3ZOu8.css / HeroKnowledgeScene-zx47jhwI.js / HeroKnowledgeScene-BWCzd7E0.css / showcase-3d-D6giQCCZ.js。\n2) 本机验收（127.0.0.1:5173 dev，Playwright msedge，模型无视觉能力故采用像素+DOM 程序化验收）：连拍 38 帧（前 12s 每秒 1 帧+之后 2s/帧至 64s，覆盖 intro 特写 2.4~4.4s 与完整轮播周期）——像素检查最大近白占比 0.53%、最大白色连通块 0.14%（无过曝白斑），特写帧边缘结构清晰（Laplacian 方差 1111~2936），场景持续动画（帧间差 3~21），hero 文案 DOM 无重叠全可见；/login 玻璃拟态 DOM 检查 PASS（深色玻璃卡片 backdrop-filter blur(18px) saturate(1.4)+rgba(15,23,42,.55)、渐变标题 #34d399→#38bdf8 裁切文字、验证码区域 120x40 加载）；登录接口回归 PASS（验证码模板匹配识别→admin 登录 200→me 200→logout 200）。截图存于 .tmp-login-check/shots/（41 文件：home_000s~062s 38 帧 + login_full/login_viewport/home_fullpage）。\n3) 部署：回滚点 /www/wwwroot/neo4j-agents/frontend-dist.bak-20260830165443（上线前完整状态已核验）；tar.gz 整包上传→清空旧 hash 资源→解包覆盖 frontend-dist，权限规范化 755/644；后端未动、未重启。\n4) 公网回归：http://118.24.185.45/ 200 且引用新 hash、/assets/index-BzeEW-N2.js 200（1280529B）、/login 200、/api/health 200（postgres/neo4j/llm 均 true）；登录冒烟（服务器端 venv+DejaVuSans 模板识别，captcha→login 200→me 200→logout 200）PASS；旧 hash 资源已物理删除（直接请求命中 nginx SPA 回退返回 index.html，属既有配置行为，无影响）。\n5) DEPLOY.md：服务器 /www/wwwroot/neo4j-agents/deploy/DEPLOY.md（13232B）与本地 deploy/DEPLOY.md 均追加「2026-09 前端 UI 优化（P5 上线记录）」。\n备注（非阻塞）：站点无 favicon，/favicon.ico 404，既有装饰性问题建议后续补。"
+    }
+  ],
+  "taskSeq": 4
+}

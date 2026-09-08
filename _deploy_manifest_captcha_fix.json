@@ -1,0 +1,51 @@
+{
+ "ts": "20260830154138",
+ "backend": {
+  "backend/app/services/captcha_service.py": {
+   "size": 7182,
+   "sha256": "55ea2ba0020d1547ccfe9cee39700589d248d68080bee5cc335c7fe7a9ab71ee"
+  },
+  "backend/app/api/routes.py": {
+   "size": 36672,
+   "sha256": "8989c418c88c95f808a50da4c34e799467ee497e1485c6c39e12da1e18ccddec"
+  }
+ },
+ "dist": {
+  "index.html": {
+   "size": 794,
+   "sha256": "41b04a3893d9b99c60b84dacfc8f4eeac13e73e1a0a4144d1a41ff715c0052fa"
+  },
+  "login-bg-poster.svg": {
+   "size": 833,
+   "sha256": "1699cde3bd285c15e84df2ce8cdc33f418fc158a13969b9874f4a79a7b5ddc6a"
+  },
+  "login-bg-still.png": {
+   "size": 2023058,
+   "sha256": "78335cedee32f35d89a2b0f528bdd0359b3dffae1f8c0332bd74456b81ee9b87"
+  },
+  "login-bg.mp4": {
+   "size": 1916063,
+   "sha256": "ce759ea04c089a125b067c35ac85eba92c860d239f27ae5ea2d8db3108280b17"
+  },
+  "assets/HeroKnowledgeScene-2P4vvQ_w.js": {
+   "size": 34819,
+   "sha256": "734e197e6ab7dd303306521dd7c19d1b8f9d1b3d0f2f29faea7f3580bea37111"
+  },
+  "assets/HeroKnowledgeScene-Cvd5r07J.css": {
+   "size": 686,
+   "sha256": "00c449c0618b218919663a0a28f8eddd22f087ebffe75f14e810206a27b52e85"
+  },
+  "assets/index-BGMWDLzP.js": {
+   "size": 1280454,
+   "sha256": "de6e5dcbae78fd431a19f46b507c8d01d96cd3699f5f60d2cc6a83fce1803112"
+  },
+  "assets/index-Cw8tViEH.css": {
+   "size": 435469,
+   "sha256": "71be70ad884ed73433b0696eae4e1ad98c656bee18cb4c14d1e260ecd3703fde"
+  },
+  "assets/showcase-3d-D6giQCCZ.js": {
+   "size": 544111,
+   "sha256": "f56a2393f462823cb6781655cf38905ea72fb88c36f60d77779e1ed9ca54cfb9"
+  }
+ }
+}

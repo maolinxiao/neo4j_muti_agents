@@ -1,0 +1,142 @@
+[
+  {
+    "item": "GET / 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "index.html 引用新 bundle",
+    "ok": true,
+    "detail": "['/assets/index-BVbhVAst.js', '/assets/index-BnTlgyQe.css', '/assets/showcase-3d-BbLLm7wP.js', 'https://fonts.googleapis.com', 'https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap', 'https://fonts.gstatic.com']"
+  },
+  {
+    "item": "GET /assets/index-BVbhVAst.js 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /assets/index-BnTlgyQe.css 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /assets/HeroKnowledgeScene-lkNFM12D.js 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /assets/HeroKnowledgeScene-DVgML9Jm.css 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /assets/showcase-3d-BbLLm7wP.js 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /login-bg-still.png 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /login 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /register 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "health 200 (postgres/neo4j/llm)",
+    "ok": true,
+    "detail": "status=200 {\"status\": \"ok\", \"postgres\": true, \"neo4j\": true, \"llm_configured\": true}"
+  },
+  {
+    "item": "captcha OCR + admin 登录 200",
+    "ok": true,
+    "detail": "captcha=[('k', 0.785), ('a', 0.618), ('f', 0.811), ('T', 0.989)]"
+  },
+  {
+    "item": "GET /api/auth/me 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /api/chat/sessions 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /api/rnd/sessions 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /api/constitution/types 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "GET /api/admin/overview 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "改密-错误验证码 400",
+    "ok": true,
+    "detail": "status=400 {\"detail\":\"验证码输入错误，请重新输入（不区分大小写）\"}"
+  },
+  {
+    "item": "改密-正确验证码+错误旧密码 400 语义",
+    "ok": true,
+    "detail": "status=400 {\"detail\":\"原密码不正确\"}"
+  },
+  {
+    "item": "注册测试账号 200(待审核)",
+    "ok": true,
+    "detail": "status=200 {\"message\":\"注册成功，请等待管理员审核\",\"user_id\":\"6f91ca4d-809f-46f9-8c4a-6006d159442d\"}"
+  },
+  {
+    "item": "启用测试账号 200",
+    "ok": true,
+    "detail": "status=200 {\"id\":\"6f91ca4d-809f-46f9-8c4a-6006d159442d\",\"username\":\"t7verify_342518\",\"display_name\":\"t7verify_3"
+  },
+  {
+    "item": "测试账号登录 200",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "item": "新账号 chat 会话列表为空(无他人会话)",
+    "ok": true,
+    "detail": "status=200 n=0"
+  },
+  {
+    "item": "新账号 rnd 会话列表为空",
+    "ok": true,
+    "detail": "status=200 n=0"
+  },
+  {
+    "item": "测试账号停用(清理) 200",
+    "ok": true,
+    "detail": "status=200"
+  },
+  {
+    "item": "公网首页渲染(canvas 场景)",
+    "ok": true,
+    "detail": "canvas=6"
+  },
+  {
+    "item": "公网登录页渲染(验证码图片)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "item": "公网 console 无错误",
+    "ok": true,
+    "detail": ""
+  }
+]

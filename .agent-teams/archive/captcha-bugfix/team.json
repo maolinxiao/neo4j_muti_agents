@@ -1,0 +1,88 @@
+{
+  "name": "captcha-bugfix",
+  "id": "captcha-bugfix",
+  "description": "修复登录验证码 bug：登录页等待几分钟后输入密码+验证码登录，一直报\"验证码错误或已过期\"，刷新验证码重新输入仍同样报错。定位根因、最小修复、部署上线并验收。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788073394894,
+  "members": [
+    {
+      "id": "25470066-ae53-47f4-820e-22190e7d0fe7",
+      "name": "diagnose",
+      "role": "根因诊断：代码审查 + 线上复现，给出证据链与修复方案",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788073403775,
+      "status": "removed"
+    },
+    {
+      "id": "94876e0f-33b8-4884-bfb7-8b2e0bb8840f",
+      "name": "fix",
+      "role": "修复工程师：本地最小修复→commit→上传服务器→重启→自验",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788073403823,
+      "status": "removed"
+    },
+    {
+      "id": "74fb854f-2f8a-4c95-b628-f68c51cf78ae",
+      "name": "qa",
+      "role": "验收：复现用户场景全链路回归（含过期/刷新/连续失败/成功登录）",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788073403914,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "t1 根因诊断（验证码刷新后仍报错）",
+      "description": "根因诊断：登录验证码 bug（登录页等几分钟后，输入密码+验证码登录一直报\"验证码错误或已过期\"；刷新验证码重新输入仍同样报错）。\n工作区：D:\\python_workspace\\neo4j_muti_agents。线上：http://118.24.185.45/（后端 127.0.0.1:8000，面板项目 neo4j-agents-backend）；SSH root@118.24.185.45 密码 mmfh2025KS686（不回显）；服务器后端日志：面板项目日志或 /www/wwwroot/neo4j-agents/logs/。\n\n背景知识：验证码为 P1/P2 实现——backend/app/services/captcha_service.py 的 CaptchaStore（内存 dict，TTL=300s、attempts≥5 作废、一次性 used、校验同 IP）；GET /api/auth/captcha 发证、POST /api/auth/login 先验码（失败 400 \"验证码错误或已过期\"）；前端 LoginView 挂载时取码、点击图片刷新、登录失败自动刷新；config: CAPTCHA_TTL_SECONDS=300 等。\n\n步骤：\n1. 代码审查（本地）：captcha_service.py 的 issue/verify 全部逻辑（IP 来源是 request.client.host 还是 XFF、TTL 计算、used/attempts、大小写比较是否敏感）；routes.py 中 /auth/captcha 与 /auth/login 的验证码调用与错误分支；LoginView.vue 中 captcha_id/captcha_text 的 ref、刷新函数（getCaptcha 后是否同时更新 id 与图片）、提交 payload 用的变量；stores/auth.js login 签名。\n2. 线上复现（用 paramiko 从本机打公网接口，或直接本机 curl 公网；注意每次登录先 GET 新验证码；验证码是一次性且服务端只存摘要——用\"先取码、再用它提交\"的方式验证，不要试图识别图片内容；验证码文本可用**已知正确文本场景**构造：直接对比验证码接口返回的 image_base64 无法读码，因此改用以下等价判定）：\n   a. 取新验证码 → 用同一 captcha_id + 任意文本登录（admin 密码从服务器 .env 读取不回显）→ 若返回 400\"验证码错误或已过期\"（而非 401 密码错误），记录——注意这无法区分\"文本错\"与\"链路坏\"；进一步：同一 captcha_id 提交两次（第一次任意文本，第二次同文本）→ 若第二次返回的是\"已过期/已使用\"类 400，说明 used 一次性生效。\n   b. 判定\"刷新后仍失败\"的关键实验：模拟前端刷新——连续 GET 两次 captcha，用**第二次**返回的 captcha_id + 任意文本登录，看是否仍 400（若后端逻辑正确，错误应稳定为\"文本错误\"类，而不是 id 失效类）。再检查两次 GET 的 captcha_id 是否不同（若相同 → 后端缓存/前端静态问题）。\n   c. 检查后端日志：登录请求的 400 是否有详细原因输出（若 verify 内有日志）；若无日志，说明 verify 失败原因对排障不可见（一并记入修复建议）。\n3. 用证据定位根因并给出候选解释（至少覆盖并逐一排除）：TTL 过期（等 5 分钟）、刷新未更新 captcha_id（前端）、一次性 used 被复用、IP 不一致（127.0.0.1 vs 公网、XFF）、大小写敏感、内存 store 被重启清空、多 worker（单 worker 下排除）。\n4. 输出：根因结论（最可能 + 证据链）、受影响文件、推荐的最小修复方案（前端/后端各改哪里，理由），不要动代码。\n注意：不输出密码；诊断可用临时脚本但放 %TEMP% 不提交。",
+      "status": "completed",
+      "assignee": "diagnose",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788073459056,
+      "updatedAt": 1788075123191,
+      "attemptId": "9fb7d83d-0a69-4de7-bf5b-6f0f4ab6b93b",
+      "reassigning": false,
+      "output": "根因诊断完成。结论：验证码链路本身无功能性 bug（精确文本可登录 200），\"等几分钟必错+刷新后仍错\"是设计缺陷组合：①TTL=300s 过期（挂机≥5min 首次提交必 400，已用部署代码时钟补丁+端到端 310s 实验证实）；②大小写敏感（实测小写→400）+混合大小写+字形易混淆（模板匹配器准确率仅 90%）；③所有失败原因统一返回\"验证码错误或已过期\"且 verify 零日志，用户无法对症修复形成死循环。已排除：多 worker（单进程）、重启清空（18h 未重启）、IP 不一致、前端刷新不更新 id（部署 bundle 与源码一致）、缓存、一次性误伤（4 次错后精确文本仍 200）。日志证据：175.154.200.57 连续 6 次 400（每次刷新后仍错，首次 POST 前无该 IP 的 GET=页面挂机用旧码），175.154.200.49 连错 3-5 次后成功。修复方案见给 captain 的详细报告。"
+    },
+    {
+      "id": "t2",
+      "subject": "t2 最小修复并部署上线",
+      "description": "按 t1 诊断结论实施最小修复并部署。工作区：D:\\python_workspace\\neo4j_muti_agents（本地仓库唯一事实源）。\n若 t1 结论指向前端（如刷新未更新 captcha_id/提交用旧值）：改 frontend/src/views/LoginView.vue（及必要的 stores/auth.js、api/client.js），保证\"点击刷新→同时原子更新 captcha_id 与图片、清空输入框\"、\"登录提交使用最新 captcha_id\"、\"收到验证码类 400 时自动刷新验证码并提示\"；npm run build；提交 frontend（含 dist）。\n若结论指向后端（如 used/TTL/IP/大小写）：改 backend/app/services/captcha_service.py（及 routes.py 少量接线）：例如 verify 失败返回可区分原因（code/expired/used/ip）、TTL 校验边界、captcha 比较大小写策略（建议不敏感+去空格）、必要时 XFF 取真实 IP（要同时修 issue/verify 两侧并验证经 nginx 场景）；py_compile；提交 backend。\n修复要求最小且可回滚；给 verify 失败加 reason 日志（便于未来排障）。\n部署（与上次一致）：SFTP 上传改动文件到 /www/wwwroot/neo4j-agents/（backend/app/** 或 frontend-dist/**，旧文件先 cp 备份）；重启面板项目 mcp__baota-mcp__PythonProjectControl(project_name=\"neo4j-agents-backend\", action=\"restart\") 并 PythonProjectInfo 确认 run/listen；.env 不动、密码不回显。\n自验（公网）：GET /api/auth/captcha 两次 id 不同；用\"取码→提交\"链路验证错误语义（正确码无法读出，改用：同 id 重复提交的 used 语义、新 id 提交返回的是文本错误而非 id 失效——按 t1 给出的判定法执行）；确认用户场景修复（刷新后新 captcha 生效）。\n输出：改动 diff 摘要、commit hash、部署结果、自验证据。若 t1 结论不明确，先与 captain 沟通再改。",
+      "status": "completed",
+      "assignee": "fix",
+      "dependencies": [
+        "t1"
+      ],
+      "attempt": 1,
+      "createdAt": 1788073459132,
+      "updatedAt": 1788076490339,
+      "attemptId": "f34f9fea-7d35-4289-80d9-e97856866667",
+      "reassigning": false,
+      "output": "最小修复已实施、提交、部署并自验通过。结论按 t1 走\"后端为主+前端提示\"方向。\n\n改动（最小可回滚）：\n后端 c9c71899：captcha_service.py verify 返回可区分原因常量 ok/invalid/expired/ip_mismatch/used/attempts_exceeded/text_mismatch；比较改为不区分大小写+去首尾空白（issue/verify 双侧同一归一化）；成功作废后保留记录使复用得 used 语义、attempts 达上限报 attempts_exceeded；verify 失败 logger.warning 输出 reason/ip/id前8位/attempts（不含码文本）。routes.py login/register 把各原因映射为不同 400 文案（过期/已使用/次数过多/输入错误等，均引导\"刷新或重输\"）。TTL=300s 与 IP(XFF) 逻辑按 t1 排除结论未动。\n前端 b7ae9a9c：LoginView.vue 刷新时同时更新 captcha_id+图片并清空输入框；提交用最新 captcha.id；验证码类 400 展示可区分原因并提示\"验证码已自动刷新\"。dist 已重建提交。\n\n部署：SFTP 上传 captcha_service.py/routes.py/frontend-dist（旧文件 cp 备份：captcha_service.py.bak-20260830154040、routes.py.bak-20260830154040 为修复前版本=回滚点，frontend-dist.bak-20260830154138）；.env stat 前后一致未动；两文件远程 sha256 MATCH；误建的 /www/wwwroot/neo4j-agents/dist 已清理。面板 restart 成功：neo4j-agents-backend run=true pid=465064 listen 8000。\n\n自验（公网全 PASS）：①两次 GET captcha id 不同；②新 id+错文本→400\"验证码输入错误，请重新输入（不区分大小写）\"（文本错误而非 id 失效）；③同 id 重试仍 text_mismatch（无一次性误伤）；④第5次错→\"错误次数过多\"，第6次仍该语义；⑤求解器解得 yejP→小写 yejp 提交→login 200（大小写不敏感+全链路成功，已 logout 清理会话）；⑥同 id 正确文本再提交→\"验证码已被使用\"（used 语义）；⑦315s 过期实验 400（并发流量致记录被清理回 invalid，服务器侧用部署代码直测 expired 分支 PASS，normalize/used 分支亦 PASS）；⑧服务器日志出现 reason=text_mismatch/attempts_exceeded/used/expired 行；⑨公网 index.html 已是新 bundle（index-BGMWDLzP.js）；⑩/api/health 200。\n\n供 t3 复用：solve2.py（本机求解器）、verify_captcha_fix.py（自验套件）、tail_log.py（看服务器日志）。"
+    },
+    {
+      "id": "t3",
+      "subject": "t3 验收复测（用户场景全链路回归）",
+      "description": "验收复测验证码 bug 修复。线上：http://118.24.185.45/（nginx→127.0.0.1:8000）；SSH root@118.24.185.45（密码 mmfh2025KS686 不回显）；admin 密码只从服务器 /www/wwwroot/neo4j-agents/backend/.env 读（不回显）。\n验收项（逐项 PASS/FAIL + 证据）：\n1. 用户原场景：GET /api/auth/captcha 取码（模拟登录页加载）→ 等待（无法真等 5 分钟时可构造：等 30-60s 后仍用旧 captcha_id 提交应得到明确\"过期\"语义；以及直接验证前端刷新逻辑代码/构建产物）→ **刷新验证码后**用新 captcha_id 提交能走到密码校验分支（返回 401 密码错误而非 400 验证码错误，证明验证码链路已通）。\n2. 刷新链路：连续两次 GET captcha 的 id 不同；对第二次 id 提交，验证码错误的 400 与\"过期/已使用\"的语义可区分（若 t2 已加 reason）。\n3. 一次性与连续失败：同 id 提交两次→第二次为 used 语义；attempts 上限（如有）。\n4. 完整成功路径：用真实可读的验证码完成一次登录（若无法读码：与 fix 成员协作，用其已实现的逐像素复刻求解法取文本，然后走完整 login 200 流程，并立即清理测试会话）。\n5. 回归：/api/health 200；老功能（chat/rnd/admin 接口 200/403 语义抽查）；前端首页 200 且新构建产物生效（资源 hash 变化或关键代码字符串存在）。\n6. 服务器日志抽查：无新异常；验证码 verify 失败有 reason 日志（如已加）。\n输出：验收报告 + 遗留项。任一关键项失败 → failed 并给现象/原因/建议。",
+      "status": "completed",
+      "assignee": "qa",
+      "dependencies": [
+        "t2"
+      ],
+      "attempt": 1,
+      "createdAt": 1788073459154,
+      "updatedAt": 1788077235211,
+      "attemptId": "88cd9582-535a-4aa6-ba74-7c796bddef62",
+      "reassigning": false,
+      "output": "t3 验收复测结论：PASS（17/17 套件用例 + 公网全链路 + 真过期等待 + 日志复查全部通过）。方法与证据：\n1) 用户原场景 PASS：本地与公网(nginx)两条链路均复现\"取码→刷新→新码提交\"：求解器读出的新码首次提交即 401\"用户名或密码错误\"（本地套件 T5；公网 EPSV IoU0.817）；admin 真码登录 200（T8a）。真实 TTL=300s 等待 305s 后提交旧码 → 400\"验证码已过期，请刷新验证码后重试\"（后台任务实测）；生产日志另有真实外网用户 175.154.200.57 的 reason=expired 记录。前端构建产物 index-BGMWDLzP.js 含取码/点击刷新/失败自动刷新(\"验证码已自动刷新\")逻辑，index.html 引用新 hash。\n2) 刷新链路 PASS：连续两次 GET captcha id 不同；text_mismatch/expired/used/invalid/ip_mismatch/attempts_exceeded 六种 400 文案可区分（均为\"验证码输入错误/已过期/已被使用/无效或已被作废/网络环境不一致/错误次数过多\"）。\n3) 一次性与连续失败 PASS：同 id 成功校验后二次提交 → 400\"已被使用\"；连错 4 次提示重输、第 5 次起\"错误次数过多\"且正确文本也被拒（fail_max=5）。\n4) 成功路径 PASS：与 fix 同款逐像素复刻求解（DejaVuSans 同字体模板 + 4 位 top3 全局组合 IoU）完成 admin login 200 → /auth/me、/admin/overview、/chat/sessions 200 → logout 后 token 立即失效(401)，测试会话行已撤销（revoked_at 已写）。\n5) 回归 PASS：/api/health 200（本机+公网）；未认证 chat/rnd/admin/entities 均 401；首页 200 且新 bundle 生效（旧 hash 资源残留仍在，仅清理项）。\n6) 日志 PASS：验证码失败均带 reason 日志（6 种 reason 齐备）；最终部署进程启动（log 799 行）后零 Traceback/500。历史 UniqueViolation 500（auth_session.user_id 唯一约束 vs 多会话代码）全部发生在修复部署前，DB 约束已改为普通索引，修复后零复发。\n遗留项：a) frontend-dist 残留旧 hash 资源可清理；b) auth_session 表有 4 条部署前遗留的未撤销会话（会自然到期，未动以免误登出真实用户）；c) CaptchaStore/登录失败锁为进程内存实现，多 worker 部署需升级 DB/Redis（代码注释已声明）；d) X-Forwarded-For 首项被信任，建议后续加固（非本次 bug 范围）。"
+    }
+  ],
+  "taskSeq": 3
+}

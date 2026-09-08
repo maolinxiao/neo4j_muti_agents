@@ -1,0 +1,66 @@
+{
+ "bak_dir": "/www/wwwroot/neo4j-agents/frontend-dist.bak-20260830182321",
+ "refs_before": [
+  "/assets/index-BzeEW-N2.js",
+  "/assets/index-CAw3ZOu8.css",
+  "/assets/showcase-3d-D6giQCCZ.js",
+  "https://fonts.googleapis.com",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap",
+  "https://fonts.gstatic.com"
+ ],
+ "refs_after": [
+  "/assets/index-CAw3ZOu8.css",
+  "/assets/index-DhdqM3mh.js",
+  "/assets/showcase-3d-CjTivXqx.js",
+  "https://fonts.googleapis.com",
+  "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&display=swap",
+  "https://fonts.gstatic.com"
+ ],
+ "assets_before_count": 5,
+ "stale_removed": [
+  "HeroKnowledgeScene-BWCzd7E0.css",
+  "HeroKnowledgeScene-DVgML9Jm.css",
+  "HeroKnowledgeScene-x0ezEfm_.js",
+  "HeroKnowledgeScene-zx47jhwI.js",
+  "index-BzeEW-N2.js",
+  "showcase-3d-D6giQCCZ.js"
+ ],
+ "files": {
+  "index.html": {
+   "size": 794,
+   "sha256": "3387a8424d81c6ce3d401991033118d938fa27faf7572f38b5438d96ada99794"
+  },
+  "login-bg-poster.svg": {
+   "size": 833,
+   "sha256": "1699cde3bd285c15e84df2ce8cdc33f418fc158a13969b9874f4a79a7b5ddc6a"
+  },
+  "login-bg-still.png": {
+   "size": 2023058,
+   "sha256": "78335cedee32f35d89a2b0f528bdd0359b3dffae1f8c0332bd74456b81ee9b87"
+  },
+  "login-bg.mp4": {
+   "size": 1916063,
+   "sha256": "ce759ea04c089a125b067c35ac85eba92c860d239f27ae5ea2d8db3108280b17"
+  },
+  "assets/HeroKnowledgeScene-DVgML9Jm.css": {
+   "size": 686,
+   "sha256": "a2ea04b4179bfbc989ea478d664c7acae0aecf05f86eb189dff8abc5a87451eb"
+  },
+  "assets/HeroKnowledgeScene-x0ezEfm_.js": {
+   "size": 37074,
+   "sha256": "ec47b42c6df832c1cadfcdeea62b318a1c12c80249ac01d1e7a57a1c28f2e7aa"
+  },
+  "assets/index-CAw3ZOu8.css": {
+   "size": 439249,
+   "sha256": "104843772772c23cbd2dd132499af0f41a9048433a856819c475e3419ecb0b5d"
+  },
+  "assets/index-DhdqM3mh.js": {
+   "size": 1280529,
+   "sha256": "a8348b2222d158d2289f9d49cdc49c2d395a9df75edca581c9ddce1cf9ecc919"
+  },
+  "assets/showcase-3d-CjTivXqx.js": {
+   "size": 530880,
+   "sha256": "4d85e67f3c26e71a6907260f1942d4c80c0c988ef9fb58e2d27e8346ef0ae556"
+  }
+ }
+}

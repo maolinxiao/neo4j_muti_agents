@@ -1,0 +1,129 @@
+{
+  "name": "multiuser-auth",
+  "id": "multiuser-auth",
+  "description": "执行已批准的多用户账号服务计划：开放注册+管理员审核启用、登录/注册图形验证码、多会话登录、用户管理后台（增删改查/重置密码/启停/强制下线）、chat/workflow 数据按用户隔离、admin 角色守卫；本地修改→验证→上传服务器（面板后项目重启）→线上验收。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788006473681,
+  "members": [
+    {
+      "id": "c800b61e-ad9e-44b5-b1e4-cf47c69138bf",
+      "name": "backend-base",
+      "role": "后端基座工程师：模型/迁移/CaptchaStore/auth_service/schemas",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788006478601,
+      "status": "removed"
+    },
+    {
+      "id": "1a2ac968-e8ce-498c-a3e1-06f61d332639",
+      "name": "backend-api",
+      "role": "后端路由工程师：captcha/register/change-password/admin users/数据隔离/get_current_admin",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788006478619,
+      "status": "removed"
+    },
+    {
+      "id": "5081cfa2-3adf-4867-9e02-959730bd6ffa",
+      "name": "frontend",
+      "role": "前端工程师：RegisterView/UsersView/菜单路由/store/登录验证码/client.js",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788006478639,
+      "status": "removed"
+    },
+    {
+      "id": "f459934d-71f7-476e-a9e7-b56a60b35975",
+      "name": "deploy-qa",
+      "role": "测试与上线运维：本地验证/构建/上传/venv 装 pillow/面板重启/线上验收",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788006478685,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "P1 后端基座（模型/迁移/验证码/多会话）",
+      "description": "P1 后端基座：模型 + 幂等迁移 + CaptchaStore + auth_service 多会话/注册/改密 + schemas + 配置。\n工作区：D:\\python_workspace\\neo4j_muti_agents（本地仓库是唯一事实源；先读参照文件再改）。\n参照：backend/app/db/models.py、backend/app/services/auth_service.py、backend/app/core/config.py、backend/app/db/init_db.py、backend/app/schemas/auth.py、backend/app/schemas/admin.py、requirements.txt（根目录）。\n\n改动：\n1. models.py：\n   - AppUser 增加 email: String(128), nullable=True, index=True（服务层保证非空邮箱唯一）。\n   - AuthSession.user_id 由 unique=True 改为 index=True（多会话）；保留 token_hash 唯一。\n   - 新增 CaptchaCode 表（ORM 定义：id、code_hash String(64)、expires_at、attempts Integer default 0、used Boolean default False、ip String(64)、created_at）——用于将来升级，本期逻辑可用内存 CaptchaStore 实现为准。\n   - ChatSession、WorkflowSession 增加 user_id: String(36) ForeignKey(\"app_user.id\") index=True nullable=False（注意：迁移时先为存量数据回填）。\n2. init_db.py：新增 ensure_auth_migration(session) 幂等函数并在 initialize_database() 启动时调用（在 create_all 与 _seed_default_admin 之后、提交前）：\n   - ALTER TABLE auth_session DROP CONSTRAINT IF EXISTS ix_auth_session_user_id（实际约束名以服务器库为准：SHOW INDEX / 本机先查同名）后在 user_id 上 CREATE INDEX IF NOT EXISTS ix_auth_session_user_id（非唯一）。\n   - ALTER TABLE app_user ADD COLUMN IF NOT EXISTS email VARCHAR(128)；CREATE INDEX IF NOT EXISTS ix_app_user_email。\n   - ALTER TABLE chat_session ADD COLUMN IF NOT EXISTS user_id VARCHAR(36)；workflow_session 同理；回填：UPDATE chat_session SET user_id=(SELECT id FROM app_user WHERE role='admin' ORDER BY created_at LIMIT 1) WHERE user_id IS NULL；再 SET NOT NULL；外键约束 IF NOT EXISTS 无法保证幂等→用 DO $$ ... IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='fk_...') THEN ALTER TABLE ... ADD CONSTRAINT ...; END IF $$。\n   - CREATE TABLE IF NOT EXISTS captcha_code（与 ORM 一致）。\n3. auth_service.py：\n   - create_session()：删除\"先删旧会话\"逻辑（T9 的 delete 行）→ 只插入新会话；随后若该用户会话数 > settings.auth_max_sessions_per_user 则删除最旧若干（按 created_at 升序），保持多设备共存、旧设备挤掉。\n   - 新增 register_user(username, password, email=None, display_name=None)：校验用户名唯一、邮箱非空时唯一；返回（user, 已哈希密码）；新用户 role=\"user\"、is_active=False（待审核）。\n   - 新增 change_password(user, old_password, new_password)：verify 旧密码、hash 新密码、撤销该用户全部会话（revoke）。\n   - 保留 authenticate/get_user_for_token/revoke_token 语义（authenticate 需外部先校验验证码——P2 做）。\n4. config.py：新增字段：captcha_enabled=True、captcha_length=4、captcha_ttl_seconds=300、captcha_fail_max=5、auth_max_sessions_per_user=5、password_min_length=8、login_fail_lock_minutes=15；.env.example 同步这些键（写注释）。\n5. CaptchaStore（新建 backend/app/services/captcha_service.py）：\n   - 生成：4 位随机字符（剔除 0O1lI），Pillow 绘制 120x40 PNG（噪点+干扰线），base64 输出；sha256 存 code_hash。\n   - 内存 dict：{captcha_id: {code_hash, expires_at, attempts, ip, used}}；方法 issue(ip)->(id, base64)、verify(id, text, ip)->bool（含 TTL 校验、attempts>=5 作废、一次性 used、同 ip 校验）、清理过期；单 worker 部署说明写注释。\n   - 不引入其它依赖：requirements.txt（根目录）增加 pillow（版本取近期稳定版，如 pillow>=10.4），注释说明用途。\n6. schemas：auth.py 增加 RegisterRequest（username/password/email?/captcha_id/captcha_text）、ChangePasswordRequest、RegisterResponse（message, user_id）、CaptchaResponse（captcha_id, image_base64, mime=\"image/png\"）、LoginRequest 增加 captcha_id/captcha_text（必填）；admin.py 增加 UserAdminRead、UserCreateAdmin（username/password/display_name?/email?/role）、UserUpdateAdmin（display_name?/email?/role?/is_active?）、ResetPasswordRequest、UserPage（items,total,page,page_size）。\n7. 本地验证：python -m py_compile 改动文件全部通过；python scripts/validate_qa_routing.py 仍通过。\n8. git commit：git add backend/app（相关文件）+ requirements.txt && git commit -m \"feat: 多用户账号基座（模型/迁移/验证码存储/多会话 auth）\"。\n输出：改动清单（文件+要点）、py_compile/回归结果、commit hash。不要动 P2 的路由与前端；不输出任何密码。",
+      "status": "completed",
+      "assignee": "backend-base",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788006522770,
+      "updatedAt": 1788006901903,
+      "attemptId": "57c83d97-8902-4683-afd4-43fb9f35d843",
+      "reassigning": false,
+      "output": "P1 后端基座完成，commit b9efd854（10 files, +424/-7）。\n\n改动清单：\n1. backend/app/db/models.py：AppUser 增 email(String(128), index)（非空邮箱唯一由服务层保证）；AuthSession.user_id 去掉 unique 保留 index（多会话，token_hash 仍唯一）；新增 CaptchaCode 表（id/code_hash/expires_at/attempts/used/ip/时间戳）；ChatSession、WorkflowSession 增 user_id FK app_user.id index not null。\n2. backend/app/db/init_db.py：新增 ensure_auth_migration(session) 幂等迁移（auth_session 唯一约束降普通索引；app_user.email+索引；chat_session/workflow_session 加列→存量回填(优先最早 admin,COALESCE 兜底)→SET NOT NULL→DO 块按 pg_constraint 检查后补外键→索引；captcha_code 建表）。注意：调用点放在 session 块最前（种子/ORM 查询之前），因为 AppUser 已映射 email 列，_seed_default_admin 的 SELECT 必须先有物理列；该函数在启动 initialize_database() 自动执行。\n3. backend/app/services/auth_service.py：create_session 删除\"先删旧会话\"，改多会话插入+超限（auth_max_sessions_per_user，默认5）按 created_at 升序撤销最旧会话；新增 register_user（用户名唯一、邮箱非空唯一、新用户 role=user/is_active=False 待审核、返回 (user, hash)）；新增 change_password（验旧密、min_length 校验、撤销该用户全部会话）；authenticate 等语义保留（验证码由路由层前置校验）。\n4. backend/app/core/config.py + backend/.env.example：captcha_enabled/captcha_length/captcha_ttl_seconds/captcha_fail_max/auth_max_sessions_per_user/password_min_length/login_fail_lock_minutes（示例文件含注释）。\n5. 新建 backend/app/services/captcha_service.py：CaptchaStore 内存实现（线程锁、单 worker 注释、DB 升级路径指向 CaptchaCode ORM）；校验字符集剔除 0O1lI；Pillow 120x40 PNG（噪点+干扰线）base64 输出；sha256 code_hash；issue(ip)/verify(id,text,ip) 含 TTL/attempts>=captcha_fail_max 作废/一次性 used/同 IP 校验/过期清理。\n6. requirements.txt：+ pillow>=10.4（注释用途）。\n7. backend/app/schemas/auth.py：RegisterRequest/ChangePasswordRequest/RegisterResponse/CaptchaResponse，LoginRequest 增加必填 captcha_id/captcha_text；backend/app/schemas/admin.py：UserAdminRead/UserCreateAdmin/UserUpdateAdmin/ResetPasswordRequest/UserPage。\n8. 必要联动（模型 not null 的强制要求）：backend/app/repositories/postgres_repository.py 的 create_chat_session/create_workflow_session 接受可选 user_id，缺省回填最早 admin（兼容现有路由零改动；P2 路由后续传真实 user_id）。\n\n验证：全部改动文件 py_compile 通过；python scripts/validate_qa_routing.py 17 用例全 PASS；实测对真实库运行 initialize_database 两次（第二次验证幂等）成功——迁移后 auth_session.user_id 索引为非唯一、app_user.email/ix_app_user_email 就位、chat_session(198行)/workflow_session(26行) 存量全部回填且 user_id NOT NULL+外键+索引就位、captcha_code 表与 ORM 一致；CaptchaStore 冒烟（生成/PNG 头/一次性/IP 校验/失败计数作废）与 AuthService 冒烟（注册字段、重复用户名/邮箱/短密码拦截、4 会话上限 3 淘汰最旧、改密撤销全部会话）均通过，冒烟数据已清理。未动 P2 路由与前端；未输出任何密码。"
+    },
+    {
+      "id": "t2",
+      "subject": "P2 后端路由（验证码/注册/用户管理/隔离/守卫）",
+      "description": "P2 后端路由：验证码/注册/改密接口 + admin 用户管理 + get_current_admin 守卫 + chat/workflow 数据隔离。\n工作区：D:\\python_workspace\\neo4j_muti_agents。前置：P1 已提交（models/auth_service/captcha_service/schemas/config 就绪）。\n参照：backend/app/api/routes.py、backend/app/api/deps.py、backend/app/main.py、backend/app/repositories/postgres_repository.py、constitution 相关路由与 services。\n\n改动：\n1. deps.py：新增 get_current_admin(current_user = Depends(get_current_user)) -> AppUser，role != \"admin\" 抛 403（detail=\"需要管理员权限\"）。\n2. main.py：admin_router 的 dependencies 由 protected(Depends(get_current_user)) 改为 Depends(get_current_admin)。\n3. routes.py：\n   - auth_router 新增：GET /auth/captcha（返回 CaptchaResponse，用 CaptchaStore.issue(ip)）；POST /auth/register（校验验证码→RegisterRequest 全字段校验→service.register_user→提示等待管理员审核；per-IP 限频 5 次/小时内存计数器）；POST /auth/change-password（登录态）。\n   - auth_router.login：先校验验证码（失败 400 detail=\"验证码错误或已过期\"）再 authenticate；账号存在但 is_active=False → 401 detail=\"账号未启用，请等待管理员审核\"；另加内存登录失败锁：连续 5 次失败锁 15 分钟（按用户名+IP，成功后清零）。\n   - admin_router 新增（全部 get_current_admin 依赖已在 main 层）：\n     GET /admin/users?query=&role=&page=1&page_size=20 → UserPage（query 匹配 username/display_name/email 模糊；按 created_at desc）\n     POST /admin/users（创建，密码随机可传入）\n     PUT /admin/users/{id}（display_name/email/role/is_active；保护：最后一名启用 admin 不可停用/降级；种子 admin 不可降级为 user——用简单计数校验）\n     PUT /admin/users/{id}/password（重置 + 撤销该用户全部会话）\n     POST /admin/users/{id}/force-logout（撤销全部会话）\n     DELETE /admin/users/{id}（种子 admin 不可删；删除时级联删其 auth_session/constitution_*/chat/workflow 相关行——按 FK 关系，用 db.delete 或手动清理）\n   - 数据隔离（重点）：chat_router 的 create_chat_session/list_chat_sessions/get_chat_session/ask_*（会话所属校验）/list_messages/get_session_graph/get_graph_snapshot 全部改为按 current_user 过滤与校验（他人 session_id → 404）；\n     rnd_router 的 create_workflow_session/list_workflow_sessions/create_workflow_run/get_workflow_run/get_workflow_step_detail 同理；\n     constitution 路由（profile/assessments 列表与详情）显式传入 current_user 并核查 ConstitutionService 读写是否按用户隔离，若现为共享则随手修复（服务层加 user_id 过滤）。\n     Repository 方法相应加 user_id 参数（postgres_repository.create_chat_session(user_id)/list_chat_sessions(user_id) 等）——改动保持后端分层职责（routes 调 repo/service）。\n4. 本地验证：py_compile 全部改动；validate_qa_routing 通过；用 pytest/curl 手测（可选，用本地 dev 库；无则跳过，P4 线上验）。\n5. git commit：feat: 多用户账号路由（验证码/注册/改密/用户管理/数据隔离/管理员守卫）。\n输出：接口清单（方法+路径+请求/响应字段）、关键安全点（限频/锁定/保护规则）、py_compile 结果、commit hash。不动前端；不输出密码。",
+      "status": "completed",
+      "assignee": "backend-api",
+      "dependencies": [
+        "t1"
+      ],
+      "attempt": 1,
+      "createdAt": 1788006522812,
+      "updatedAt": 1788007410097,
+      "attemptId": "75a1e964-9eb6-4cba-bf0e-7d2e378e0bb9",
+      "reassigning": false,
+      "output": "P2 后端路由完成（commit d6f406ec，7 文件 +549/-63）。\n\n【新增/修改接口清单】\nauth（公开）：\n- GET /api/auth/captcha → {captcha_id, image_base64, mime}（CaptchaStore.issue(ip)，TTL 300s、一次性）\n- POST /api/auth/register {username,password,email?,captcha_id,captcha_text} → 200 {message:\"注册成功，请等待管理员审核\",user_id}；400 验证码/校验失败；429 限频\n- POST /api/auth/login {username,password,captcha_id,captcha_text} → LoginResponse；400 验证码错误或已过期；401 账号未启用，请等待管理员审核 / 用户名或密码错误；429 锁定\n- POST /api/auth/change-password {old_password,new_password} → {message}（登录态，改后全部会话撤销）\nadmin（main.py 路由级 Depends(get_current_admin)，非 admin → 403 \"需要管理员权限\"）：\n- GET /api/admin/users?query=&role=&page=1&page_size=20 → UserPage{items,total,page,page_size}（query 匹配 username/display_name/email 模糊，created_at desc）\n- POST /api/admin/users {username,password?,display_name?,email?,role} → UserAdminCreateResponse（password 留空随机生成，仅经 generated_password 返回一次；is_active=True）\n- PUT /api/admin/users/{id} {display_name?,email?,role?,is_active?} → UserAdminRead\n- PUT /api/admin/users/{id}/password {new_password} → {message}（重置+撤销全部会话）\n- POST /api/admin/users/{id}/force-logout → {message,revoked_sessions}\n- DELETE /api/admin/users/{id} → {message}（级联清理）\n数据隔离（他人 session/run/step/snapshot → 404）：\n- chat：create_chat_session/list/get session、ask、stream、list_messages、session graph、graph-snapshot 全部按 current_user 过滤校验\n- rnd：create/list workflow session、create run（session 归属）、get run、get step detail（join 到 user 校验）\n- constitution：assessments 详情改为 service/repo 层 user_id 过滤（列表原本已过滤，profile 原本已按 user）\nRepository：create_chat_session(user_id)/list_chat_sessions(user_id)/get_chat_session(session_id,user_id)/create_workflow_session(user_id)/list/get_workflow_session、get_workflow_run/get_workflow_step_run(user_id)、get_constitution_assessment(assessment_id,user_id) + 新增 get_user/list_users/count_active_admins/revoke_all_sessions/delete_user_with_data。\n\n【关键安全点】\n- 图形验证码：IP 绑定、一次性、失败 5 次作废；登录/注册先验码（400 \"验证码错误或已过期\"）\n- 注册限频：per-IP 内存滑动窗口 5 次/小时（429）\n- 登录失败锁：(username+IP) 连续 5 次失败锁 LOGIN_FAIL_LOCK_MINUTES（默认 15）分钟，成功清零；未启用账号不计入失败锁（避免审核通过后仍被锁）\n- 保护规则：最后一名启用 admin 不可停用/降级（计数校验）；种子 admin（default_admin_username）不可降级、不可删除\n- 删除用户级联顺序：workflow_step_run→workflow_run→user_feedback→qa_trace(graph_snapshot_id)→graph_snapshot→chat_message→constitution_profile(先解 last_assessment_id)→constitution_assessment→auth_session→workflow_session→chat_session(含 shadow)→app_user\n- 密码仅 pbkdf2_sha256 哈希落库；接口与代码不输出明文（随机密码仅创建响应返回一次）\n- 守卫均为进程内实现（单 worker）；多 worker 需升级 DB/Redis（captcha_service 注释已说明）\n\n【验证】\n- compileall backend/app 全量通过；validate_qa_routing：14 routes / 17 eval cases PASS；app 导入 + OpenAPI 35 路径正常\n- TestClient 冒烟 40/40 PASS（真实本地 dev PG：注册→审核→登录互访 404→会话/rnd 隔离→登录 5 次失败锁 429→改密/重置/强退撤销会话→种子 admin 与最后 admin 保护→删除级联）；测试数据已清理\n- commit：d6f406ec（feat: 多用户账号路由（验证码/注册/改密/用户管理/数据隔离/管理员守卫））"
+    },
+    {
+      "id": "t3",
+      "subject": "P3 前端（注册/验证码/用户管理/守卫）",
+      "description": "P3 前端：注册页 + 用户管理页 + 登录验证码 + 菜单/路由/角色守卫 + client.js。\n工作区：D:\\python_workspace\\neo4j_muti_agents\\frontend。前置：P2 完成后端接口（以 P2 输出/最新代码为准：GET /api/auth/captcha、POST /api/auth/register、POST /api/auth/change-password、/api/admin/users CRUD；登录需 captcha_id/captcha_text）。\n参照：src/router/index.js、src/stores/auth.js、src/api/client.js、src/views/LoginView.vue、src/views/admin/OverviewView.vue（表格样式参考）、src/layouts/MainLayout.vue。\n改动：\n1. client.js：getCaptcha()、register(payload)、changePassword(payload)、admin 用户 API：listUsers(params)/createUser(payload)/updateUser(id,payload)/resetUserPassword(id,payload)/forceLogoutUser(id)/deleteUser(id)。\n2. stores/auth.js：getter isAdmin（user?.role === \"admin\"）；不需要其它大改。\n3. router/index.js：新增 { path: \"/register\", name: \"register\", component: RegisterView, meta: { public: true } }；/app 下新增 { path: \"admin/users\", name: \"admin-users\", component: UsersView, meta: { requiresAdmin: true } }；beforeEach 增加 requiresAdmin 检查（非 admin → 提示 + 回 app-home）。\n4. MainLayout.vue：「管理后台」子菜单增加「用户管理」(/app/admin/users)；管理后台整组仅 isAdmin 显示；右上角用户下拉新增「修改密码」（el-dialog：旧/新/确认密码，校验强度≥8 含字母数字，调 changePassword，成功后要求重新登录）。\n5. LoginView.vue：新增验证码输入框 + 图片（点击刷新），登录参数带 captcha_id/captcha_text；401 提示区分（账号未启用文案）；底部「注册账号」链接跳 /register。\n6. 新 RegisterView.vue：用户名/密码/确认密码/邮箱（选填）/验证码（图片+输入，点击刷新）；提交成功提示\"注册成功，请等待管理员审核\"并跳登录页。\n7. 新 admin/UsersView.vue：搜索框（username/display_name/email）+ 角色筛选 + el-table（用户名/显示名/邮箱/角色标签/状态开关/最后登录/创建时间）+ 操作列（编辑、重置密码、强制下线、删除）；新增用户按钮（弹窗：用户名/初始密码/显示名/角色）；分页 el-pagination；删除用 ElMessageBox.confirm；操作后刷新列表。\n8. 本地验证：npm run build 成功（Vite 大 chunk 警告非失败）；cd frontend && npm run dev 可选。\n9. git commit：feat: 多用户账号前端（注册/验证码/用户管理/角色守卫）。\n输出：改动清单、build 结果、commit hash。不部署、不动服务器；不输出密码。",
+      "status": "completed",
+      "assignee": "frontend",
+      "dependencies": [
+        "t2"
+      ],
+      "attempt": 1,
+      "createdAt": 1788006522838,
+      "updatedAt": 1788007720853,
+      "attemptId": "f0f51380-12c9-4bc7-addf-be94ad160c7f",
+      "reassigning": false,
+      "output": "P3 前端完成。改动：1) client.js 新增 getCaptcha/register/changePassword/listUsers/createUser/updateUser/resetUserPassword/forceLogoutUser/deleteUser；2) stores/auth.js 新增 isAdmin getter，login 支持 captcha_id/captcha_text；3) router 新增 /register(public) 与 /app/admin/users(requiresAdmin) 路由，beforeEach 增加 requiresAdmin 守卫（非 admin 提示并回 app-home），管理后台路由统一加 requiresAdmin；4) MainLayout 管理后台组 v-if=isAdmin 并新增「用户管理」菜单 + 右上角「修改密码」弹窗（旧/新/确认密码，强度≥8 含字母数字，成功后强制重新登录）；5) LoginView 新增验证码输入+图片点击刷新，登录带验证码，401 区分账号未启用文案，底部注册链接；6) 新建 RegisterView.vue（用户名/密码/确认密码/邮箱选填/验证码，提交提示\"注册成功，请等待管理员审核\"并跳登录）；7) 新建 admin/UsersView.vue（搜索+角色筛选+分页 el-table：用户名/显示名/邮箱/角色标签/状态开关/最后登录/创建时间，操作列：编辑/重置密码/强制下线/删除，新增用户弹窗，删除 ElMessageBox.confirm，操作后刷新）。npm run build 成功（vite v5.4.21，1800 模块，11s，仅有大 chunk 警告非失败）。commit: c45e941f feat: 多用户账号前端（注册/验证码/用户管理/角色守卫）（含重新生成的 frontend/dist 构建产物，dist 为仓库既有跟踪目录）。未部署、未动服务器、未输出任何密码。"
+    },
+    {
+      "id": "t4",
+      "subject": "P4 部署上线与线上验收",
+      "description": "P4 测试与上线：本地验证 → 构建 → 上传 → venv 装 pillow → 面板重启 → 线上验收。\n前置：P1–P3 已在本地提交（git log 可查）。\n服务器上下文：root@118.24.185.45，SSH 密码 mmfh2025KS686（paramiko，绝不输出/写日志；一切凭据只在服务器侧读取或经 stdin）；应用目录 /www/wwwroot/neo4j-agents；后端面板项目名 neo4j-agents-backend（stype=command，venv=/www/server/pyporject_evn/neo4j-agents-backend/bin/python，入口 backend/scripts/run_server.py）；后端 .env=/www/wwwroot/neo4j-agents/backend/.env（0600，禁覆盖/禁输出，admin 密码用后即弃）；公网 http://118.24.185.45/（为 nginx 站点，server_name 含 mmfh.com.cn）；MCP 工具 mcp__baota-mcp__* 全套可用（只启停本项目）。\n\n步骤：\n1. 本地验证：python -m py_compile backend/app/** 全量改动文件；python scripts/validate_qa_routing.py；cd frontend && npm run build（保证 dist 更新）。\n2. 上线前备份：SSH 执行 sudo -u postgres pg_dump -d neo4j_agents | gzip > /www/wwwroot/neo4j-agents/backups/pg/pre-multiuser-$(date +%F%H%M).sql.gz；并 cp 服务器 backend/.env 到 backups/env/pre-multiuser.env。\n3. 上传（paramiko SFTP）：backend/app/**（排除 __pycache__）→ /www/wwwroot/neo4j-agents/backend/app/；根 requirements.txt（已含 pillow）→ /www/wwwroot/neo4j-agents/backend/requirements.txt；frontend/dist/** → /www/wwwroot/neo4j-agents/frontend-dist/。不碰 .env。\n4. venv 依赖：SSH /www/server/pyporject_evn/neo4j-agents-backend/bin/python -m pip install -r /www/wwwroot/neo4j-agents/backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/（pillow manylinux wheel；若缺系统库再 dnf install -y libjpeg-turbo freetype 后重试——仅按需）。\n5. 重启：mcp__baota-mcp__PythonProjectControl(project_name=\"neo4j-agents-backend\", action=\"restart\") → PythonProjectInfo 确认 run/listen=127.0.0.1:8000。\n6. 后端验证（公网）：GET /api/health=200 且三依赖 true；GET /api/auth/captcha 返回 {captcha_id, image_base64}；POST /api/auth/register（新用户名，验证码问题需先取 captcha 再注册——验证码为一次性，注意先 GET 再 POST）→ 返回等待审核提示；用管理员（密码从服务器 .env 读，不回显）登录（先 GET captcha）→ 200；admin 启用该新用户 → 新用户登录成功（同样带验证码）→ 二次登录新账号（新 token）不互踢；GET /api/admin/users 列表 200；A/B 两个普通用户经 chat 会话隔离冒烟（A 建会话，B 列表无该会话）。\n7. 前端验证：http://118.24.185.45/ 首页 200；登录页有验证码图并刷新；注册页可提交（UI 微验或以接口为准）。\n8. 记录：DEPLOY.md 追加「2026-09 多用户账号服务」片段（新表、新配置、验证码说明、管理端用法）。\n9. 汇总验收报告（逐项 PASS/FAIL + 证据）。任一关键项失败：failed 并附现象/原因/建议，不要绕过。\n输出：备份位置、上传统计、pip 结果、重启结果、逐项验收报告、DEPLOY.md 更新说明。",
+      "status": "completed",
+      "assignee": "deploy-qa",
+      "dependencies": [
+        "t2",
+        "t3"
+      ],
+      "attempt": 1,
+      "createdAt": 1788006534429,
+      "updatedAt": 1788008470011,
+      "attemptId": "e11357ee-7d81-4a4a-8d65-964c2df4697d",
+      "reassigning": false,
+      "output": "P4 部署上线完成，全部验收 PASS。\n\n【本地验证】py_compile 13 个改动文件 EXIT=0；validate_qa_routing.py 17/17 PASS；npm run build EXIT=0（dist 含 index-C5u7xQFa.js 等新资源）。\n\n【上线前备份】backups/pg/pre-multiuser-2026-08-292052.sql.gz（gzip -t OK）；backups/env/pre-multiuser.env（600 root:root）；backend/.env 上传前后 stat 一致（未触碰）。\n\n【上传】backend/app 41 文件/757,868B；backend/requirements.txt+run_server.py+.env.example 3 文件/1,650B；frontend-dist 9 文件/6,236,212B（旧 asset 清理 3 个）；4 文件 sha256 抽样 MATCH。\n\n【pip】pillow 12.3.0 安装成功（其余依赖已满足），阿里云镜像，无需系统库。\n\n【重启】面板 restart 成功：run=true, pid 203027, listen 8000（127.0.0.1:8000）。\n\n【后端验收逐项 PASS】GET /api/health=200（postgres/neo4j/llm_configured 全 true）；GET /api/auth/captcha 返回 {captcha_id,image_base64}；POST /api/auth/register（公开注册，带一次性验证码，验证码用服务器 DejaVuSans 逐像素复刻求解）→ 200 \"等待管理员审核\"；未启用账号登录 → 401 \"账号未启用\"；管理员（密码仅从服务器 .env 内存读取，未输出）登录 → 200；PUT /api/admin/users/{id} is_active=true 启用 → 200；新用户登录 → 200；该用户二次登录 → 200 且两个 token 同时 /me 200（多会话不互踢）；GET /api/admin/users → 200（total=3）；普通用户 token 访问 /admin/users → 403（角色守卫）；A 建 chat 会话、B 列表无该会话、A 列表有（数据隔离）；清理测试账号 → 删除 200，列表仅剩 admin。\n\n【发现并修复的线上问题】存量库 auth_session.user_id 为旧版 UNIQUE INDEX（ix_auth_session_user_id），P1 迁移 ensure_auth_migration 只 DROP CONSTRAINT（对唯一索引无效）→ 同用户第二次登录 INSERT 违反唯一约束 500。已执行 DROP INDEX + CREATE INDEX（非唯一）修复，登录恢复。建议后续在 init_db.ensure_auth_migration 补 DROP INDEX IF EXISTS（幂等自愈）。\n\n【前端验收】http://118.24.185.45/ 200，index.html 引用新资源且 200；bundle 含 captcha/验证码/注册/admin/users 字符串；注册页以接口为准（register 200）验收。\n\n【DEPLOY.md】服务器 deploy/DEPLOY.md 已追加「2026-09 多用户账号服务」章节（新表/新配置/验证码说明/管理端用法/P4 上线记录/已知问题），本地副本 deploy/DEPLOY.md。"
+    },
+    {
+      "id": "t5",
+      "subject": "t6 修复迁移遗漏（DROP INDEX 幂等）并同步服务器",
+      "description": "修复 P1 迁移遗漏（线上已由 deploy-qa 应急修复，此任务补齐代码，防止其它环境复现）。\n背景：存量库 auth_session.user_id 是「唯一索引」ix_auth_session_user_id（不是唯一约束），ensure_auth_migration 里的 DROP CONSTRAINT IF EXISTS 对索引无效 → 同用户二次登录违反唯一索引 → 500。deploy-qa 已在服务器 PG 手动 DROP INDEX + CREATE INDEX（非唯一）并复验通过。\n改动：\n1. backend/app/db/init_db.py 的 ensure_auth_migration()：在 CREATE INDEX IF NOT EXISTS ix_auth_session_user_id 之前，增加 `DROP INDEX IF EXISTS ix_auth_session_user_id;`（放在事务/连接中与其它 DDL 一起，幂等：索引已删时静默通过；索引存在时删除后重建为非唯一）。\n   注意顺序与作用域：与现有 DDL 一致（用 session.execute(text(...))）；确认不影响新库路径（新库由 create_all 直接建非唯一索引，DROP IF EXISTS 无害）。\n2. 本地验证：python -m py_compile backend/app/db/init_db.py；并写一个临时幂等验证：可在本机新库或服务器库上模拟——至少确认语句语法与顺序正确（P4 已证明线上库无该索引后 CREATE 正常）。\n3. git commit：fix: 迁移补充 DROP INDEX IF EXISTS ix_auth_session_user_id（幂等修复唯一索引残留）。\n4. 同步服务器：SFTP 上传 backend/app/db/init_db.py → /www/wwwroot/neo4j-agents/backend/app/db/init_db.py（root@118.24.185.45，密码 mmfh2025KS686，不回显；先 cp 备份 init_db.py 到 backups/）。无需重启（迁移在下次启动时自动执行且已幂等；若想验证可 mcp__baota-mcp__PythonProjectControl 重启一次后端项目并确认日志无迁移报错、health 200——本次可做可不做，重启则记录结果）。\n输出：改动 diff 摘要、py_compile 结果、commit hash、服务器同步确认。",
+      "status": "completed",
+      "assignee": "backend-base",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788008506625,
+      "updatedAt": 1788009253232,
+      "attemptId": "f0aaf4f7-cf1a-40b1-ab69-3292ff9f962a",
+      "reassigning": false,
+      "output": "完成，commit 174a9129（1 file, +3/-1），服务器已同步并重启验证通过。\n\n改动：backend/app/db/init_db.py ensure_auth_migration() 在 ALTER TABLE ... DROP CONSTRAINT IF EXISTS 之后、CREATE INDEX IF NOT EXISTS 之前新增 `session.execute(text(\"DROP INDEX IF EXISTS ix_auth_session_user_id\"))`，注释改为\"唯一约束/唯一索引 → 普通索引，兼容 (a) 唯一约束 (b) 唯一索引残留\"。顺序与作用域与现有 DDL 一致（同一 session 事务内）；新库路径无害（create_all 直接建非唯一索引，DROP IF EXISTS 静默跳过）。\n\n验证：\n1. py_compile backend/app/db/init_db.py 通过。\n2. 完整模拟线上故障：开发库事务内删除重复会话行→DROP 现有非唯一索引→CREATE UNIQUE INDEX（模拟残留）→执行迁移 3 条 DDL→索引降级为非唯一（断言通过）→ 再跑一遍 3 条 DDL 幂等（断言通过）→ 事务回滚，零净副作用（80 行数据原样）。另在当前库跑两遍 initialize_database() 均幂等成功。\n3. 排查插曲：临时验证脚本曾超时，定位为\"事务持锁期间用另一连接查 pg_indexes 被 catalog 锁阻塞\"（验证脚本写法问题），非迁移 SQL 问题——实际迁移走单事务 session，无影响；已改用同连接查询解决。\n\n服务器同步（root@118.24.185.45）：\n- 上传前备份：/www/wwwroot/neo4j-agents/backups/init_db.py.bak.20260829_211317（8878B，原文件已确认存在）。\n- SFTP 上传 → /www/wwwroot/neo4j-agents/backend/app/db/init_db.py（9018B），本地/远程 sha256 一致（7db7a755…），grep 确认修复行在第 85 行。\n- 重启面板项目 neo4j-agents-backend：应用日志显示 \"Started server process [208218] → Application startup complete\"，无任何迁移报错（日志中的 UniqueViolation 为今天 12:57 修复前的历史记录，重启后无新增）。\n- 健康检查 /api/health → 200；服务器库确认 ix_auth_session_user_id 为非唯一索引、auth_session 无 NULL user_id。\n- 附注：服务器后端已包含 P2 路由（/api/auth/captcha、/api/admin/users 等 200），本次仅同步 init_db.py 未触碰其它文件。"
+    }
+  ],
+  "taskSeq": 5
+}

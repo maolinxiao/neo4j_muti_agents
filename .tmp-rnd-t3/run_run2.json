@@ -1,0 +1,4817 @@
+{
+  "id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+  "session_id": "0d238165-b744-4b77-9cd1-78f0dc1ea081",
+  "question": "把四君子汤改造成药食同源代餐粉",
+  "brief": {
+    "goal": "把四君子汤改造成药食同源代餐粉",
+    "budget": "",
+    "timeline": "",
+    "constraints": [
+      "仅使用药食同源目录成分"
+    ],
+    "dosage_form": "",
+    "compliance_scope": "药食同源目录内成分",
+    "target_population": ""
+  },
+  "final_report": {
+    "modules": {
+      "flavor_prediction": {
+        "defects": [
+          "人参、白术存在中等偏低的苦味风险，若粉碎后释放充分，可能使代餐粉后味偏苦。",
+          "根茎类土香与菌香叠加，可能产生沉闷感，缺乏清爽层次。",
+          "粉质口感若细度不足，易出现粗糙、糊口问题。",
+          "整体风味偏单一，长期作为代餐食用易产生风味疲劳。"
+        ],
+        "data_sources": [
+          "KB3_风味评价库",
+          "FlavorDB",
+          "BungentDB",
+          "KB1_药食同源原料合法性库",
+          "KB2_功效-病症-性味归经库",
+          "KB5_100经典名方"
+        ],
+        "flavor_profile": {
+          "aroma": {
+            "type": [
+              "甘甜型",
+              "根茎类土香",
+              "淡雅药香"
+            ],
+            "intensity": "中等偏低",
+            "description": "香气以甘甜型为主，伴随人参、白术的根茎类土香和茯苓的淡雅菌香，整体偏温和，无明显刺激性香气。"
+          },
+          "taste": {
+            "dominant": "甘",
+            "intensity": {
+              "sour": 0.1,
+              "salty": 0.0,
+              "sweet": 0.85,
+              "umami": 0.1,
+              "bitter": 0.35
+            },
+            "secondary": [
+              "微苦",
+              "淡"
+            ],
+            "description": "整体以甘味为主导，人参、白术、茯苓、炙甘草均呈甘味特征；人参、白术带来轻微苦感，茯苓淡味使苦感进一步弱化。"
+          },
+          "mouthfeel": {
+            "texture": "粉质、略粗糙",
+            "aftertaste": "回甘，微带土味",
+            "astringency": 0.1,
+            "description": "代餐粉冲调后呈粉质口感，若粉碎细度不足可能略粗糙；苦味残留低，回味以甘味为主，略带根茎类土味。"
+          }
+        },
+        "consumer_acceptance": "对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。",
+        "coordination_summary": "全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。",
+        "optimization_suggestions": [
+          "控制人参、白术比例，建议人参不超过3g/日、白术不超过9g/日，以降低苦味与土香强度。",
+          "引入药食同源矫味辅料，如山药、莲子、白扁豆，增强甘淡口感并改善粉质细腻度。",
+          "添加少量红枣或龙眼肉，提升自然甜香，掩盖根茎类土味。",
+          "采用超微粉碎工艺，使粉体粒径更细，减少粗糙感和糊口感。",
+          "可考虑添加燕麦粉、小米粉等谷物基料，改善冲调性和口感顺滑度。",
+          "通过低温烘焙或瞬时高温处理，降低生药味，提升香气协调性。"
+        ]
+      },
+      "formula_generation": {
+        "risks": [
+          "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+          "白术性温燥，阴虚内热或津液亏耗者慎用。",
+          "茯苓利水渗湿，气虚下陷者慎用。",
+          "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+          "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。"
+        ],
+        "fang_jie": "人参为君，大补脾胃元气；白术为臣，健脾燥湿；茯苓为佐，渗湿健脾；炙甘草为使，益气和中、调和诸药。全方甘温平和，共奏益气健脾之功。",
+        "formulas": [
+          {
+            "name": "四君子代餐粉（药食同源改良方）",
+            "fang_jie": "本方以人参为君，大补脾胃元气；白术为臣，健脾燥湿，助人参益气；茯苓为佐，健脾渗湿，使补而不滞；炙甘草为使，益气和中，调和诸药。四味皆属药食同源目录，保留原方君臣佐使结构，适用于脾胃气虚所致的食少便溏、气短乏力等症。",
+            "ingredients": [
+              {
+                "name": "人参",
+                "role": "君药",
+                "dose_max": "9g",
+                "herb_key": "人参",
+                "dose_range": "3-9g",
+                "fang_jie_role": "大补脾胃元气，为全方补气健脾之核心。"
+              },
+              {
+                "name": "白术",
+                "role": "臣药",
+                "dose_max": "12g",
+                "herb_key": "白术",
+                "dose_range": "6-12g",
+                "fang_jie_role": "健脾燥湿，辅助人参增强益气健脾之力。"
+              },
+              {
+                "name": "茯苓",
+                "role": "佐药",
+                "dose_max": "15g",
+                "herb_key": "茯苓",
+                "dose_range": "9-15g",
+                "fang_jie_role": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+              },
+              {
+                "name": "炙甘草",
+                "role": "使药",
+                "dose_max": "6g",
+                "herb_key": "炙甘草",
+                "dose_range": "3-6g",
+                "fang_jie_role": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+              }
+            ],
+            "classic_reference": "《太平惠民和剂局方》四君子汤"
+          }
+        ],
+        "compliance_notes": [
+          "所有药材均来自国家卫健委公布的药食同源物品目录。",
+          "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+          "原方禁忌人群：实证、热证而正气不虚者禁用。",
+          "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。"
+        ],
+        "classic_references": [
+          "《太平惠民和剂局方》四君子汤：人参、白术、茯苓、炙甘草各等分，治脾胃气虚证。"
+        ],
+        "kb5_formula_context": "四君子汤源自《太平惠民和剂局方》，原方组成：人参9g、白术9g、茯苓9g、炙甘草6g。功效益气健脾，主治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。原方禁忌：实证、热证而正气不虚者禁用。",
+        "selection_rationale": "基于KB5四君子汤原方进行药食同源化改造。原方四味药材人参、白术、茯苓、炙甘草均在国家药食同源目录内，故全部保留，不进行替代。剂量在原方比例基础上，结合代餐粉每日食用频次与食品安全要求，调整为成人每日推荐用量区间，并标注最大安全用量。"
+      },
+      "efficacy_prediction": {
+        "risks": [
+          "人参不宜与藜芦同用，长期或大剂量使用可能引起血压升高、失眠等不适。",
+          "白术性温燥，阴虚内热或津液亏耗者使用可能加重口干、烦热。",
+          "茯苓利水渗湿，气虚下陷者使用可能加重下坠感或乏力。",
+          "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+          "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。",
+          "人参作为新食品原料时，仅限5年及5年以下人工种植人参，且每日食用量不超过3g。"
+        ],
+        "mechanisms": [
+          "人参所含人参皂苷等成分可调节免疫功能、抗疲劳，并具有补气作用，为全方补益核心。",
+          "白术所含挥发油、白术内酯等成分可促进胃肠运动、调节肠道功能，辅助健脾燥湿。",
+          "茯苓所含茯苓多糖等成分具有利水渗湿、调节免疫和安神作用，可改善脾虚湿盛。",
+          "炙甘草所含甘草酸、黄酮类成分可调和诸药、缓解胃肠刺激，并具有抗炎、保护胃黏膜作用。",
+          "四味协同通过补气健脾、燥湿渗湿，改善脾胃运化功能，缓解食少、便溏、乏力等脾虚症状。"
+        ],
+        "avoid_population": [
+          "阴虚内热者",
+          "湿热内盛者",
+          "津液亏耗者",
+          "气虚下陷者",
+          "湿盛胀满或水肿者",
+          "孕妇、哺乳期妇女及14周岁以下儿童"
+        ],
+        "literature_basis": [
+          "《中国药典》人参：大补元气、复脉固脱、补脾益肺、生津养血、安神益智。",
+          "《中国药典》白术：健脾益气、燥湿利水、止汗、安胎。",
+          "《中国药典》茯苓：利水渗湿、健脾、宁心。",
+          "《中国药典》甘草：补脾益气、清热解毒、祛痰止咳、缓急止痛、调和诸药。",
+          "《太平惠民和剂局方》四君子汤：治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。",
+          "国家卫健委及市场监管总局公告：5年及5年以下人工种植人参可作为新食品原料，食用量不超过3g/天，孕妇、哺乳期妇女及14周岁以下儿童不宜食用。"
+        ],
+        "core_tcm_efficacy": [
+          "益气健脾",
+          "燥湿和中",
+          "渗湿止泻",
+          "调和脾胃"
+        ],
+        "target_population": [
+          "脾胃气虚所致的食欲不振、食少便溏者",
+          "气短乏力、精神不振、面色萎黄者",
+          "脾虚湿盛、大便偏软或不成形者",
+          "需要温和调理脾胃功能的成年人"
+        ],
+        "core_modern_efficacy": [
+          "改善脾胃虚弱相关的食欲减退、食少便溏",
+          "缓解气虚所致的气短乏力、精神不振",
+          "辅助调节胃肠功能，改善脾虚湿盛状态"
+        ],
+        "contraindicated_population": [
+          "实证、热证而正气不虚者",
+          "对人参、白术、茯苓、甘草任一成分过敏者",
+          "高血压控制不佳或长期失眠者"
+        ]
+      },
+      "replacement_mapping": {
+        "impact_summary": "当前提供了正式替代候选，已按目标人群（['脾胃气虚所致的食欲不振、食少便溏者', '气短乏力、精神不振、面色萎黄者', '脾虚湿盛、大便偏软或不成形者', '需要温和调理脾胃功能的成年人']）、风味接受度、风味相似度和安全性做初步筛查。风味模块结论：全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。。这些替代仍需要进一步核验其功效保持、风味影响、人群边界和合规性。如替代可能削弱核心目标，应保留原方并优先改进配伍。",
+        "compliance_notes": [
+          "替代前需再次确认替代药材仍属于药食同源目录。",
+          "替代后需评估是否改变适用人群或禁忌范围。",
+          "风味接受度低或目标人群不明确时，不应直接进入最终配方。"
+        ],
+        "baseline_comparison": [
+          {
+            "decision": "降级复核",
+            "source_herb": "人参",
+            "flavor_after": "味:甘；性:微温；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "safety_score": 0.55,
+            "flavor_before": "味:甘、微苦；性:微温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7",
+            "candidate_herb": "黄芪",
+            "efficacy_score": 0.6949,
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "population_before_after": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服"
+          },
+          {
+            "decision": "降级复核",
+            "source_herb": "白术",
+            "flavor_after": "味:甘、淡；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "safety_score": null,
+            "flavor_before": "味:甘、苦；性:温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7",
+            "candidate_herb": "茯苓",
+            "efficacy_score": 0.2857142857142857,
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "population_before_after": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服"
+          },
+          {
+            "decision": "候选保留",
+            "source_herb": "炙甘草",
+            "flavor_after": "味:辛、甘；性:大热；香气:Spicy Aroma；接受度:0.913；苦味风险:0.1；涩感风险:0.1；药味风险:1.0；后味风险:0.1",
+            "safety_score": null,
+            "flavor_before": "味:甘；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "candidate_herb": "肉桂",
+            "efficacy_score": 0.0,
+            "flavor_acceptance": 0.7000000000000001,
+            "flavor_similarity": null,
+            "population_before_after": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用"
+          }
+        ],
+        "applicable_scenarios": [
+          "风味优化场景",
+          "目标人群适配场景",
+          "成本优化场景",
+          "供应链保障场景"
+        ],
+        "recommended_replacements": [
+          {
+            "score": 0.7559,
+            "reason": "CAN_REPLACE Top1 候选；风味接受度 1.0；风味相似度 0.675；需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；需降级复核：安全评分偏低",
+            "source_herb": "人参",
+            "safety_score": 0.55,
+            "flavor_impact": "原药材：味:甘、微苦；性:微温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7；替代药材：味:甘；性:微温；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "population_fit": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服",
+            "recommended_herb": "黄芪",
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "target_population": [
+              "脾胃气虚所致的食欲不振、食少便溏者",
+              "气短乏力、精神不振、面色萎黄者",
+              "脾虚湿盛、大便偏软或不成形者",
+              "需要温和调理脾胃功能的成年人"
+            ],
+            "professional_score": 0.6949,
+            "recommendation_status": "可推荐"
+          },
+          {
+            "score": null,
+            "reason": "CAN_REPLACE Top1 候选；风味接受度 0.5；缺少风味相似度；需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服；需降级复核：风味接受度偏低",
+            "source_herb": "白术",
+            "safety_score": null,
+            "flavor_impact": "原药材：味:甘、苦；性:温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7；替代药材：味:甘、淡；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "population_fit": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+            "recommended_herb": "茯苓",
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "target_population": [
+              "脾胃气虚所致的食欲不振、食少便溏者",
+              "气短乏力、精神不振、面色萎黄者",
+              "脾虚湿盛、大便偏软或不成形者",
+              "需要温和调理脾胃功能的成年人"
+            ],
+            "professional_score": null,
+            "recommendation_status": "需复核"
+          },
+          {
+            "score": null,
+            "reason": "CAN_REPLACE Top1 候选；风味接受度 0.7000000000000001；缺少风味相似度；需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "flavor_impact": "原药材：味:甘；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1；替代药材：味:辛、甘；性:大热；香气:Spicy Aroma；接受度:0.913；苦味风险:0.1；涩感风险:0.1；药味风险:1.0；后味风险:0.1",
+            "population_fit": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+            "recommended_herb": "肉桂",
+            "flavor_acceptance": 0.7000000000000001,
+            "flavor_similarity": null,
+            "target_population": [
+              "脾胃气虚所致的食欲不振、食少便溏者",
+              "气短乏力、精神不振、面色萎黄者",
+              "脾虚湿盛、大便偏软或不成形者",
+              "需要温和调理脾胃功能的成年人"
+            ],
+            "professional_score": null,
+            "recommendation_status": "可作为候选"
+          }
+        ]
+      }
+    },
+    "task_plan": [
+      "确认 KB5 原方依据、组成和君臣佐使是否已保留",
+      "用 KB1 确认候选方剂成分与药食同源目录一致",
+      "用 KB2 评估方剂功效与用户目标匹配度",
+      "用 KB3/KB6 评估风味协调性、剂型和适用人群",
+      "用 KB4 确认单味替代映射是否可行并评估风险",
+      "用 KB7 复核普通食品宣传边界和上市风险"
+    ],
+    "data_sources": [
+      "KB1 药食同源合法性",
+      "KB2 功效病症性味归经",
+      "KB3 风味评价",
+      "KB4 CAN_REPLACE 单味替代",
+      "KB5 名方/方剂",
+      "KB6 产品市场",
+      "KB7 食品合规"
+    ],
+    "next_actions": [
+      "复核 KB5 原方组成、剂量比例和适用人群",
+      "列出保留药材、替代药材和不能完全替代点",
+      "补充禁忌、普通食品宣传边界和适用边界说明",
+      "根据剂型继续完善风味、工艺和小样验证方案",
+      "如存在证据缺口，补充实验或文献验证。"
+    ],
+    "brief_summary": "把四君子汤改造成药食同源代餐粉",
+    "evidence_gaps": [
+      "剂量区间与配伍逻辑需经中药/食品专业复核，并进行小样感官与稳定性验证。",
+      "替代项的收益与风险（功效保持、人群边界、合规性）需进一步核验后再进入定稿。",
+      "风味与接受度结论需结合目标人群口味偏好与剂型做感官小试验证。"
+    ],
+    "final_formula": {
+      "name": "四君子代餐粉（药食同源改良方）",
+      "composition": [
+        {
+          "dose": "3-9g",
+          "name": "人参",
+          "role": "君药",
+          "basis": "",
+          "source": "药食同源候选组方（图谱候选药材）",
+          "rationale": "大补脾胃元气，为全方补气健脾之核心。"
+        },
+        {
+          "dose": "6-12g",
+          "name": "白术",
+          "role": "臣药",
+          "basis": "",
+          "source": "药食同源候选组方（图谱候选药材）",
+          "rationale": "健脾燥湿，辅助人参增强益气健脾之力。"
+        },
+        {
+          "dose": "9-15g",
+          "name": "茯苓",
+          "role": "佐药",
+          "basis": "",
+          "source": "药食同源候选组方（图谱候选药材）",
+          "rationale": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+        },
+        {
+          "dose": "3-6g",
+          "name": "炙甘草",
+          "role": "使药",
+          "basis": "",
+          "source": "药食同源候选组方（图谱候选药材）",
+          "rationale": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+        }
+      ]
+    },
+    "flavor_summary": {
+      "notes": [
+        "味觉：{'dominant': '甘', 'secondary': ['微苦', '淡'], 'intensity': {'sweet': 0.85, 'bitter': 0.35, 'sour': 0.1, 'salty': 0.0, 'umami': 0.1}, 'description': '整体以甘味为主导，人参、白术、茯苓、炙甘草均呈甘味特征；人参、白术带来轻微苦感，茯苓淡味使苦感进一步弱化。'}",
+        "香气：{'type': ['甘甜型', '根茎类土香', '淡雅药香'], 'intensity': '中等偏低', 'description': '香气以甘甜型为主，伴随人参、白术的根茎类土香和茯苓的淡雅菌香，整体偏温和，无明显刺激性香气。'}",
+        "口感：{'texture': '粉质、略粗糙', 'astringency': 0.1, 'aftertaste': '回甘，微带土味', 'description': '代餐粉冲调后呈粉质口感，若粉碎细度不足可能略粗糙；苦味残留低，回味以甘味为主，略带根茎类土味。'}",
+        "人参、白术存在中等偏低的苦味风险，若粉碎后释放充分，可能使代餐粉后味偏苦。",
+        "根茎类土香与菌香叠加，可能产生沉闷感，缺乏清爽层次。",
+        "粉质口感若细度不足，易出现粗糙、糊口问题。",
+        "整体风味偏单一，长期作为代餐食用易产生风味疲劳。",
+        "全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。"
+      ],
+      "acceptance": "对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。"
+    },
+    "compliance_risks": [
+      "所有药材均来自国家卫健委公布的药食同源物品目录。",
+      "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+      "原方禁忌人群：实证、热证而正气不虚者禁用。",
+      "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。",
+      "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+      "白术性温燥，阴虚内热或津液亏耗者慎用。",
+      "茯苓利水渗湿，气虚下陷者慎用。",
+      "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+      "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。",
+      "替代前需再次确认替代药材仍属于药食同源目录。",
+      "替代后需评估是否改变适用人群或禁忌范围。",
+      "风味接受度低或目标人群不明确时，不应直接进入最终配方。",
+      "人参不宜与藜芦同用，长期或大剂量使用可能引起血压升高、失眠等不适。",
+      "白术性温燥，阴虚内热或津液亏耗者使用可能加重口干、烦热。",
+      "茯苓利水渗湿，气虚下陷者使用可能加重下坠感或乏力。",
+      "人参作为新食品原料时，仅限5年及5年以下人工种植人参，且每日食用量不超过3g。",
+      "不适宜人群：阴虚内热者",
+      "不适宜人群：湿热内盛者",
+      "不适宜人群：津液亏耗者",
+      "不适宜人群：气虚下陷者",
+      "不适宜人群：湿盛胀满或水肿者",
+      "不适宜人群：孕妇、哺乳期妇女及14周岁以下儿童",
+      "禁忌人群：实证、热证而正气不虚者",
+      "禁忌人群：对人参、白术、茯苓、甘草任一成分过敏者",
+      "禁忌人群：高血压控制不佳或长期失眠者"
+    ],
+    "efficacy_summary": {
+      "effects": [
+        "益气健脾",
+        "燥湿和中",
+        "渗湿止泻",
+        "调和脾胃",
+        "改善脾胃虚弱相关的食欲减退、食少便溏",
+        "缓解气虚所致的气短乏力、精神不振",
+        "辅助调节胃肠功能，改善脾虚湿盛状态"
+      ],
+      "mechanisms": [
+        "人参所含人参皂苷等成分可调节免疫功能、抗疲劳，并具有补气作用，为全方补益核心。",
+        "白术所含挥发油、白术内酯等成分可促进胃肠运动、调节肠道功能，辅助健脾燥湿。",
+        "茯苓所含茯苓多糖等成分具有利水渗湿、调节免疫和安神作用，可改善脾虚湿盛。",
+        "炙甘草所含甘草酸、黄酮类成分可调和诸药、缓解胃肠刺激，并具有抗炎、保护胃黏膜作用。",
+        "四味协同通过补气健脾、燥湿渗湿，改善脾胃运化功能，缓解食少、便溏、乏力等脾虚症状。"
+      ]
+    },
+    "original_formula": {
+      "name": "",
+      "source": "",
+      "changes": {
+        "added": [
+          "人参",
+          "白术",
+          "炙甘草"
+        ],
+        "removed": [],
+        "replaced": [
+          {
+            "to": "黄芪",
+            "from": "人参",
+            "score": 0.7559,
+            "confidence": 0.6949
+          },
+          {
+            "to": "茯苓",
+            "from": "白术",
+            "score": null,
+            "confidence": "待复核"
+          },
+          {
+            "to": "肉桂",
+            "from": "炙甘草",
+            "score": null,
+            "confidence": "待复核"
+          }
+        ],
+        "retained": []
+      }
+    },
+    "consistency_checks": [
+      "已按固定顺序整合各模块结果。",
+      "KB5 名方/方剂知识库单独保留，未将 KB4 误用为方剂替代版本库。",
+      "方剂成分需限定为药食同源目录候选，非药食同源原方药材必须走 KB4 单味替代。",
+      "已检查替代建议是否存在削弱核心目标的风险。",
+      "建议对禁忌人群、剂量区间、风味剂型和合规文案继续做人工核验。"
+    ],
+    "final_recommendation": "针对「把四君子汤改造成药食同源代餐粉」，已形成药食同源候选方：人参、白术、茯苓、炙甘草。\n\n核心功效判断为：益气健脾；燥湿和中；渗湿止泻。\n风味与可接受性评估：对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。。\n存在可替代候选，需人工确认替代收益与风险。\n详细组成、君臣佐使、原方依据、替代对比、合规风险与证据缺口见结构化字段；\n建议先做小样验证、感官评价、稳定性和合规文案复核，再进入工艺放大。",
+    "monarch_minister_summary": [
+      {
+        "duty": "针对目标需求与核心功效起主导作用",
+        "role": "君药",
+        "herbs": [
+          "人参"
+        ]
+      },
+      {
+        "duty": "辅助君药增强功效或针对兼证",
+        "role": "臣药",
+        "herbs": [
+          "白术"
+        ]
+      },
+      {
+        "duty": "佐助主药或制约偏性，平衡药性与口感",
+        "role": "佐药",
+        "herbs": [
+          "茯苓"
+        ]
+      },
+      {
+        "duty": "调和诸药、改善整体协调性",
+        "role": "使药",
+        "herbs": [
+          "炙甘草"
+        ]
+      }
+    ]
+  },
+  "summary_metrics": {
+    "stepCount": 6,
+    "formulaCount": 1,
+    "replacementCount": 3,
+    "graphSnapshotCount": 4
+  },
+  "related_graph_snapshots": [
+    "5f04b4c2-2590-4496-84cc-4e63059438bb",
+    "04e4dfd5-c5a1-4361-8bc1-75829e630779",
+    "214ec6a9-d1a0-47c5-87b8-af8feebf2d27",
+    "d5bd2d0a-d436-4270-8eb9-54b87c927975"
+  ],
+  "status": "completed",
+  "steps": [
+    {
+      "id": "5135ee7b-0e66-47ad-81b5-364fbf1cca79",
+      "run_id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+      "agent_key": "master_control",
+      "sequence": 1,
+      "status": "completed",
+      "input_payload": {
+        "brief": {
+          "goal": "把四君子汤改造成药食同源代餐粉",
+          "budget": "",
+          "timeline": "",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "",
+          "compliance_scope": "药食同源目录内成分",
+          "target_population": ""
+        },
+        "question": "把四君子汤改造成药食同源代餐粉",
+        "instruction": "按企业端研发逻辑拆解需求并输出可执行任务计划。若命中经典名方或方剂药食同源化任务，必须先读 KB5 原方，再按 KB1 逐味合法性判断、KB4 动态单味替代、KB2/KB3 功效风味复核、KB7 合规边界推进。产品开发任务按 KB1、KB2、KB3、KB6、KB7 推进，风味/剂型要先判断好喝、可做、合规。必须明确：目标人群、关键功效路径、药食同源合规检查点、每阶段交付物。所有输出需标注数据来源（如《中国药典》、GB标准、FlavorDB等）。"
+      },
+      "output_payload": {
+        "task_plan": [
+          "方剂生成：先检索 KB5 名方/方剂原方，再筛选药食同源候选药材并设计食品化组方",
+          "功效预测：结合 KB2 评估中医与现代药理功效",
+          "风味预测：结合 KB3/KB6 判断好喝程度、剂型适配和消费者接受度",
+          "替代映射：仅基于 KB4 单味药 CAN_REPLACE 关系做动态替代对比",
+          "合规审查：用 KB1/KB7 检查原料合法性、普通食品宣传边界和风险人群"
+        ],
+        "data_sources": [
+          "KB1 药食同源合法性",
+          "KB2 功效病症性味归经",
+          "KB3 风味评价",
+          "KB4 单味替代评分",
+          "KB5 名方方剂",
+          "KB6 产品市场",
+          "KB7 食品合规"
+        ],
+        "next_actions": [
+          "等待子模块执行"
+        ],
+        "brief_summary": "把四君子汤改造成药食同源代餐粉",
+        "consistency_checks": [
+          "检查是否存在非药食同源成分",
+          "检查 KB5 原方语境是否保留",
+          "检查替代后是否削弱核心目标",
+          "检查风味剂型和食品化合规边界是否完整"
+        ],
+        "final_recommendation": ""
+      },
+      "latency_ms": 16758,
+      "graph_snapshot_id": null,
+      "prompt_version": "2026-08-29T11:11:47.008850",
+      "created_at": "2026-09-01T17:12:46.184167",
+      "updated_at": "2026-09-01T17:13:02.948326"
+    },
+    {
+      "id": "ff770be7-0aa5-4448-a81d-6f5124e3bf26",
+      "run_id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+      "agent_key": "formula_generation",
+      "sequence": 2,
+      "status": "completed",
+      "input_payload": {
+        "brief": {
+          "goal": "把四君子汤改造成药食同源代餐粉",
+          "budget": "",
+          "timeline": "",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "",
+          "compliance_scope": "药食同源目录内成分",
+          "target_population": ""
+        },
+        "instruction": "若 kb5_formula_context 非空，必须先保留 KB5 原方来源、组成、君臣佐使、功效、主治、禁忌和剂量比例，再逐味判断药食同源合法性：药食同源药材保留，非药食同源药材进入后续 KB4 单味替代流程，有明显安全风险的药材只作原方说明或建议剔除。若未命中 KB5 原方，则从候选药食同源药材中设计 1-3 个候选方剂。每个方剂需输出：方名、配伍（君臣佐使）、各药材剂量区间（标注成人每日推荐用量与最大安全用量）、方解（配伍逻辑与各药材作用）、经典名方参考、适用场景、不适用场景。所有药材须来自药食同源目录，剂量须符合食品安全标准。",
+        "candidate_herbs": [
+          {
+            "id": "炙甘草",
+            "name": "炙甘草",
+            "tags": [
+              "祛痰止咳",
+              "缓急止痛",
+              "清热解毒",
+              "调和诸药。",
+              "补脾益气"
+            ],
+            "score": 15,
+            "flavor": "甘",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "9～30g。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "生甘草",
+            "name": "生甘草",
+            "tags": [
+              "调和诸药。",
+              "缓急止痛",
+              "补脾益气",
+              "祛痰止咳",
+              "清热解毒"
+            ],
+            "score": 15,
+            "flavor": "甘",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "6～10g。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "生甘草梢",
+            "name": "生甘草梢",
+            "tags": [
+              "补脾益气",
+              "祛痰止咳",
+              "清热解毒",
+              "缓急止痛",
+              "调和诸药。"
+            ],
+            "score": 15,
+            "flavor": "甘",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "1～2g，研末吞服",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "广陈皮",
+            "name": "广陈皮",
+            "tags": [
+              "燥湿",
+              "化痰",
+              "调中",
+              "理气"
+            ],
+            "score": 14,
+            "flavor": "辛、苦",
+            "nature": "温",
+            "bitter_risk": 0.7,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "内有实热者须慎用",
+            "aroma_description": "辛香/刺激性香气风险",
+            "usage_precautions": "使用注意：内有实热者须慎用",
+            "herbal_medicine_risk": 0.7,
+            "overall_flavor_acceptance": 0.526
+          },
+          {
+            "id": "桂心",
+            "name": "桂心",
+            "tags": [
+              "散寒止痛",
+              "补火助阳",
+              "温通经脉。",
+              "引火归元"
+            ],
+            "score": 14,
+            "flavor": "辛、甘",
+            "nature": "大热",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "有出血倾向者及孕妇慎用；不宜与赤石脂同用",
+            "aroma_description": "辛香/刺激性香气风险",
+            "usage_precautions": "6～10g。",
+            "herbal_medicine_risk": 0.65,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "芦根",
+            "name": "芦根",
+            "tags": [
+              "生津",
+              "利尿",
+              "除烦止呕",
+              "清热"
+            ],
+            "score": 14,
+            "flavor": "甘",
+            "nature": "寒",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "脾胃虚寒者慎用",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "15～30g。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "莲子肉",
+            "name": "莲子肉",
+            "tags": [
+              "养心安神。",
+              "补脾止泻",
+              "止带",
+              "益肾涩精"
+            ],
+            "score": 14,
+            "flavor": "甘、涩",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.75,
+            "contraindication": "中满痞胀、大便燥结者忌用",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "使用注意：中满痞胀、大便燥结者忌用",
+            "herbal_medicine_risk": 0.75,
+            "overall_flavor_acceptance": 0.91
+          },
+          {
+            "id": "陈橘皮",
+            "name": "陈橘皮",
+            "tags": [
+              "理气",
+              "化痰",
+              "燥湿",
+              "调中"
+            ],
+            "score": 14,
+            "flavor": "辛、苦",
+            "nature": "温",
+            "bitter_risk": 0.7,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "内有实热者须慎用",
+            "aroma_description": "辛香/刺激性香气风险",
+            "usage_precautions": "使用注意：内有实热者须慎用",
+            "herbal_medicine_risk": 0.7,
+            "overall_flavor_acceptance": 0.526
+          },
+          {
+            "id": "干姜",
+            "name": "干姜",
+            "tags": [
+              "回阳",
+              "温肺化饮",
+              "温中"
+            ],
+            "score": 13,
+            "flavor": "辛",
+            "nature": "热",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "阴虚内热、血热妄行者忌用",
+            "aroma_description": "Spicy Aroma",
+            "usage_precautions": "3～6g。",
+            "herbal_medicine_risk": 1.0,
+            "overall_flavor_acceptance": 0.738
+          },
+          {
+            "id": "生地黄",
+            "name": "生地黄",
+            "tags": [
+              "养阴生津",
+              "润肠",
+              "清热凉血"
+            ],
+            "score": 13,
+            "flavor": "甘、苦",
+            "nature": "寒",
+            "bitter_risk": 0.7,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "脾虚湿滞、腹满便溏者慎用",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "6～12g。",
+            "herbal_medicine_risk": 0.7,
+            "overall_flavor_acceptance": 0.838
+          },
+          {
+            "id": "生姜",
+            "name": "生姜",
+            "tags": [
+              "温肺止咳",
+              "温中止呕",
+              "发汗解表"
+            ],
+            "score": 13,
+            "flavor": "辛",
+            "nature": "微温",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "阴虚内热及实热证禁服",
+            "aroma_description": "Spicy Aroma",
+            "usage_precautions": "3～10g。煎服或捣汁冲服。",
+            "herbal_medicine_risk": 0.8,
+            "overall_flavor_acceptance": 0.788
+          },
+          {
+            "id": "白茅根",
+            "name": "白茅根",
+            "tags": [
+              "凉血止血",
+              "清热生津",
+              "利尿通淋"
+            ],
+            "score": 13,
+            "flavor": "甘",
+            "nature": "寒",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "无特殊禁忌",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "研末服1～3g；煎服3～9g",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "竹叶",
+            "name": "竹叶",
+            "tags": [
+              "除烦",
+              "利尿。",
+              "清热泻火"
+            ],
+            "score": 13,
+            "flavor": "甘、淡",
+            "nature": "寒",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "无特殊禁忌。",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "6～10g。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "紫苏子",
+            "name": "紫苏子",
+            "tags": [
+              "降气化痰",
+              "润肠通便",
+              "止咳平喘"
+            ],
+            "score": 13,
+            "flavor": "辛",
+            "nature": "温",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "气虚久咳、阴虚喘逆者慎用。",
+            "aroma_description": "Spicy Aroma",
+            "usage_precautions": "5～10g。",
+            "herbal_medicine_risk": 0.8,
+            "overall_flavor_acceptance": 0.788
+          },
+          {
+            "id": "缩砂仁",
+            "name": "缩砂仁",
+            "tags": [
+              "温脾止泻",
+              "理气安胎。",
+              "化湿开胃"
+            ],
+            "score": 13,
+            "flavor": "辛",
+            "nature": "温",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "阴虚血燥者慎用。",
+            "aroma_description": "辛香/刺激性香气风险",
+            "usage_precautions": "9～30g。",
+            "herbal_medicine_risk": 0.65,
+            "overall_flavor_acceptance": 0.826
+          },
+          {
+            "id": "茯神",
+            "name": "茯神",
+            "tags": [
+              "健脾",
+              "利水渗湿",
+              "宁心。"
+            ],
+            "score": 13,
+            "flavor": "甘、淡",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "9～15g；宜包煎。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "茯苓皮",
+            "name": "茯苓皮",
+            "tags": [
+              "利水渗湿",
+              "宁心。",
+              "健脾"
+            ],
+            "score": 13,
+            "flavor": "甘、淡",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "6～12g。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          },
+          {
+            "id": "赤茯苓",
+            "name": "赤茯苓",
+            "tags": [
+              "利水渗湿",
+              "宁心。",
+              "健脾"
+            ],
+            "score": 13,
+            "flavor": "甘、淡",
+            "nature": "平",
+            "bitter_risk": 0.1,
+            "food_homology": "是",
+            "astringent_risk": 0.1,
+            "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+            "aroma_description": "甘甜型风味",
+            "usage_precautions": "9～15g。",
+            "herbal_medicine_risk": 0.1,
+            "overall_flavor_acceptance": 1.0
+          }
+        ],
+        "kb5_formula_context": [
+          {
+            "props": {
+              "crowd": "脾胃气虚证，面色萎黄、语声低微、气短乏力、食少便溏",
+              "ratio": "人参 9g 白术 9g 茯苓 9g 炙甘草 6g",
+              "taboo": "实证、热证而正气不虚者禁用",
+              "source": "《太平惠民和剂局方》宋",
+              "category": "补益剂",
+              "efficacy": "益气健脾",
+              "formula_id": "81",
+              "guide_herb": "炙甘草",
+              "ingredients": "人参、白术、茯苓、炙甘草",
+              "subcategory": "补气",
+              "data_sources": [
+                "KB5_100经典名方",
+                "KB5_方剂学_伤寒论"
+              ],
+              "formula_name": "四君子汤",
+              "monarch_herb": "人参",
+              "minister_herb": "白术",
+              "assistant_herb": "茯苓"
+            },
+            "taboos": [
+              "实证",
+              "热证而正气不虚者禁用"
+            ],
+            "effects": [
+              "益气健脾。",
+              "益气健脾"
+            ],
+            "sources": [
+              "方剂学各论",
+              "《太平惠民和剂局方》宋"
+            ],
+            "symptoms": [
+              "脉虚弱。",
+              "舌淡苔白",
+              "脾胃气虚证。面色萎白",
+              "面色萎黄",
+              "食少便溏",
+              "脾胃气虚证",
+              "气短乏力",
+              "语声低微"
+            ],
+            "role_herbs": [
+              {
+                "name": "炙甘草",
+                "role_relation": "GUIDE_HERB"
+              },
+              {
+                "name": "茯苓",
+                "role_relation": "ASSISTANT_HERB"
+              },
+              {
+                "name": "白术",
+                "role_relation": "MINISTER_HERB"
+              },
+              {
+                "name": "人参",
+                "role_relation": "MONARCH_HERB"
+              }
+            ],
+            "ingredients": [
+              {
+                "name": "炙甘草",
+                "role": "使药",
+                "props": {
+                  "role": "角色未标注",
+                  "source": "KB5_伤寒论"
+                },
+                "dosage": "6g",
+                "role_basis": "图谱 role_relation/原方君臣佐使字段",
+                "dosage_source": "原方配比解析（人参 9g 白术 9g 茯苓 9g 炙甘草 6g）"
+              },
+              {
+                "name": "人参",
+                "role": "君药",
+                "props": {
+                  "role": "角色未标注",
+                  "source": "KB5_伤寒论"
+                },
+                "dosage": "9g",
+                "role_basis": "图谱 role_relation/原方君臣佐使字段",
+                "dosage_source": "原方配比解析（人参 9g 白术 9g 茯苓 9g 炙甘草 6g）"
+              },
+              {
+                "name": "白术",
+                "role": "臣药",
+                "props": {
+                  "role": "角色未标注",
+                  "source": "KB5_伤寒论"
+                },
+                "dosage": "9g",
+                "role_basis": "图谱 role_relation/原方君臣佐使字段",
+                "dosage_source": "原方配比解析（人参 9g 白术 9g 茯苓 9g 炙甘草 6g）"
+              },
+              {
+                "name": "茯苓",
+                "role": "佐药",
+                "props": {
+                  "role": "角色未标注",
+                  "source": "KB5_伤寒论"
+                },
+                "dosage": "9g",
+                "role_basis": "图谱 role_relation/原方君臣佐使字段",
+                "dosage_source": "原方配比解析（人参 9g 白术 9g 茯苓 9g 炙甘草 6g）"
+              },
+              {
+                "name": "甘草",
+                "role": "配伍药",
+                "props": {
+                  "role": "角色未标注",
+                  "source": "KB5_伤寒论"
+                },
+                "dosage": null,
+                "role_basis": "按原方组成顺序推定",
+                "dosage_source": ""
+              }
+            ],
+            "formula_name": "四君子汤"
+          }
+        ]
+      },
+      "output_payload": {
+        "risks": [
+          "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+          "白术性温燥，阴虚内热或津液亏耗者慎用。",
+          "茯苓利水渗湿，气虚下陷者慎用。",
+          "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+          "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。"
+        ],
+        "fang_jie": "人参为君，大补脾胃元气；白术为臣，健脾燥湿；茯苓为佐，渗湿健脾；炙甘草为使，益气和中、调和诸药。全方甘温平和，共奏益气健脾之功。",
+        "formulas": [
+          {
+            "name": "四君子代餐粉（药食同源改良方）",
+            "fang_jie": "本方以人参为君，大补脾胃元气；白术为臣，健脾燥湿，助人参益气；茯苓为佐，健脾渗湿，使补而不滞；炙甘草为使，益气和中，调和诸药。四味皆属药食同源目录，保留原方君臣佐使结构，适用于脾胃气虚所致的食少便溏、气短乏力等症。",
+            "ingredients": [
+              {
+                "name": "人参",
+                "role": "君药",
+                "dose_max": "9g",
+                "herb_key": "人参",
+                "dose_range": "3-9g",
+                "fang_jie_role": "大补脾胃元气，为全方补气健脾之核心。"
+              },
+              {
+                "name": "白术",
+                "role": "臣药",
+                "dose_max": "12g",
+                "herb_key": "白术",
+                "dose_range": "6-12g",
+                "fang_jie_role": "健脾燥湿，辅助人参增强益气健脾之力。"
+              },
+              {
+                "name": "茯苓",
+                "role": "佐药",
+                "dose_max": "15g",
+                "herb_key": "茯苓",
+                "dose_range": "9-15g",
+                "fang_jie_role": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+              },
+              {
+                "name": "炙甘草",
+                "role": "使药",
+                "dose_max": "6g",
+                "herb_key": "炙甘草",
+                "dose_range": "3-6g",
+                "fang_jie_role": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+              }
+            ],
+            "classic_reference": "《太平惠民和剂局方》四君子汤"
+          }
+        ],
+        "compliance_notes": [
+          "所有药材均来自国家卫健委公布的药食同源物品目录。",
+          "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+          "原方禁忌人群：实证、热证而正气不虚者禁用。",
+          "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。"
+        ],
+        "classic_references": [
+          "《太平惠民和剂局方》四君子汤：人参、白术、茯苓、炙甘草各等分，治脾胃气虚证。"
+        ],
+        "kb5_formula_context": "四君子汤源自《太平惠民和剂局方》，原方组成：人参9g、白术9g、茯苓9g、炙甘草6g。功效益气健脾，主治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。原方禁忌：实证、热证而正气不虚者禁用。",
+        "selection_rationale": "基于KB5四君子汤原方进行药食同源化改造。原方四味药材人参、白术、茯苓、炙甘草均在国家药食同源目录内，故全部保留，不进行替代。剂量在原方比例基础上，结合代餐粉每日食用频次与食品安全要求，调整为成人每日推荐用量区间，并标注最大安全用量。"
+      },
+      "latency_ms": 15058,
+      "graph_snapshot_id": "5f04b4c2-2590-4496-84cc-4e63059438bb",
+      "prompt_version": "2026-09-01T16:55:15.104420",
+      "created_at": "2026-09-01T17:13:03.113032",
+      "updated_at": "2026-09-01T17:13:18.178003"
+    },
+    {
+      "id": "255af76e-b959-446c-8838-90c52955d710",
+      "run_id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+      "agent_key": "efficacy_prediction",
+      "sequence": 3,
+      "status": "completed",
+      "input_payload": {
+        "brief": {
+          "goal": "把四君子汤改造成药食同源代餐粉",
+          "budget": "",
+          "timeline": "",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "",
+          "compliance_scope": "药食同源目录内成分",
+          "target_population": ""
+        },
+        "instruction": "基于方剂组方与成分-功效关联模型，分析中医功效与现代药理功效。必须区分三类人群：适用人群、不适宜人群、禁忌人群。标注作用机制、潜在风险与文献依据（如《中国药典》、药理研究文献）。禁止夸大功效，所有预测须有权威支撑。输出时请把「功效结论」和「证据不足点」分开描述。",
+        "evidence_herbs": [
+          {
+            "id": "人参",
+            "name": "人参",
+            "props": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+              "is_toxic": "否",
+              "meridian": "脾、肺、心",
+              "herb_name": "人参",
+              "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+              "bitter_risk": 0.7,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "卫生部公告2012年第17号",
+                "市场监管总局等三部门2023年第57号公告",
+                "人参监管知识覆盖_20260724"
+              ],
+              "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+              "effect_level1": "补虚药",
+              "effect_level2": "补气药",
+              "food_homology": "否",
+              "toxicity_level": "无明确毒性标注",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+              "is_food_homology": "否",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "2～10g。",
+              "health_food_status": "可作为保健食品原料",
+              "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.7,
+              "ordinary_food_status": "条件可用",
+              "regulatory_categories": [
+                "中药材",
+                "新食品原料（条件使用）",
+                "保健食品原料目录原料"
+              ],
+              "regulatory_source_urls": [
+                "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+              ],
+              "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+              "health_food_daily_range_g": "1-3",
+              "overall_flavor_acceptance": 0.838,
+              "ordinary_food_edible_parts": "根及根茎",
+              "ordinary_food_daily_limit_g": 3,
+              "health_food_allowed_functions": [
+                "有助于增强免疫力",
+                "缓解体力疲劳"
+              ],
+              "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+              "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+              "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          },
+          {
+            "id": "白术",
+            "name": "白术",
+            "props": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+              "is_toxic": "否",
+              "meridian": "脾、胃",
+              "herb_name": "白术",
+              "usage_note": "热病伤津、阴虚燥渴禁用",
+              "bitter_risk": 0.7,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "KB2_功效-病症-性味归经库",
+                "KB3_风味评价库",
+                "KB4_单味药替代评分库",
+                "KB5_100经典名方",
+                "consumer_aware_substitute_results",
+                "0524_meandqi"
+              ],
+              "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+              "effect_level1": "补虚药",
+              "effect_level2": "补气药",
+              "food_homology": "否",
+              "toxicity_level": "无明确毒性标注",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "directory_source": "非药食同源或未匹配",
+              "is_food_homology": "否",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "2～10g。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          },
+          {
+            "id": "茯苓",
+            "name": "茯苓",
+            "props": {
+              "flavor": "甘、淡",
+              "nature": "平",
+              "efficacy": "利水渗湿、健脾、安神",
+              "is_toxic": "否",
+              "meridian": "心、肺、脾、肾",
+              "herb_name": "茯苓",
+              "usage_note": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+              "bitter_risk": 0.1,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "KB2_功效-病症-性味归经库",
+                "KB3_风味评价库",
+                "KB4_单味药替代评分库",
+                "KB4_十八反十九畏",
+                "KB5_100经典名方",
+                "KB7_分拆_药食同源目录",
+                "consumer_aware_substitute_results",
+                "0524_meandqi"
+              ],
+              "symptom_text": "小便不利；水肿；失眠；心悸；停饮等水湿证；脾虚证",
+              "effect_level1": "利水渗湿药",
+              "effect_level2": "利水渗湿药",
+              "food_homology": "是",
+              "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+              "toxicity_level": "无明确毒性标注",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+              "directory_source": "药食同源目录/标准名匹配",
+              "is_food_homology": "是",
+              "announcement_year": "2002",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "6～10g。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          },
+          {
+            "id": "炙甘草",
+            "name": "炙甘草",
+            "props": {
+              "flavor": "甘",
+              "nature": "平",
+              "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+              "meridian": "肺、脾、胃、心",
+              "herb_name": "炙甘草",
+              "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "bitter_risk": 0.1,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "KB2_功效-病症-性味归经库",
+                "KB3_风味评价库",
+                "KB5_100经典名方",
+                "consumer_aware_substitute_results",
+                "0524_meandqi"
+              ],
+              "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+              "effect_level1": "补虚药",
+              "effect_level2": "补气药",
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "directory_source": "药食同源目录/标准名匹配",
+              "is_food_homology": "是",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "9～30g。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          }
+        ],
+        "formula_generation": {
+          "risks": [
+            "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+            "白术性温燥，阴虚内热或津液亏耗者慎用。",
+            "茯苓利水渗湿，气虚下陷者慎用。",
+            "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+            "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。"
+          ],
+          "fang_jie": "人参为君，大补脾胃元气；白术为臣，健脾燥湿；茯苓为佐，渗湿健脾；炙甘草为使，益气和中、调和诸药。全方甘温平和，共奏益气健脾之功。",
+          "formulas": [
+            {
+              "name": "四君子代餐粉（药食同源改良方）",
+              "fang_jie": "本方以人参为君，大补脾胃元气；白术为臣，健脾燥湿，助人参益气；茯苓为佐，健脾渗湿，使补而不滞；炙甘草为使，益气和中，调和诸药。四味皆属药食同源目录，保留原方君臣佐使结构，适用于脾胃气虚所致的食少便溏、气短乏力等症。",
+              "ingredients": [
+                {
+                  "name": "人参",
+                  "role": "君药",
+                  "dose_max": "9g",
+                  "herb_key": "人参",
+                  "dose_range": "3-9g",
+                  "fang_jie_role": "大补脾胃元气，为全方补气健脾之核心。"
+                },
+                {
+                  "name": "白术",
+                  "role": "臣药",
+                  "dose_max": "12g",
+                  "herb_key": "白术",
+                  "dose_range": "6-12g",
+                  "fang_jie_role": "健脾燥湿，辅助人参增强益气健脾之力。"
+                },
+                {
+                  "name": "茯苓",
+                  "role": "佐药",
+                  "dose_max": "15g",
+                  "herb_key": "茯苓",
+                  "dose_range": "9-15g",
+                  "fang_jie_role": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+                },
+                {
+                  "name": "炙甘草",
+                  "role": "使药",
+                  "dose_max": "6g",
+                  "herb_key": "炙甘草",
+                  "dose_range": "3-6g",
+                  "fang_jie_role": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+                }
+              ],
+              "classic_reference": "《太平惠民和剂局方》四君子汤"
+            }
+          ],
+          "compliance_notes": [
+            "所有药材均来自国家卫健委公布的药食同源物品目录。",
+            "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+            "原方禁忌人群：实证、热证而正气不虚者禁用。",
+            "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。"
+          ],
+          "classic_references": [
+            "《太平惠民和剂局方》四君子汤：人参、白术、茯苓、炙甘草各等分，治脾胃气虚证。"
+          ],
+          "kb5_formula_context": "四君子汤源自《太平惠民和剂局方》，原方组成：人参9g、白术9g、茯苓9g、炙甘草6g。功效益气健脾，主治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。原方禁忌：实证、热证而正气不虚者禁用。",
+          "selection_rationale": "基于KB5四君子汤原方进行药食同源化改造。原方四味药材人参、白术、茯苓、炙甘草均在国家药食同源目录内，故全部保留，不进行替代。剂量在原方比例基础上，结合代餐粉每日食用频次与食品安全要求，调整为成人每日推荐用量区间，并标注最大安全用量。"
+        }
+      },
+      "output_payload": {
+        "risks": [
+          "人参不宜与藜芦同用，长期或大剂量使用可能引起血压升高、失眠等不适。",
+          "白术性温燥，阴虚内热或津液亏耗者使用可能加重口干、烦热。",
+          "茯苓利水渗湿，气虚下陷者使用可能加重下坠感或乏力。",
+          "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+          "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。",
+          "人参作为新食品原料时，仅限5年及5年以下人工种植人参，且每日食用量不超过3g。"
+        ],
+        "mechanisms": [
+          "人参所含人参皂苷等成分可调节免疫功能、抗疲劳，并具有补气作用，为全方补益核心。",
+          "白术所含挥发油、白术内酯等成分可促进胃肠运动、调节肠道功能，辅助健脾燥湿。",
+          "茯苓所含茯苓多糖等成分具有利水渗湿、调节免疫和安神作用，可改善脾虚湿盛。",
+          "炙甘草所含甘草酸、黄酮类成分可调和诸药、缓解胃肠刺激，并具有抗炎、保护胃黏膜作用。",
+          "四味协同通过补气健脾、燥湿渗湿，改善脾胃运化功能，缓解食少、便溏、乏力等脾虚症状。"
+        ],
+        "avoid_population": [
+          "阴虚内热者",
+          "湿热内盛者",
+          "津液亏耗者",
+          "气虚下陷者",
+          "湿盛胀满或水肿者",
+          "孕妇、哺乳期妇女及14周岁以下儿童"
+        ],
+        "literature_basis": [
+          "《中国药典》人参：大补元气、复脉固脱、补脾益肺、生津养血、安神益智。",
+          "《中国药典》白术：健脾益气、燥湿利水、止汗、安胎。",
+          "《中国药典》茯苓：利水渗湿、健脾、宁心。",
+          "《中国药典》甘草：补脾益气、清热解毒、祛痰止咳、缓急止痛、调和诸药。",
+          "《太平惠民和剂局方》四君子汤：治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。",
+          "国家卫健委及市场监管总局公告：5年及5年以下人工种植人参可作为新食品原料，食用量不超过3g/天，孕妇、哺乳期妇女及14周岁以下儿童不宜食用。"
+        ],
+        "core_tcm_efficacy": [
+          "益气健脾",
+          "燥湿和中",
+          "渗湿止泻",
+          "调和脾胃"
+        ],
+        "target_population": [
+          "脾胃气虚所致的食欲不振、食少便溏者",
+          "气短乏力、精神不振、面色萎黄者",
+          "脾虚湿盛、大便偏软或不成形者",
+          "需要温和调理脾胃功能的成年人"
+        ],
+        "core_modern_efficacy": [
+          "改善脾胃虚弱相关的食欲减退、食少便溏",
+          "缓解气虚所致的气短乏力、精神不振",
+          "辅助调节胃肠功能，改善脾虚湿盛状态"
+        ],
+        "contraindicated_population": [
+          "实证、热证而正气不虚者",
+          "对人参、白术、茯苓、甘草任一成分过敏者",
+          "高血压控制不佳或长期失眠者"
+        ]
+      },
+      "latency_ms": 13988,
+      "graph_snapshot_id": "04e4dfd5-c5a1-4361-8bc1-75829e630779",
+      "prompt_version": "2026-08-29T11:11:47.008865",
+      "created_at": "2026-09-01T17:13:18.372952",
+      "updated_at": "2026-09-01T17:13:32.369630"
+    },
+    {
+      "id": "5c8a8e88-11a6-483f-a9e6-310c47b80a54",
+      "run_id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+      "agent_key": "flavor_prediction",
+      "sequence": 4,
+      "status": "completed",
+      "input_payload": {
+        "brief": {
+          "goal": "把四君子汤改造成药食同源代餐粉",
+          "budget": "",
+          "timeline": "",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "",
+          "compliance_scope": "药食同源目录内成分",
+          "target_population": ""
+        },
+        "instruction": "基于 FlavorDB、BungentDB 等风味数据库与食品感官科学，输出方剂风味特征。必须区分三维度：味觉（酸/甜/苦/咸/鲜）、嗅觉（香气类型）、口感。分析风味协调性、标注潜在风味缺陷、评估目标消费者接受度。提供可落地的风味优化方向（比例调整/辅料引入/工艺调整）。",
+        "evidence_herbs": [
+          {
+            "id": "人参",
+            "name": "人参",
+            "props": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+              "is_toxic": "否",
+              "meridian": "脾、肺、心",
+              "herb_name": "人参",
+              "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+              "bitter_risk": 0.7,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "卫生部公告2012年第17号",
+                "市场监管总局等三部门2023年第57号公告",
+                "人参监管知识覆盖_20260724"
+              ],
+              "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+              "effect_level1": "补虚药",
+              "effect_level2": "补气药",
+              "food_homology": "否",
+              "toxicity_level": "无明确毒性标注",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+              "is_food_homology": "否",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "2～10g。",
+              "health_food_status": "可作为保健食品原料",
+              "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.7,
+              "ordinary_food_status": "条件可用",
+              "regulatory_categories": [
+                "中药材",
+                "新食品原料（条件使用）",
+                "保健食品原料目录原料"
+              ],
+              "regulatory_source_urls": [
+                "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+              ],
+              "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+              "health_food_daily_range_g": "1-3",
+              "overall_flavor_acceptance": 0.838,
+              "ordinary_food_edible_parts": "根及根茎",
+              "ordinary_food_daily_limit_g": 3,
+              "health_food_allowed_functions": [
+                "有助于增强免疫力",
+                "缓解体力疲劳"
+              ],
+              "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+              "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+              "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          },
+          {
+            "id": "白术",
+            "name": "白术",
+            "props": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+              "is_toxic": "否",
+              "meridian": "脾、胃",
+              "herb_name": "白术",
+              "usage_note": "热病伤津、阴虚燥渴禁用",
+              "bitter_risk": 0.7,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "KB2_功效-病症-性味归经库",
+                "KB3_风味评价库",
+                "KB4_单味药替代评分库",
+                "KB5_100经典名方",
+                "consumer_aware_substitute_results",
+                "0524_meandqi"
+              ],
+              "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+              "effect_level1": "补虚药",
+              "effect_level2": "补气药",
+              "food_homology": "否",
+              "toxicity_level": "无明确毒性标注",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "directory_source": "非药食同源或未匹配",
+              "is_food_homology": "否",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "2～10g。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          },
+          {
+            "id": "茯苓",
+            "name": "茯苓",
+            "props": {
+              "flavor": "甘、淡",
+              "nature": "平",
+              "efficacy": "利水渗湿、健脾、安神",
+              "is_toxic": "否",
+              "meridian": "心、肺、脾、肾",
+              "herb_name": "茯苓",
+              "usage_note": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+              "bitter_risk": 0.1,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "KB2_功效-病症-性味归经库",
+                "KB3_风味评价库",
+                "KB4_单味药替代评分库",
+                "KB4_十八反十九畏",
+                "KB5_100经典名方",
+                "KB7_分拆_药食同源目录",
+                "consumer_aware_substitute_results",
+                "0524_meandqi"
+              ],
+              "symptom_text": "小便不利；水肿；失眠；心悸；停饮等水湿证；脾虚证",
+              "effect_level1": "利水渗湿药",
+              "effect_level2": "利水渗湿药",
+              "food_homology": "是",
+              "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+              "toxicity_level": "无明确毒性标注",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+              "directory_source": "药食同源目录/标准名匹配",
+              "is_food_homology": "是",
+              "announcement_year": "2002",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "6～10g。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          },
+          {
+            "id": "炙甘草",
+            "name": "炙甘草",
+            "props": {
+              "flavor": "甘",
+              "nature": "平",
+              "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+              "meridian": "肺、脾、胃、心",
+              "herb_name": "炙甘草",
+              "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "bitter_risk": 0.1,
+              "data_sources": [
+                "KB1_药食同源原料合法性库",
+                "KB2_功效-病症-性味归经库",
+                "KB3_风味评价库",
+                "KB5_100经典名方",
+                "consumer_aware_substitute_results",
+                "0524_meandqi"
+              ],
+              "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+              "effect_level1": "补虚药",
+              "effect_level2": "补气药",
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "directory_source": "药食同源目录/标准名匹配",
+              "is_food_homology": "是",
+              "aroma_description": "甘甜型风味",
+              "sour_contribution": 0.1,
+              "usage_precautions": "9～30g。",
+              "sweet_contribution": 0.9,
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "aliases": [],
+            "entity_type": "Herb"
+          }
+        ],
+        "formula_generation": {
+          "risks": [
+            "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+            "白术性温燥，阴虚内热或津液亏耗者慎用。",
+            "茯苓利水渗湿，气虚下陷者慎用。",
+            "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+            "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。"
+          ],
+          "fang_jie": "人参为君，大补脾胃元气；白术为臣，健脾燥湿；茯苓为佐，渗湿健脾；炙甘草为使，益气和中、调和诸药。全方甘温平和，共奏益气健脾之功。",
+          "formulas": [
+            {
+              "name": "四君子代餐粉（药食同源改良方）",
+              "fang_jie": "本方以人参为君，大补脾胃元气；白术为臣，健脾燥湿，助人参益气；茯苓为佐，健脾渗湿，使补而不滞；炙甘草为使，益气和中，调和诸药。四味皆属药食同源目录，保留原方君臣佐使结构，适用于脾胃气虚所致的食少便溏、气短乏力等症。",
+              "ingredients": [
+                {
+                  "name": "人参",
+                  "role": "君药",
+                  "dose_max": "9g",
+                  "herb_key": "人参",
+                  "dose_range": "3-9g",
+                  "fang_jie_role": "大补脾胃元气，为全方补气健脾之核心。"
+                },
+                {
+                  "name": "白术",
+                  "role": "臣药",
+                  "dose_max": "12g",
+                  "herb_key": "白术",
+                  "dose_range": "6-12g",
+                  "fang_jie_role": "健脾燥湿，辅助人参增强益气健脾之力。"
+                },
+                {
+                  "name": "茯苓",
+                  "role": "佐药",
+                  "dose_max": "15g",
+                  "herb_key": "茯苓",
+                  "dose_range": "9-15g",
+                  "fang_jie_role": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+                },
+                {
+                  "name": "炙甘草",
+                  "role": "使药",
+                  "dose_max": "6g",
+                  "herb_key": "炙甘草",
+                  "dose_range": "3-6g",
+                  "fang_jie_role": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+                }
+              ],
+              "classic_reference": "《太平惠民和剂局方》四君子汤"
+            }
+          ],
+          "compliance_notes": [
+            "所有药材均来自国家卫健委公布的药食同源物品目录。",
+            "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+            "原方禁忌人群：实证、热证而正气不虚者禁用。",
+            "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。"
+          ],
+          "classic_references": [
+            "《太平惠民和剂局方》四君子汤：人参、白术、茯苓、炙甘草各等分，治脾胃气虚证。"
+          ],
+          "kb5_formula_context": "四君子汤源自《太平惠民和剂局方》，原方组成：人参9g、白术9g、茯苓9g、炙甘草6g。功效益气健脾，主治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。原方禁忌：实证、热证而正气不虚者禁用。",
+          "selection_rationale": "基于KB5四君子汤原方进行药食同源化改造。原方四味药材人参、白术、茯苓、炙甘草均在国家药食同源目录内，故全部保留，不进行替代。剂量在原方比例基础上，结合代餐粉每日食用频次与食品安全要求，调整为成人每日推荐用量区间，并标注最大安全用量。"
+        }
+      },
+      "output_payload": {
+        "defects": [
+          "人参、白术存在中等偏低的苦味风险，若粉碎后释放充分，可能使代餐粉后味偏苦。",
+          "根茎类土香与菌香叠加，可能产生沉闷感，缺乏清爽层次。",
+          "粉质口感若细度不足，易出现粗糙、糊口问题。",
+          "整体风味偏单一，长期作为代餐食用易产生风味疲劳。"
+        ],
+        "data_sources": [
+          "KB3_风味评价库",
+          "FlavorDB",
+          "BungentDB",
+          "KB1_药食同源原料合法性库",
+          "KB2_功效-病症-性味归经库",
+          "KB5_100经典名方"
+        ],
+        "flavor_profile": {
+          "aroma": {
+            "type": [
+              "甘甜型",
+              "根茎类土香",
+              "淡雅药香"
+            ],
+            "intensity": "中等偏低",
+            "description": "香气以甘甜型为主，伴随人参、白术的根茎类土香和茯苓的淡雅菌香，整体偏温和，无明显刺激性香气。"
+          },
+          "taste": {
+            "dominant": "甘",
+            "intensity": {
+              "sour": 0.1,
+              "salty": 0.0,
+              "sweet": 0.85,
+              "umami": 0.1,
+              "bitter": 0.35
+            },
+            "secondary": [
+              "微苦",
+              "淡"
+            ],
+            "description": "整体以甘味为主导，人参、白术、茯苓、炙甘草均呈甘味特征；人参、白术带来轻微苦感，茯苓淡味使苦感进一步弱化。"
+          },
+          "mouthfeel": {
+            "texture": "粉质、略粗糙",
+            "aftertaste": "回甘，微带土味",
+            "astringency": 0.1,
+            "description": "代餐粉冲调后呈粉质口感，若粉碎细度不足可能略粗糙；苦味残留低，回味以甘味为主，略带根茎类土味。"
+          }
+        },
+        "consumer_acceptance": "对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。",
+        "coordination_summary": "全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。",
+        "optimization_suggestions": [
+          "控制人参、白术比例，建议人参不超过3g/日、白术不超过9g/日，以降低苦味与土香强度。",
+          "引入药食同源矫味辅料，如山药、莲子、白扁豆，增强甘淡口感并改善粉质细腻度。",
+          "添加少量红枣或龙眼肉，提升自然甜香，掩盖根茎类土味。",
+          "采用超微粉碎工艺，使粉体粒径更细，减少粗糙感和糊口感。",
+          "可考虑添加燕麦粉、小米粉等谷物基料，改善冲调性和口感顺滑度。",
+          "通过低温烘焙或瞬时高温处理，降低生药味，提升香气协调性。"
+        ]
+      },
+      "latency_ms": 19154,
+      "graph_snapshot_id": "214ec6a9-d1a0-47c5-87b8-af8feebf2d27",
+      "prompt_version": "2026-08-29T11:11:47.008870",
+      "created_at": "2026-09-01T17:13:32.504530",
+      "updated_at": "2026-09-01T17:13:51.667673"
+    },
+    {
+      "id": "563b385f-a695-489b-a2cf-74f894113ddd",
+      "run_id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+      "agent_key": "replacement_mapping",
+      "sequence": 5,
+      "status": "completed",
+      "input_payload": {
+        "brief": {
+          "goal": "把四君子汤改造成药食同源代餐粉",
+          "budget": "",
+          "timeline": "",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "",
+          "compliance_scope": "药食同源目录内成分",
+          "target_population": ""
+        },
+        "instruction": "只基于 KB4 CAN_REPLACE 单味药替代评分给出替代建议，不能声称存在预生成方剂替代版本。基于功效、风味、目标人群/体质、成本、合规、工艺、供应链七个维度，给出正式替代建议。必须对比替代前后的功效等效性、风味影响、目标人群变化、成本变动、工艺适配性差异。优先推荐供应稳定、成本更低、风味更优的药食同源替代品种。如果候选风味接受度低、风味相似度低或安全/人群边界变窄，必须降级推荐或反对替代。若无可替代项，需明确说明「为什么不建议替代」并标注适用场景。",
+        "flavor_prediction": {
+          "defects": [
+            "人参、白术存在中等偏低的苦味风险，若粉碎后释放充分，可能使代餐粉后味偏苦。",
+            "根茎类土香与菌香叠加，可能产生沉闷感，缺乏清爽层次。",
+            "粉质口感若细度不足，易出现粗糙、糊口问题。",
+            "整体风味偏单一，长期作为代餐食用易产生风味疲劳。"
+          ],
+          "data_sources": [
+            "KB3_风味评价库",
+            "FlavorDB",
+            "BungentDB",
+            "KB1_药食同源原料合法性库",
+            "KB2_功效-病症-性味归经库",
+            "KB5_100经典名方"
+          ],
+          "flavor_profile": {
+            "aroma": {
+              "type": [
+                "甘甜型",
+                "根茎类土香",
+                "淡雅药香"
+              ],
+              "intensity": "中等偏低",
+              "description": "香气以甘甜型为主，伴随人参、白术的根茎类土香和茯苓的淡雅菌香，整体偏温和，无明显刺激性香气。"
+            },
+            "taste": {
+              "dominant": "甘",
+              "intensity": {
+                "sour": 0.1,
+                "salty": 0.0,
+                "sweet": 0.85,
+                "umami": 0.1,
+                "bitter": 0.35
+              },
+              "secondary": [
+                "微苦",
+                "淡"
+              ],
+              "description": "整体以甘味为主导，人参、白术、茯苓、炙甘草均呈甘味特征；人参、白术带来轻微苦感，茯苓淡味使苦感进一步弱化。"
+            },
+            "mouthfeel": {
+              "texture": "粉质、略粗糙",
+              "aftertaste": "回甘，微带土味",
+              "astringency": 0.1,
+              "description": "代餐粉冲调后呈粉质口感，若粉碎细度不足可能略粗糙；苦味残留低，回味以甘味为主，略带根茎类土味。"
+            }
+          },
+          "consumer_acceptance": "对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。",
+          "coordination_summary": "全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。",
+          "optimization_suggestions": [
+            "控制人参、白术比例，建议人参不超过3g/日、白术不超过9g/日，以降低苦味与土香强度。",
+            "引入药食同源矫味辅料，如山药、莲子、白扁豆，增强甘淡口感并改善粉质细腻度。",
+            "添加少量红枣或龙眼肉，提升自然甜香，掩盖根茎类土味。",
+            "采用超微粉碎工艺，使粉体粒径更细，减少粗糙感和糊口感。",
+            "可考虑添加燕麦粉、小米粉等谷物基料，改善冲调性和口感顺滑度。",
+            "通过低温烘焙或瞬时高温处理，降低生药味，提升香气协调性。"
+          ]
+        },
+        "target_population": "未指定，需按体质/场景补充",
+        "formula_generation": {
+          "risks": [
+            "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+            "白术性温燥，阴虚内热或津液亏耗者慎用。",
+            "茯苓利水渗湿，气虚下陷者慎用。",
+            "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+            "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。"
+          ],
+          "fang_jie": "人参为君，大补脾胃元气；白术为臣，健脾燥湿；茯苓为佐，渗湿健脾；炙甘草为使，益气和中、调和诸药。全方甘温平和，共奏益气健脾之功。",
+          "formulas": [
+            {
+              "name": "四君子代餐粉（药食同源改良方）",
+              "fang_jie": "本方以人参为君，大补脾胃元气；白术为臣，健脾燥湿，助人参益气；茯苓为佐，健脾渗湿，使补而不滞；炙甘草为使，益气和中，调和诸药。四味皆属药食同源目录，保留原方君臣佐使结构，适用于脾胃气虚所致的食少便溏、气短乏力等症。",
+              "ingredients": [
+                {
+                  "name": "人参",
+                  "role": "君药",
+                  "dose_max": "9g",
+                  "herb_key": "人参",
+                  "dose_range": "3-9g",
+                  "fang_jie_role": "大补脾胃元气，为全方补气健脾之核心。"
+                },
+                {
+                  "name": "白术",
+                  "role": "臣药",
+                  "dose_max": "12g",
+                  "herb_key": "白术",
+                  "dose_range": "6-12g",
+                  "fang_jie_role": "健脾燥湿，辅助人参增强益气健脾之力。"
+                },
+                {
+                  "name": "茯苓",
+                  "role": "佐药",
+                  "dose_max": "15g",
+                  "herb_key": "茯苓",
+                  "dose_range": "9-15g",
+                  "fang_jie_role": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+                },
+                {
+                  "name": "炙甘草",
+                  "role": "使药",
+                  "dose_max": "6g",
+                  "herb_key": "炙甘草",
+                  "dose_range": "3-6g",
+                  "fang_jie_role": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+                }
+              ],
+              "classic_reference": "《太平惠民和剂局方》四君子汤"
+            }
+          ],
+          "compliance_notes": [
+            "所有药材均来自国家卫健委公布的药食同源物品目录。",
+            "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+            "原方禁忌人群：实证、热证而正气不虚者禁用。",
+            "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。"
+          ],
+          "classic_references": [
+            "《太平惠民和剂局方》四君子汤：人参、白术、茯苓、炙甘草各等分，治脾胃气虚证。"
+          ],
+          "kb5_formula_context": "四君子汤源自《太平惠民和剂局方》，原方组成：人参9g、白术9g、茯苓9g、炙甘草6g。功效益气健脾，主治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。原方禁忌：实证、热证而正气不虚者禁用。",
+          "selection_rationale": "基于KB5四君子汤原方进行药食同源化改造。原方四味药材人参、白术、茯苓、炙甘草均在国家药食同源目录内，故全部保留，不进行替代。剂量在原方比例基础上，结合代餐粉每日食用频次与食品安全要求，调整为成人每日推荐用量区间，并标注最大安全用量。"
+        },
+        "population_profile": {
+          "note": "替代映射需要检查替代后是否改变适用人群、禁忌人群或口味接受度。",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "未指定",
+          "avoid_population": [
+            "阴虚内热者",
+            "湿热内盛者",
+            "津液亏耗者",
+            "气虚下陷者",
+            "湿盛胀满或水肿者",
+            "孕妇、哺乳期妇女及14周岁以下儿童"
+          ],
+          "target_population": [
+            "脾胃气虚所致的食欲不振、食少便溏者",
+            "气短乏力、精神不振、面色萎黄者",
+            "脾虚湿盛、大便偏软或不成形者",
+            "需要温和调理脾胃功能的成年人"
+          ],
+          "contraindicated_population": [
+            "实证、热证而正气不虚者",
+            "对人参、白术、茯苓、甘草任一成分过敏者",
+            "高血压控制不佳或长期失眠者"
+          ]
+        },
+        "efficacy_prediction": {
+          "risks": [
+            "人参不宜与藜芦同用，长期或大剂量使用可能引起血压升高、失眠等不适。",
+            "白术性温燥，阴虚内热或津液亏耗者使用可能加重口干、烦热。",
+            "茯苓利水渗湿，气虚下陷者使用可能加重下坠感或乏力。",
+            "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+            "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。",
+            "人参作为新食品原料时，仅限5年及5年以下人工种植人参，且每日食用量不超过3g。"
+          ],
+          "mechanisms": [
+            "人参所含人参皂苷等成分可调节免疫功能、抗疲劳，并具有补气作用，为全方补益核心。",
+            "白术所含挥发油、白术内酯等成分可促进胃肠运动、调节肠道功能，辅助健脾燥湿。",
+            "茯苓所含茯苓多糖等成分具有利水渗湿、调节免疫和安神作用，可改善脾虚湿盛。",
+            "炙甘草所含甘草酸、黄酮类成分可调和诸药、缓解胃肠刺激，并具有抗炎、保护胃黏膜作用。",
+            "四味协同通过补气健脾、燥湿渗湿，改善脾胃运化功能，缓解食少、便溏、乏力等脾虚症状。"
+          ],
+          "avoid_population": [
+            "阴虚内热者",
+            "湿热内盛者",
+            "津液亏耗者",
+            "气虚下陷者",
+            "湿盛胀满或水肿者",
+            "孕妇、哺乳期妇女及14周岁以下儿童"
+          ],
+          "literature_basis": [
+            "《中国药典》人参：大补元气、复脉固脱、补脾益肺、生津养血、安神益智。",
+            "《中国药典》白术：健脾益气、燥湿利水、止汗、安胎。",
+            "《中国药典》茯苓：利水渗湿、健脾、宁心。",
+            "《中国药典》甘草：补脾益气、清热解毒、祛痰止咳、缓急止痛、调和诸药。",
+            "《太平惠民和剂局方》四君子汤：治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。",
+            "国家卫健委及市场监管总局公告：5年及5年以下人工种植人参可作为新食品原料，食用量不超过3g/天，孕妇、哺乳期妇女及14周岁以下儿童不宜食用。"
+          ],
+          "core_tcm_efficacy": [
+            "益气健脾",
+            "燥湿和中",
+            "渗湿止泻",
+            "调和脾胃"
+          ],
+          "target_population": [
+            "脾胃气虚所致的食欲不振、食少便溏者",
+            "气短乏力、精神不振、面色萎黄者",
+            "脾虚湿盛、大便偏软或不成形者",
+            "需要温和调理脾胃功能的成年人"
+          ],
+          "core_modern_efficacy": [
+            "改善脾胃虚弱相关的食欲减退、食少便溏",
+            "缓解气虚所致的气短乏力、精神不振",
+            "辅助调节胃肠功能，改善脾虚湿盛状态"
+          ],
+          "contraindicated_population": [
+            "实证、热证而正气不虚者",
+            "对人参、白术、茯苓、甘草任一成分过敏者",
+            "高血压控制不佳或长期失眠者"
+          ]
+        },
+        "replacement_candidates": [
+          {
+            "candidates": [
+              {
+                "id": "黄芪",
+                "name": "黄芪",
+                "rank": 1,
+                "model": "replacement_0604",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "微温",
+                  "efficacy": "补气升阳、固表止汗、利尿消肿、托疮生肌",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺",
+                  "herb_name": "黄芪",
+                  "usage_note": "表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服",
+                  "bitter_risk": 0.1,
+                  "edible_part": "根",
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "半身不遂；消渴；自汗；痹痛；痈疽；脾肺气虚；中气下陷之证；卫气虚所致表虚自汗；气血不足所致痈疽不溃；溃久不敛；浮肿尿少；上述诸证；肢体麻木；关节痹痛；气虚津亏的消渴",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "限量值基于干品确定；鲜品按水分折算；农药限量应符合相关规定",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "food_safety_note": "Pb≤1.0；Cd≤0.5；As≤0.5；Hg≤0.1 mg/kg",
+                  "is_food_homology": "是",
+                  "announcement_year": "2023",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.7559,
+                "source_type": "KB4_0604",
+                "safety_score": 0.55,
+                "source_props": {
+                  "flavor": "甘、微苦",
+                  "nature": "微温",
+                  "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺、心",
+                  "herb_name": "人参",
+                  "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "卫生部公告2012年第17号",
+                    "市场监管总局等三部门2023年第57号公告",
+                    "人参监管知识覆盖_20260724"
+                  ],
+                  "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+                  "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "health_food_status": "可作为保健食品原料",
+                  "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "ordinary_food_status": "条件可用",
+                  "regulatory_categories": [
+                    "中药材",
+                    "新食品原料（条件使用）",
+                    "保健食品原料目录原料"
+                  ],
+                  "regulatory_source_urls": [
+                    "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                    "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                    "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+                  ],
+                  "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+                  "health_food_daily_range_g": "1-3",
+                  "overall_flavor_acceptance": 0.838,
+                  "ordinary_food_edible_parts": "根及根茎",
+                  "ordinary_food_daily_limit_g": 3,
+                  "health_food_allowed_functions": [
+                    "有助于增强免疫力",
+                    "缓解体力疲劳"
+                  ],
+                  "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+                  "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+                  "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+                },
+                "contraindication": null,
+                "effect_similarity": 1.0,
+                "flavor_acceptance": 1.0,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 1.0,
+                "professional_score": 0.6949,
+                "symptom_similarity": 0.0341,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.7833,
+                "embedding_similarity": null,
+                "structure_similarity": null,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": null
+              },
+              {
+                "id": "白扁豆",
+                "name": "白扁豆",
+                "rank": 2,
+                "model": "replacement_0604",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "微温",
+                  "efficacy": "健脾化湿，和中消暑。",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺",
+                  "herb_name": "白扁豆",
+                  "usage_note": "6～15g。",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "白带过多；暑湿；泄泻；脾虚有湿；体倦乏力；食少便溏；妇女脾虚湿浊下注；暑湿吐泻",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "无特殊禁忌",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "6～15g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.7491,
+                "source_type": "KB4_0604",
+                "safety_score": 0.55,
+                "source_props": {
+                  "flavor": "甘、微苦",
+                  "nature": "微温",
+                  "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺、心",
+                  "herb_name": "人参",
+                  "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "卫生部公告2012年第17号",
+                    "市场监管总局等三部门2023年第57号公告",
+                    "人参监管知识覆盖_20260724"
+                  ],
+                  "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+                  "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "health_food_status": "可作为保健食品原料",
+                  "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "ordinary_food_status": "条件可用",
+                  "regulatory_categories": [
+                    "中药材",
+                    "新食品原料（条件使用）",
+                    "保健食品原料目录原料"
+                  ],
+                  "regulatory_source_urls": [
+                    "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                    "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                    "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+                  ],
+                  "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+                  "health_food_daily_range_g": "1-3",
+                  "overall_flavor_acceptance": 0.838,
+                  "ordinary_food_edible_parts": "根及根茎",
+                  "ordinary_food_daily_limit_g": 3,
+                  "health_food_allowed_functions": [
+                    "有助于增强免疫力",
+                    "缓解体力疲劳"
+                  ],
+                  "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+                  "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+                  "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+                },
+                "contraindication": null,
+                "effect_similarity": 1.0,
+                "flavor_acceptance": 1.0,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 1.0,
+                "professional_score": 0.6863,
+                "symptom_similarity": 0.0,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.7833,
+                "embedding_similarity": null,
+                "structure_similarity": null,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": null
+              },
+              {
+                "id": "党参",
+                "name": "党参",
+                "rank": 3,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "健脾益肺、养血生津",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺",
+                  "herb_name": "党参",
+                  "usage_note": "反藜芦",
+                  "bitter_risk": 0.1,
+                  "edible_part": "根",
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results"
+                  ],
+                  "symptom_text": "热病；中气不足；肺气亏虚；热病伤津；气短口渴；血虚萎黄；头晕心慌",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "限量值基于干品确定；鲜品按水分折算；农药限量应符合相关规定",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与藜芦同用；实证、热证而正气不虚者忌服",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "food_safety_note": "Pb≤1.0；Cd≤0.5；As≤0.5；Hg≤0.1；SO2≤400 mg/kg",
+                  "is_food_homology": "是",
+                  "announcement_year": "2023",
+                  "aroma_description": "Sweet Aroma",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "15～30g。",
+                  "pungentdb_compound": "Saccharides, Glycosides",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "pungentdb_taste_type": "Sweet",
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.6911,
+                "source_type": "KB4_0604+consumer_aware",
+                "safety_score": 0.3,
+                "source_props": {
+                  "flavor": "甘、微苦",
+                  "nature": "微温",
+                  "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺、心",
+                  "herb_name": "人参",
+                  "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "卫生部公告2012年第17号",
+                    "市场监管总局等三部门2023年第57号公告",
+                    "人参监管知识覆盖_20260724"
+                  ],
+                  "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+                  "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "health_food_status": "可作为保健食品原料",
+                  "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "ordinary_food_status": "条件可用",
+                  "regulatory_categories": [
+                    "中药材",
+                    "新食品原料（条件使用）",
+                    "保健食品原料目录原料"
+                  ],
+                  "regulatory_source_urls": [
+                    "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                    "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                    "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+                  ],
+                  "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+                  "health_food_daily_range_g": "1-3",
+                  "overall_flavor_acceptance": 0.838,
+                  "ordinary_food_edible_parts": "根及根茎",
+                  "ordinary_food_daily_limit_g": 3,
+                  "health_food_allowed_functions": [
+                    "有助于增强免疫力",
+                    "缓解体力疲劳"
+                  ],
+                  "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+                  "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+                  "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+                },
+                "contraindication": null,
+                "effect_similarity": 0.8,
+                "flavor_acceptance": 0.75,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 0.0,
+                "professional_score": 0.6139,
+                "symptom_similarity": 0.1602,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.7833,
+                "embedding_similarity": 0.7002322673797607,
+                "structure_similarity": 0.9333333333333333,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": 0.0
+              },
+              {
+                "id": "酸枣仁",
+                "name": "酸枣仁",
+                "rank": 4,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘、酸",
+                  "nature": "平",
+                  "efficacy": "养心益肝、宁心安神、敛汗、生津",
+                  "is_toxic": "否",
+                  "meridian": "心、肝、胆",
+                  "herb_name": "酸枣仁",
+                  "usage_note": "有实邪郁火及滑泄者慎服",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "自汗；盗汗；失眠；惊悸；体虚自汗",
+                  "effect_level1": "安神药",
+                  "effect_level2": "安神药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "有实邪郁火及滑泄者慎服",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.75,
+                  "usage_precautions": "15～30g；宜先煎。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘、微苦",
+                  "nature": "微温",
+                  "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺、心",
+                  "herb_name": "人参",
+                  "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "卫生部公告2012年第17号",
+                    "市场监管总局等三部门2023年第57号公告",
+                    "人参监管知识覆盖_20260724"
+                  ],
+                  "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+                  "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "health_food_status": "可作为保健食品原料",
+                  "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "ordinary_food_status": "条件可用",
+                  "regulatory_categories": [
+                    "中药材",
+                    "新食品原料（条件使用）",
+                    "保健食品原料目录原料"
+                  ],
+                  "regulatory_source_urls": [
+                    "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                    "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                    "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+                  ],
+                  "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+                  "health_food_daily_range_g": "1-3",
+                  "overall_flavor_acceptance": 0.838,
+                  "ordinary_food_edible_parts": "根及根茎",
+                  "ordinary_food_daily_limit_g": 3,
+                  "health_food_allowed_functions": [
+                    "有助于增强免疫力",
+                    "缓解体力疲劳"
+                  ],
+                  "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+                  "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+                  "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+                },
+                "contraindication": null,
+                "effect_similarity": 0.4,
+                "flavor_acceptance": 0.5,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.9481920003890991,
+                "structure_similarity": 0.5814773638366666,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.07692307692307693
+              },
+              {
+                "id": "灵芝",
+                "name": "灵芝",
+                "rank": 4,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补气安神，止咳平喘。",
+                  "meridian": "肺、肝、肾、心",
+                  "herb_name": "灵芝",
+                  "usage_note": "3～6g；宜后下。",
+                  "bitter_risk": 0.1,
+                  "edible_part": "子实体",
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results"
+                  ],
+                  "symptom_text": "咳喘；失眠；心悸；心神不宁；失眠心悸；肺虚咳喘；虚劳短气；不思饮食",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "限量值基于干品确定；鲜品按水分折算；农药限量应符合相关规定",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "无特殊禁忌",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "food_safety_note": "Pb≤1.0；Cd≤0.5；As≤1.0；Hg≤0.1 mg/kg",
+                  "is_food_homology": "是",
+                  "announcement_year": "2023",
+                  "aroma_description": "Sweet Aroma",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "3～6g；宜后下。",
+                  "pungentdb_compound": "Saccharides, Glycosides",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "pungentdb_taste_type": "Sweet",
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.683,
+                "source_type": "KB4_0604+consumer_aware",
+                "safety_score": 1.0,
+                "source_props": {
+                  "flavor": "甘、微苦",
+                  "nature": "微温",
+                  "efficacy": "大补元气、复脉固脱、补脾益肺、生津养血、安神益智",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺、心",
+                  "herb_name": "人参",
+                  "usage_note": "反藜芦，畏五灵脂。普通食品路径仅限5年及5年以下人工种植人参根及根茎，食用量不超过3克/天；保健食品路径需遵守原料目录、注册备案、适宜/不适宜人群和复配要求。",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "卫生部公告2012年第17号",
+                    "市场监管总局等三部门2023年第57号公告",
+                    "人参监管知识覆盖_20260724"
+                  ],
+                  "symptom_text": "消渴；失眠；健忘；惊悸；气虚欲脱；脾气不足；肺气亏虚；津伤口渴；心神不安；失眠多梦；惊悸健忘；血虚；阳萎；疗血虚；疗阳萎",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+                  "directory_source": "不属于食药物质目录；属于条件使用的新食品原料和保健食品原料目录原料",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "health_food_status": "可作为保健食品原料",
+                  "regulatory_summary": "人参不是食药物质目录原料，但具有多重食品监管身份：5年及5年以下人工种植人参可按新食品原料条件用于普通食品；人参也已纳入保健食品原料目录。5年以上人参不能据此直接作为普通食品原料，需按保健食品等适用路径另行核验。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "ordinary_food_status": "条件可用",
+                  "regulatory_categories": [
+                    "中药材",
+                    "新食品原料（条件使用）",
+                    "保健食品原料目录原料"
+                  ],
+                  "regulatory_source_urls": [
+                    "https://www.nhc.gov.cn/zwgkzt/wsbysj/201209/55779.shtml",
+                    "https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/tssps/art/2023/art_3d6d45a948bb41aaa65ee9a453a1c622.html",
+                    "https://www.samr.gov.cn/xw/zj/art/2023/art_7e0f501df8714005986d1b3eadc47d6b.html"
+                  ],
+                  "ordinary_food_conditions": "仅限5年及5年以下人工种植人参的根及根茎；食用量不超过3克/天；孕妇、哺乳期妇女及14周岁以下儿童不宜食用，并应按公告标注不适宜人群和食用限量。",
+                  "health_food_daily_range_g": "1-3",
+                  "overall_flavor_acceptance": 0.838,
+                  "ordinary_food_edible_parts": "根及根茎",
+                  "ordinary_food_daily_limit_g": 3,
+                  "health_food_allowed_functions": [
+                    "有助于增强免疫力",
+                    "缓解体力疲劳"
+                  ],
+                  "health_food_growth_year_limit": "保健食品原料目录未限定参龄",
+                  "ordinary_food_growth_year_limit": "5年及5年以下（人工种植）",
+                  "health_food_filing_compound_policy": "按人参保健食品原料目录备案时仅可使用单方原料，不可与其他原料复配；复配产品不得直接套用单方备案路径。"
+                },
+                "contraindication": null,
+                "effect_similarity": 0.2857142857142857,
+                "flavor_acceptance": 0.75,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 0.0,
+                "professional_score": 0.6037,
+                "symptom_similarity": 0.0607,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.4933,
+                "embedding_similarity": 0.6494394540786743,
+                "structure_similarity": 0.6092846270928463,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": 0.0
+              }
+            ],
+            "source_key": "人参",
+            "source_herb": "人参"
+          },
+          {
+            "candidates": [
+              {
+                "id": "茯苓",
+                "name": "茯苓",
+                "rank": 1,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘、淡",
+                  "nature": "平",
+                  "efficacy": "利水渗湿、健脾、安神",
+                  "is_toxic": "否",
+                  "meridian": "心、肺、脾、肾",
+                  "herb_name": "茯苓",
+                  "usage_note": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB4_十八反十九畏",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "小便不利；水肿；失眠；心悸；停饮等水湿证；脾虚证",
+                  "effect_level1": "利水渗湿药",
+                  "effect_level2": "利水渗湿药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "6～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘、苦",
+                  "nature": "温",
+                  "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃",
+                  "herb_name": "白术",
+                  "usage_note": "热病伤津、阴虚燥渴禁用",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+                  "directory_source": "非药食同源或未匹配",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "overall_flavor_acceptance": 0.838
+                },
+                "contraindication": null,
+                "effect_similarity": 0.2857142857142857,
+                "flavor_acceptance": 0.5,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.923893392086029,
+                "structure_similarity": 0.2943782320673448,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.38461538461538464
+              },
+              {
+                "id": "大枣",
+                "name": "大枣",
+                "rank": 1,
+                "model": "replacement_0604",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "温",
+                  "efficacy": "补中益气，养血安神。",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃",
+                  "herb_name": "大枣",
+                  "usage_note": "湿盛脘腹胀满、食积、虫积、龋齿作痛及痰热咳嗽者慎用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "中气不足；脾胃虚弱；体倦乏力；食少便溏；血虚萎黄；妇女脏躁；疗血虚面黄肌瘦",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "湿盛脘腹胀满、食积、虫积、龋齿作痛及痰热咳嗽者慎用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "6～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.7573,
+                "source_type": "KB4_0604",
+                "safety_score": 0.47,
+                "source_props": {
+                  "flavor": "甘、苦",
+                  "nature": "温",
+                  "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃",
+                  "herb_name": "白术",
+                  "usage_note": "热病伤津、阴虚燥渴禁用",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+                  "directory_source": "非药食同源或未匹配",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "overall_flavor_acceptance": 0.838
+                },
+                "contraindication": null,
+                "effect_similarity": 1.0,
+                "flavor_acceptance": 1.0,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 1.0,
+                "professional_score": 0.6966,
+                "symptom_similarity": 0.0569,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.7833,
+                "embedding_similarity": null,
+                "structure_similarity": null,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": null
+              },
+              {
+                "id": "白扁豆花",
+                "name": "白扁豆花",
+                "rank": 2,
+                "model": "replacement_0604",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "健脾和胃，消暑化湿。",
+                  "meridian": "脾、胃",
+                  "herb_name": "白扁豆花",
+                  "usage_note": "无特殊禁忌",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results"
+                  ],
+                  "symptom_text": "暑湿；泄泻；痢疾；带下；暑湿泄泻；赤白带下",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "无特殊禁忌",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "使用注意：无特殊禁忌",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.6992,
+                "source_type": "KB4_0604",
+                "safety_score": 1.0,
+                "source_props": {
+                  "flavor": "甘、苦",
+                  "nature": "温",
+                  "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃",
+                  "herb_name": "白术",
+                  "usage_note": "热病伤津、阴虚燥渴禁用",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+                  "directory_source": "非药食同源或未匹配",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "overall_flavor_acceptance": 0.838
+                },
+                "contraindication": null,
+                "effect_similarity": 1.0,
+                "flavor_acceptance": 1.0,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 0.0,
+                "professional_score": 0.624,
+                "symptom_similarity": 0.0,
+                "baseline_candidates": [],
+                "meridian_similarity": 1.0,
+                "embedding_similarity": null,
+                "structure_similarity": null,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": null
+              },
+              {
+                "id": "甘草",
+                "name": "甘草",
+                "rank": 3,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补脾益气、祛痰止咳、缓急止痛、调和诸药",
+                  "is_toxic": "否",
+                  "meridian": "心、肺、脾、胃",
+                  "herb_name": "甘草",
+                  "usage_note": "反京大戟、芫花、甘遂、海藻；水肿禁用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB4_十八反十九畏",
+                    "KB4_禁忌排除候选",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "咳嗽；气喘；痈疽；脾胃虚弱；中气不足；气短乏力；食少便溏；咳嗽气喘；痈疽疮毒；食物；药物中毒；脘腹；四肢挛急作痛；食物中毒；药物中毒以；农药中毒",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "3～6g；另煎兑服。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.6621,
+                "source_type": "KB4_0604+consumer_aware",
+                "safety_score": 0.3,
+                "source_props": {
+                  "flavor": "甘、苦",
+                  "nature": "温",
+                  "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃",
+                  "herb_name": "白术",
+                  "usage_note": "热病伤津、阴虚燥渴禁用",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+                  "directory_source": "非药食同源或未匹配",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "overall_flavor_acceptance": 0.838
+                },
+                "contraindication": null,
+                "effect_similarity": 0.18181818181818182,
+                "flavor_acceptance": 0.5,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 0.0,
+                "professional_score": 0.5777,
+                "symptom_similarity": 0.0457,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.675,
+                "embedding_similarity": 0.7787157297134399,
+                "structure_similarity": 0.24800791997524133,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": 0.17857142857142858
+              },
+              {
+                "id": "白扁豆",
+                "name": "白扁豆",
+                "rank": 4,
+                "model": "replacement_0604",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "微温",
+                  "efficacy": "健脾化湿，和中消暑。",
+                  "is_toxic": "否",
+                  "meridian": "脾、肺",
+                  "herb_name": "白扁豆",
+                  "usage_note": "6～15g。",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "白带过多；暑湿；泄泻；脾虚有湿；体倦乏力；食少便溏；妇女脾虚湿浊下注；暑湿吐泻",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "无特殊禁忌",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "6～15g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": 0.6578,
+                "source_type": "KB4_0604",
+                "safety_score": 0.55,
+                "source_props": {
+                  "flavor": "甘、苦",
+                  "nature": "温",
+                  "efficacy": "健脾益气、燥湿利尿、止汗、安胎",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃",
+                  "herb_name": "白术",
+                  "usage_note": "热病伤津、阴虚燥渴禁用",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "水肿；自汗；脾气虚弱；运化失常所致食少便溏；脘腹胀满；倦怠无力；脾虚不能运化；水湿停留；而为痰饮水肿；脾虚气弱；肌表不固而自汗；妊娠脾虚气弱；胎气不安之证",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "否",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+                  "directory_source": "非药食同源或未匹配",
+                  "is_food_homology": "否",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "2～10g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.7,
+                  "overall_flavor_acceptance": 0.838
+                },
+                "contraindication": null,
+                "effect_similarity": 1.0,
+                "flavor_acceptance": 1.0,
+                "flavor_similarity": 0.675,
+                "nature_similarity": 0.0,
+                "professional_score": 0.5722,
+                "symptom_similarity": 0.0533,
+                "baseline_candidates": [],
+                "meridian_similarity": 0.3917,
+                "embedding_similarity": null,
+                "structure_similarity": null,
+                "recommendation_status": "可推荐",
+                "effect_level1_similarity": 1.0,
+                "effect_level2_similarity": 1.0,
+                "formula_context_similarity": null
+              }
+            ],
+            "source_key": "白术",
+            "source_herb": "白术"
+          },
+          {
+            "candidates": [],
+            "source_key": "茯苓",
+            "source_herb": "茯苓"
+          },
+          {
+            "candidates": [
+              {
+                "id": "肉桂",
+                "name": "肉桂",
+                "rank": 1,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "辛、甘",
+                  "nature": "大热",
+                  "efficacy": "补火助阳、引火归元、散寒止痛、温通经脉",
+                  "is_toxic": "否",
+                  "meridian": "肾、脾、心、肝",
+                  "herb_name": "肉桂",
+                  "usage_note": "实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB4_十八反十九畏",
+                    "KB4_禁忌排除候选",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "尿频；痹痛；腰痛；阴疽；经闭；痛经；肾阳不足；命门火衰；畏寒肢冷；腰膝软弱；阳萎；脘腹冷痛；寒湿痹痛；血分有寒之瘀滞经闭；痛经等；气血虚寒；痈肿脓成不溃；溃后久不收敛等外科疾患",
+                  "effect_level1": "温里药",
+                  "effect_level2": "温里药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "pregnancy_taboo": "有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+                  "contraindication": "有出血倾向者及孕妇慎用；不宜与赤石脂同用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "Spicy Aroma",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "1～3g。",
+                  "pungentdb_compound": "Volatile Oils, Alkaloids",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 1.0,
+                  "pungentdb_taste_type": "Sweet, Pungent",
+                  "overall_flavor_acceptance": 0.913
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+                  "meridian": "肺、脾、胃、心",
+                  "herb_name": "炙甘草",
+                  "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "9～30g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "contraindication": null,
+                "effect_similarity": 0.0,
+                "flavor_acceptance": 0.7000000000000001,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.6675784587860107,
+                "structure_similarity": 0.0,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.018518518518518517
+              },
+              {
+                "id": "当归",
+                "name": "当归",
+                "rank": 2,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘、辛",
+                  "nature": "温",
+                  "efficacy": "补血活血、调经止痛、润肠通便",
+                  "is_toxic": "否",
+                  "meridian": "肝、心、脾",
+                  "herb_name": "当归",
+                  "usage_note": "湿盛中满、大便泄泻者忌服",
+                  "bitter_risk": 0.1,
+                  "edible_part": "根",
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "跌打损伤；月经不调；便秘；腹痛；痹痛；痈疽；疮疡；经闭；痛经；血虚诸证；虚寒腹痛；瘀血作痛；痹痛麻木；痈疽疮疡；血虚肠燥便秘",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补血药",
+                  "food_homology": "是",
+                  "food_use_limit": "仅作为香辛料和调味品",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "湿盛中满、大便溏泄者慎服",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2019",
+                  "aroma_description": "Spicy Aroma",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "15～30g；宜先煎。",
+                  "pungentdb_compound": "Volatile Oils, Alkaloids",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.8,
+                  "pungentdb_taste_type": "Pungent, Sweet",
+                  "overall_flavor_acceptance": 0.963
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+                  "meridian": "肺、脾、胃、心",
+                  "herb_name": "炙甘草",
+                  "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "9～30g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "contraindication": null,
+                "effect_similarity": 0.0,
+                "flavor_acceptance": 0.7000000000000001,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.478544682264328,
+                "structure_similarity": 0.0,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.11666666666666667
+              },
+              {
+                "id": "罗汉果",
+                "name": "罗汉果",
+                "rank": 3,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘",
+                  "nature": "凉",
+                  "efficacy": "清热润肺，利咽开音，滑肠通便。",
+                  "meridian": "肺、大肠",
+                  "herb_name": "罗汉果",
+                  "usage_note": "脾胃虚寒者慎用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results"
+                  ],
+                  "symptom_text": "便秘；肺热燥咳；咽痛失音；肠燥便秘",
+                  "effect_level1": "清热药",
+                  "effect_level2": "清热解毒药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "脾胃虚寒者慎用。",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "Sweet Aroma",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "使用注意：脾胃虚寒者慎用",
+                  "pungentdb_compound": "Saccharides, Glycosides",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.4,
+                  "pungentdb_taste_type": "Sweet",
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+                  "meridian": "肺、脾、胃、心",
+                  "herb_name": "炙甘草",
+                  "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "9～30g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "contraindication": null,
+                "effect_similarity": 0.0,
+                "flavor_acceptance": 0.75,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.4342212677001953,
+                "structure_similarity": 0.0,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.0
+              },
+              {
+                "id": "葛根",
+                "name": "葛根",
+                "rank": 4,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "甘、辛",
+                  "nature": "凉",
+                  "efficacy": "解肌退热、透疹、生津、升阳止泻",
+                  "is_toxic": "否",
+                  "meridian": "脾、胃、肺",
+                  "herb_name": "葛根",
+                  "usage_note": "虚寒者忌用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "KB7_分拆_药食同源目录",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "热病；头痛；腹泻；消渴；外感发热；无汗；项背强痛；麻疹初起；发热；恶寒；疹出不畅之证；湿热泻痢；脾虚腹泻；热病烦渴；消渴证口渴多饮",
+                  "effect_level1": "解表药",
+                  "effect_level2": "辛凉解表药",
+                  "food_homology": "是",
+                  "food_use_limit": "可作为普通食品原料使用；具体产品仍需符合食品安全法、标签和添加剂规则",
+                  "toxicity_level": "无明确毒性标注",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "虚寒者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "announcement_year": "2002",
+                  "aroma_description": "Unknown",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "10～15g。",
+                  "pungentdb_compound": "Volatile Oils, Alkaloids",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.65,
+                  "pungentdb_taste_type": "Pungent, Sweet",
+                  "overall_flavor_acceptance": 1.0
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+                  "meridian": "肺、脾、胃、心",
+                  "herb_name": "炙甘草",
+                  "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "9～30g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "contraindication": null,
+                "effect_similarity": 0.0,
+                "flavor_acceptance": 0.725,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.4064747393131256,
+                "structure_similarity": 0.0,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.05660377358490566
+              },
+              {
+                "id": "杏仁",
+                "name": "杏仁",
+                "rank": 5,
+                "model": "consumer_aware",
+                "props": {
+                  "flavor": "苦",
+                  "nature": "微温",
+                  "efficacy": "降气止咳平喘，润肠通便。",
+                  "meridian": "肺、大肠",
+                  "herb_name": "杏仁",
+                  "usage_note": "阴虚咳嗽及大便溏泄者慎用",
+                  "bitter_risk": 0.7,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB4_单味药替代评分库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "风热；咳嗽；咳喘；气喘；便秘；咳嗽气喘；肠燥便秘；风热咳嗽；燥热咳嗽；肺热咳喘",
+                  "effect_level1": "化痰止咳平喘药",
+                  "effect_level2": "止咳平喘药",
+                  "food_homology": "是",
+                  "aftertaste_risk": 0.7,
+                  "astringent_risk": 0.1,
+                  "contraindication": "阴虚咳嗽及大便溏泄者慎用。",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "苦味/药味突出",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "5～10g。",
+                  "sweet_contribution": 0.2,
+                  "herbal_medicine_risk": 0.7,
+                  "overall_flavor_acceptance": 0.663
+                },
+                "score": null,
+                "source_type": "consumer_aware",
+                "safety_score": null,
+                "source_props": {
+                  "flavor": "甘",
+                  "nature": "平",
+                  "efficacy": "补脾益气，清热解毒，祛痰止咳，缓急止痛，调和诸药。",
+                  "meridian": "肺、脾、胃、心",
+                  "herb_name": "炙甘草",
+                  "usage_note": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "bitter_risk": 0.1,
+                  "data_sources": [
+                    "KB1_药食同源原料合法性库",
+                    "KB2_功效-病症-性味归经库",
+                    "KB3_风味评价库",
+                    "KB5_100经典名方",
+                    "consumer_aware_substitute_results",
+                    "0524_meandqi"
+                  ],
+                  "symptom_text": "咳嗽；心悸；脾胃虚弱；倦怠乏力；心悸气短；咳嗽痰多；脘腹；四肢挛急疼痛；痈肿疮毒；缓解药物毒性；烈性",
+                  "effect_level1": "补虚药",
+                  "effect_level2": "补气药",
+                  "food_homology": "是",
+                  "aftertaste_risk": 0.1,
+                  "astringent_risk": 0.1,
+                  "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+                  "directory_source": "药食同源目录/标准名匹配",
+                  "is_food_homology": "是",
+                  "aroma_description": "甘甜型风味",
+                  "sour_contribution": 0.1,
+                  "usage_precautions": "9～30g。",
+                  "sweet_contribution": 0.9,
+                  "herbal_medicine_risk": 0.1,
+                  "overall_flavor_acceptance": 1.0
+                },
+                "contraindication": null,
+                "effect_similarity": 0.0,
+                "flavor_acceptance": 0.5,
+                "flavor_similarity": null,
+                "nature_similarity": null,
+                "professional_score": null,
+                "symptom_similarity": null,
+                "baseline_candidates": [],
+                "meridian_similarity": null,
+                "embedding_similarity": 0.8776077628135681,
+                "structure_similarity": 0.0,
+                "recommendation_status": null,
+                "effect_level1_similarity": null,
+                "effect_level2_similarity": null,
+                "formula_context_similarity": 0.07547169811320754
+              }
+            ],
+            "source_key": "炙甘草",
+            "source_herb": "炙甘草"
+          }
+        ],
+        "candidate_flavor_population_matrix": [
+          {
+            "final_score": 0.7559,
+            "source_herb": "人参",
+            "safety_score": 0.55,
+            "source_flavor": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "黄芪",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "微温",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.6949,
+            "population_fit_note": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服"
+          },
+          {
+            "final_score": 0.7491,
+            "source_herb": "人参",
+            "safety_score": 0.55,
+            "source_flavor": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "白扁豆",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "微温",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "无特殊禁忌",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "6～15g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.6863,
+            "population_fit_note": "需复核人群边界：无特殊禁忌；6～15g。；6～15g。"
+          },
+          {
+            "final_score": 0.6911,
+            "source_herb": "人参",
+            "safety_score": 0.3,
+            "source_flavor": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "党参",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与藜芦同用；实证、热证而正气不虚者忌服",
+              "aroma_description": "Sweet Aroma",
+              "usage_precautions": "15～30g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.75,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.6139,
+            "population_fit_note": "需复核人群边界：不宜与藜芦同用；实证、热证而正气不虚者忌服；15～30g。；反藜芦"
+          },
+          {
+            "final_score": null,
+            "source_herb": "人参",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "酸枣仁",
+            "candidate_flavor": {
+              "flavor": "甘、酸",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "有实邪郁火及滑泄者慎服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "15～30g；宜先煎。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：有实邪郁火及滑泄者慎服；15～30g；宜先煎。；有实邪郁火及滑泄者慎服"
+          },
+          {
+            "final_score": 0.683,
+            "source_herb": "人参",
+            "safety_score": 1.0,
+            "source_flavor": {
+              "flavor": "甘、微苦",
+              "nature": "微温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "实证、热证而正气不虚者忌服；反藜芦，畏五灵脂",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "灵芝",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "无特殊禁忌",
+              "aroma_description": "Sweet Aroma",
+              "usage_precautions": "3～6g；宜后下。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.75,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.6037,
+            "population_fit_note": "需复核人群边界：无特殊禁忌；3～6g；宜后下。；3～6g；宜后下。"
+          },
+          {
+            "final_score": null,
+            "source_herb": "白术",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "茯苓",
+            "candidate_flavor": {
+              "flavor": "甘、淡",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "6～10g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服"
+          },
+          {
+            "final_score": 0.7573,
+            "source_herb": "白术",
+            "safety_score": 0.47,
+            "source_flavor": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "大枣",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "温",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "湿盛脘腹胀满、食积、虫积、龋齿作痛及痰热咳嗽者慎用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "6～10g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.6966,
+            "population_fit_note": "需复核人群边界：湿盛脘腹胀满、食积、虫积、龋齿作痛及痰热咳嗽者慎用；6～10g。；湿盛脘腹胀满、食积、虫积、龋齿作痛及痰热咳嗽者慎用"
+          },
+          {
+            "final_score": 0.6992,
+            "source_herb": "白术",
+            "safety_score": 1.0,
+            "source_flavor": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "白扁豆花",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "无特殊禁忌",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "使用注意：无特殊禁忌",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.624,
+            "population_fit_note": "需复核人群边界：无特殊禁忌；使用注意：无特殊禁忌；无特殊禁忌"
+          },
+          {
+            "final_score": 0.6621,
+            "source_herb": "白术",
+            "safety_score": 0.3,
+            "source_flavor": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "甘草",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "3～6g；另煎兑服。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.5777,
+            "population_fit_note": "需复核人群边界：不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用；3～6g；另煎兑服。；反京大戟、芫花、甘遂、海藻；水肿禁用"
+          },
+          {
+            "final_score": 0.6578,
+            "source_herb": "白术",
+            "safety_score": 0.55,
+            "source_flavor": {
+              "flavor": "甘、苦",
+              "nature": "温",
+              "bitter_risk": 0.7,
+              "food_homology": "否",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚燥渴、气滞胀闷者忌服",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "2～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.838
+            },
+            "candidate_herb": "白扁豆",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "微温",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "无特殊禁忌",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "6～15g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "professional_score": 0.5722,
+            "population_fit_note": "需复核人群边界：无特殊禁忌；6～15g。；6～15g。"
+          },
+          {
+            "final_score": null,
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "9～30g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "candidate_herb": "肉桂",
+            "candidate_flavor": {
+              "flavor": "辛、甘",
+              "nature": "大热",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "有出血倾向者及孕妇慎用；不宜与赤石脂同用",
+              "aroma_description": "Spicy Aroma",
+              "usage_precautions": "1～3g。",
+              "herbal_medicine_risk": 1.0,
+              "overall_flavor_acceptance": 0.913
+            },
+            "flavor_acceptance": 0.7000000000000001,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用"
+          },
+          {
+            "final_score": null,
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "9～30g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "candidate_herb": "当归",
+            "candidate_flavor": {
+              "flavor": "甘、辛",
+              "nature": "温",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "湿盛中满、大便溏泄者慎服",
+              "aroma_description": "Spicy Aroma",
+              "usage_precautions": "15～30g；宜先煎。",
+              "herbal_medicine_risk": 0.8,
+              "overall_flavor_acceptance": 0.963
+            },
+            "flavor_acceptance": 0.7000000000000001,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：湿盛中满、大便溏泄者慎服；15～30g；宜先煎。；湿盛中满、大便泄泻者忌服"
+          },
+          {
+            "final_score": null,
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "9～30g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "candidate_herb": "罗汉果",
+            "candidate_flavor": {
+              "flavor": "甘",
+              "nature": "凉",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "脾胃虚寒者慎用。",
+              "aroma_description": "Sweet Aroma",
+              "usage_precautions": "使用注意：脾胃虚寒者慎用",
+              "herbal_medicine_risk": 0.4,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.75,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：脾胃虚寒者慎用。；使用注意：脾胃虚寒者慎用；脾胃虚寒者慎用"
+          },
+          {
+            "final_score": null,
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "9～30g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "candidate_herb": "葛根",
+            "candidate_flavor": {
+              "flavor": "甘、辛",
+              "nature": "凉",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "虚寒者忌用",
+              "aroma_description": "Unknown",
+              "usage_precautions": "10～15g。",
+              "herbal_medicine_risk": 0.65,
+              "overall_flavor_acceptance": 1.0
+            },
+            "flavor_acceptance": 0.725,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：虚寒者忌用；10～15g。；虚寒者忌用"
+          },
+          {
+            "final_score": null,
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "source_flavor": {
+              "flavor": "甘",
+              "nature": "平",
+              "bitter_risk": 0.1,
+              "food_homology": "是",
+              "aftertaste_risk": 0.1,
+              "astringent_risk": 0.1,
+              "contraindication": "不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用",
+              "aroma_description": "甘甜型风味",
+              "usage_precautions": "9～30g。",
+              "herbal_medicine_risk": 0.1,
+              "overall_flavor_acceptance": 1.0
+            },
+            "candidate_herb": "杏仁",
+            "candidate_flavor": {
+              "flavor": "苦",
+              "nature": "微温",
+              "bitter_risk": 0.7,
+              "food_homology": "是",
+              "aftertaste_risk": 0.7,
+              "astringent_risk": 0.1,
+              "contraindication": "阴虚咳嗽及大便溏泄者慎用。",
+              "aroma_description": "苦味/药味突出",
+              "usage_precautions": "5～10g。",
+              "herbal_medicine_risk": 0.7,
+              "overall_flavor_acceptance": 0.663
+            },
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "professional_score": null,
+            "population_fit_note": "需复核人群边界：阴虚咳嗽及大便溏泄者慎用。；5～10g。；阴虚咳嗽及大便溏泄者慎用"
+          }
+        ]
+      },
+      "output_payload": {
+        "impact_summary": "当前提供了正式替代候选，已按目标人群（['脾胃气虚所致的食欲不振、食少便溏者', '气短乏力、精神不振、面色萎黄者', '脾虚湿盛、大便偏软或不成形者', '需要温和调理脾胃功能的成年人']）、风味接受度、风味相似度和安全性做初步筛查。风味模块结论：全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。。这些替代仍需要进一步核验其功效保持、风味影响、人群边界和合规性。如替代可能削弱核心目标，应保留原方并优先改进配伍。",
+        "compliance_notes": [
+          "替代前需再次确认替代药材仍属于药食同源目录。",
+          "替代后需评估是否改变适用人群或禁忌范围。",
+          "风味接受度低或目标人群不明确时，不应直接进入最终配方。"
+        ],
+        "baseline_comparison": [
+          {
+            "decision": "降级复核",
+            "source_herb": "人参",
+            "flavor_after": "味:甘；性:微温；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "safety_score": 0.55,
+            "flavor_before": "味:甘、微苦；性:微温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7",
+            "candidate_herb": "黄芪",
+            "efficacy_score": 0.6949,
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "population_before_after": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服"
+          },
+          {
+            "decision": "降级复核",
+            "source_herb": "白术",
+            "flavor_after": "味:甘、淡；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "safety_score": null,
+            "flavor_before": "味:甘、苦；性:温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7",
+            "candidate_herb": "茯苓",
+            "efficacy_score": 0.2857142857142857,
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "population_before_after": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服"
+          },
+          {
+            "decision": "候选保留",
+            "source_herb": "炙甘草",
+            "flavor_after": "味:辛、甘；性:大热；香气:Spicy Aroma；接受度:0.913；苦味风险:0.1；涩感风险:0.1；药味风险:1.0；后味风险:0.1",
+            "safety_score": null,
+            "flavor_before": "味:甘；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "candidate_herb": "肉桂",
+            "efficacy_score": 0.0,
+            "flavor_acceptance": 0.7000000000000001,
+            "flavor_similarity": null,
+            "population_before_after": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用"
+          }
+        ],
+        "applicable_scenarios": [
+          "风味优化场景",
+          "目标人群适配场景",
+          "成本优化场景",
+          "供应链保障场景"
+        ],
+        "recommended_replacements": [
+          {
+            "score": 0.7559,
+            "reason": "CAN_REPLACE Top1 候选；风味接受度 1.0；风味相似度 0.675；需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；需降级复核：安全评分偏低",
+            "source_herb": "人参",
+            "safety_score": 0.55,
+            "flavor_impact": "原药材：味:甘、微苦；性:微温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7；替代药材：味:甘；性:微温；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "population_fit": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服",
+            "recommended_herb": "黄芪",
+            "flavor_acceptance": 1.0,
+            "flavor_similarity": 0.675,
+            "target_population": [
+              "脾胃气虚所致的食欲不振、食少便溏者",
+              "气短乏力、精神不振、面色萎黄者",
+              "脾虚湿盛、大便偏软或不成形者",
+              "需要温和调理脾胃功能的成年人"
+            ],
+            "professional_score": 0.6949,
+            "recommendation_status": "可推荐"
+          },
+          {
+            "score": null,
+            "reason": "CAN_REPLACE Top1 候选；风味接受度 0.5；缺少风味相似度；需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服；需降级复核：风味接受度偏低",
+            "source_herb": "白术",
+            "safety_score": null,
+            "flavor_impact": "原药材：味:甘、苦；性:温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7；替代药材：味:甘、淡；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+            "population_fit": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+            "recommended_herb": "茯苓",
+            "flavor_acceptance": 0.5,
+            "flavor_similarity": null,
+            "target_population": [
+              "脾胃气虚所致的食欲不振、食少便溏者",
+              "气短乏力、精神不振、面色萎黄者",
+              "脾虚湿盛、大便偏软或不成形者",
+              "需要温和调理脾胃功能的成年人"
+            ],
+            "professional_score": null,
+            "recommendation_status": "需复核"
+          },
+          {
+            "score": null,
+            "reason": "CAN_REPLACE Top1 候选；风味接受度 0.7000000000000001；缺少风味相似度；需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+            "source_herb": "炙甘草",
+            "safety_score": null,
+            "flavor_impact": "原药材：味:甘；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1；替代药材：味:辛、甘；性:大热；香气:Spicy Aroma；接受度:0.913；苦味风险:0.1；涩感风险:0.1；药味风险:1.0；后味风险:0.1",
+            "population_fit": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+            "recommended_herb": "肉桂",
+            "flavor_acceptance": 0.7000000000000001,
+            "flavor_similarity": null,
+            "target_population": [
+              "脾胃气虚所致的食欲不振、食少便溏者",
+              "气短乏力、精神不振、面色萎黄者",
+              "脾虚湿盛、大便偏软或不成形者",
+              "需要温和调理脾胃功能的成年人"
+            ],
+            "professional_score": null,
+            "recommendation_status": "可作为候选"
+          }
+        ]
+      },
+      "latency_ms": 18352,
+      "graph_snapshot_id": "d5bd2d0a-d436-4270-8eb9-54b87c927975",
+      "prompt_version": "2026-08-29T11:11:47.008874",
+      "created_at": "2026-09-01T17:13:51.819894",
+      "updated_at": "2026-09-01T17:14:10.186212"
+    },
+    {
+      "id": "d0236e61-e4cb-4249-8680-891684c12f71",
+      "run_id": "3abdd98e-dac7-498f-99ac-679336aa72d4",
+      "agent_key": "master_control_final",
+      "sequence": 6,
+      "status": "completed",
+      "input_payload": {
+        "brief": {
+          "goal": "把四君子汤改造成药食同源代餐粉",
+          "budget": "",
+          "timeline": "",
+          "constraints": [
+            "仅使用药食同源目录成分"
+          ],
+          "dosage_form": "",
+          "compliance_scope": "药食同源目录内成分",
+          "target_population": ""
+        },
+        "question": "把四君子汤改造成药食同源代餐粉",
+        "instruction": "整合前序模块（方剂生成、功效预测、风味预测、替代映射）并输出「交付研发负责人的总结报告」。报告必须包含：最终配方（组成、君臣佐使角色、建议剂量区间、作用与剂量依据、方解一句）、君臣佐使一览、KB5 原方依据（含保留/替换/新增/删除逐味标注，替换引用 KB4 CAN_REPLACE 评分与系统综合可信度）、功效与机制摘要、风味与适配、替代对比要点、合规与风险、证据不足与下一步。禁止只复述前序模块内容；所有输出需标注数据来源。若证据不足，需具体说明缺口和补充数据建议。",
+        "initial_plan": {
+          "task_plan": [
+            "方剂生成：先检索 KB5 名方/方剂原方，再筛选药食同源候选药材并设计食品化组方",
+            "功效预测：结合 KB2 评估中医与现代药理功效",
+            "风味预测：结合 KB3/KB6 判断好喝程度、剂型适配和消费者接受度",
+            "替代映射：仅基于 KB4 单味药 CAN_REPLACE 关系做动态替代对比",
+            "合规审查：用 KB1/KB7 检查原料合法性、普通食品宣传边界和风险人群"
+          ],
+          "data_sources": [
+            "KB1 药食同源合法性",
+            "KB2 功效病症性味归经",
+            "KB3 风味评价",
+            "KB4 单味替代评分",
+            "KB5 名方方剂",
+            "KB6 产品市场",
+            "KB7 食品合规"
+          ],
+          "next_actions": [
+            "等待子模块执行"
+          ],
+          "brief_summary": "把四君子汤改造成药食同源代餐粉",
+          "consistency_checks": [
+            "检查是否存在非药食同源成分",
+            "检查 KB5 原方语境是否保留",
+            "检查替代后是否削弱核心目标",
+            "检查风味剂型和食品化合规边界是否完整"
+          ],
+          "final_recommendation": ""
+        },
+        "flavor_prediction": {
+          "defects": [
+            "人参、白术存在中等偏低的苦味风险，若粉碎后释放充分，可能使代餐粉后味偏苦。",
+            "根茎类土香与菌香叠加，可能产生沉闷感，缺乏清爽层次。",
+            "粉质口感若细度不足，易出现粗糙、糊口问题。",
+            "整体风味偏单一，长期作为代餐食用易产生风味疲劳。"
+          ],
+          "data_sources": [
+            "KB3_风味评价库",
+            "FlavorDB",
+            "BungentDB",
+            "KB1_药食同源原料合法性库",
+            "KB2_功效-病症-性味归经库",
+            "KB5_100经典名方"
+          ],
+          "flavor_profile": {
+            "aroma": {
+              "type": [
+                "甘甜型",
+                "根茎类土香",
+                "淡雅药香"
+              ],
+              "intensity": "中等偏低",
+              "description": "香气以甘甜型为主，伴随人参、白术的根茎类土香和茯苓的淡雅菌香，整体偏温和，无明显刺激性香气。"
+            },
+            "taste": {
+              "dominant": "甘",
+              "intensity": {
+                "sour": 0.1,
+                "salty": 0.0,
+                "sweet": 0.85,
+                "umami": 0.1,
+                "bitter": 0.35
+              },
+              "secondary": [
+                "微苦",
+                "淡"
+              ],
+              "description": "整体以甘味为主导，人参、白术、茯苓、炙甘草均呈甘味特征；人参、白术带来轻微苦感，茯苓淡味使苦感进一步弱化。"
+            },
+            "mouthfeel": {
+              "texture": "粉质、略粗糙",
+              "aftertaste": "回甘，微带土味",
+              "astringency": 0.1,
+              "description": "代餐粉冲调后呈粉质口感，若粉碎细度不足可能略粗糙；苦味残留低，回味以甘味为主，略带根茎类土味。"
+            }
+          },
+          "consumer_acceptance": "对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。",
+          "coordination_summary": "全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。",
+          "optimization_suggestions": [
+            "控制人参、白术比例，建议人参不超过3g/日、白术不超过9g/日，以降低苦味与土香强度。",
+            "引入药食同源矫味辅料，如山药、莲子、白扁豆，增强甘淡口感并改善粉质细腻度。",
+            "添加少量红枣或龙眼肉，提升自然甜香，掩盖根茎类土味。",
+            "采用超微粉碎工艺，使粉体粒径更细，减少粗糙感和糊口感。",
+            "可考虑添加燕麦粉、小米粉等谷物基料，改善冲调性和口感顺滑度。",
+            "通过低温烘焙或瞬时高温处理，降低生药味，提升香气协调性。"
+          ]
+        },
+        "formula_generation": {
+          "risks": [
+            "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+            "白术性温燥，阴虚内热或津液亏耗者慎用。",
+            "茯苓利水渗湿，气虚下陷者慎用。",
+            "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+            "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。"
+          ],
+          "fang_jie": "人参为君，大补脾胃元气；白术为臣，健脾燥湿；茯苓为佐，渗湿健脾；炙甘草为使，益气和中、调和诸药。全方甘温平和，共奏益气健脾之功。",
+          "formulas": [
+            {
+              "name": "四君子代餐粉（药食同源改良方）",
+              "fang_jie": "本方以人参为君，大补脾胃元气；白术为臣，健脾燥湿，助人参益气；茯苓为佐，健脾渗湿，使补而不滞；炙甘草为使，益气和中，调和诸药。四味皆属药食同源目录，保留原方君臣佐使结构，适用于脾胃气虚所致的食少便溏、气短乏力等症。",
+              "ingredients": [
+                {
+                  "name": "人参",
+                  "role": "君药",
+                  "dose_max": "9g",
+                  "herb_key": "人参",
+                  "dose_range": "3-9g",
+                  "fang_jie_role": "大补脾胃元气，为全方补气健脾之核心。"
+                },
+                {
+                  "name": "白术",
+                  "role": "臣药",
+                  "dose_max": "12g",
+                  "herb_key": "白术",
+                  "dose_range": "6-12g",
+                  "fang_jie_role": "健脾燥湿，辅助人参增强益气健脾之力。"
+                },
+                {
+                  "name": "茯苓",
+                  "role": "佐药",
+                  "dose_max": "15g",
+                  "herb_key": "茯苓",
+                  "dose_range": "9-15g",
+                  "fang_jie_role": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+                },
+                {
+                  "name": "炙甘草",
+                  "role": "使药",
+                  "dose_max": "6g",
+                  "herb_key": "炙甘草",
+                  "dose_range": "3-6g",
+                  "fang_jie_role": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+                }
+              ],
+              "classic_reference": "《太平惠民和剂局方》四君子汤"
+            }
+          ],
+          "compliance_notes": [
+            "所有药材均来自国家卫健委公布的药食同源物品目录。",
+            "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+            "原方禁忌人群：实证、热证而正气不虚者禁用。",
+            "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。"
+          ],
+          "classic_references": [
+            "《太平惠民和剂局方》四君子汤：人参、白术、茯苓、炙甘草各等分，治脾胃气虚证。"
+          ],
+          "kb5_formula_context": "四君子汤源自《太平惠民和剂局方》，原方组成：人参9g、白术9g、茯苓9g、炙甘草6g。功效益气健脾，主治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。原方禁忌：实证、热证而正气不虚者禁用。",
+          "selection_rationale": "基于KB5四君子汤原方进行药食同源化改造。原方四味药材人参、白术、茯苓、炙甘草均在国家药食同源目录内，故全部保留，不进行替代。剂量在原方比例基础上，结合代餐粉每日食用频次与食品安全要求，调整为成人每日推荐用量区间，并标注最大安全用量。"
+        },
+        "efficacy_prediction": {
+          "risks": [
+            "人参不宜与藜芦同用，长期或大剂量使用可能引起血压升高、失眠等不适。",
+            "白术性温燥，阴虚内热或津液亏耗者使用可能加重口干、烦热。",
+            "茯苓利水渗湿，气虚下陷者使用可能加重下坠感或乏力。",
+            "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+            "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。",
+            "人参作为新食品原料时，仅限5年及5年以下人工种植人参，且每日食用量不超过3g。"
+          ],
+          "mechanisms": [
+            "人参所含人参皂苷等成分可调节免疫功能、抗疲劳，并具有补气作用，为全方补益核心。",
+            "白术所含挥发油、白术内酯等成分可促进胃肠运动、调节肠道功能，辅助健脾燥湿。",
+            "茯苓所含茯苓多糖等成分具有利水渗湿、调节免疫和安神作用，可改善脾虚湿盛。",
+            "炙甘草所含甘草酸、黄酮类成分可调和诸药、缓解胃肠刺激，并具有抗炎、保护胃黏膜作用。",
+            "四味协同通过补气健脾、燥湿渗湿，改善脾胃运化功能，缓解食少、便溏、乏力等脾虚症状。"
+          ],
+          "avoid_population": [
+            "阴虚内热者",
+            "湿热内盛者",
+            "津液亏耗者",
+            "气虚下陷者",
+            "湿盛胀满或水肿者",
+            "孕妇、哺乳期妇女及14周岁以下儿童"
+          ],
+          "literature_basis": [
+            "《中国药典》人参：大补元气、复脉固脱、补脾益肺、生津养血、安神益智。",
+            "《中国药典》白术：健脾益气、燥湿利水、止汗、安胎。",
+            "《中国药典》茯苓：利水渗湿、健脾、宁心。",
+            "《中国药典》甘草：补脾益气、清热解毒、祛痰止咳、缓急止痛、调和诸药。",
+            "《太平惠民和剂局方》四君子汤：治脾胃气虚证，症见面色萎黄、语声低微、气短乏力、食少便溏。",
+            "国家卫健委及市场监管总局公告：5年及5年以下人工种植人参可作为新食品原料，食用量不超过3g/天，孕妇、哺乳期妇女及14周岁以下儿童不宜食用。"
+          ],
+          "core_tcm_efficacy": [
+            "益气健脾",
+            "燥湿和中",
+            "渗湿止泻",
+            "调和脾胃"
+          ],
+          "target_population": [
+            "脾胃气虚所致的食欲不振、食少便溏者",
+            "气短乏力、精神不振、面色萎黄者",
+            "脾虚湿盛、大便偏软或不成形者",
+            "需要温和调理脾胃功能的成年人"
+          ],
+          "core_modern_efficacy": [
+            "改善脾胃虚弱相关的食欲减退、食少便溏",
+            "缓解气虚所致的气短乏力、精神不振",
+            "辅助调节胃肠功能，改善脾虚湿盛状态"
+          ],
+          "contraindicated_population": [
+            "实证、热证而正气不虚者",
+            "对人参、白术、茯苓、甘草任一成分过敏者",
+            "高血压控制不佳或长期失眠者"
+          ]
+        },
+        "replacement_mapping": {
+          "impact_summary": "当前提供了正式替代候选，已按目标人群（['脾胃气虚所致的食欲不振、食少便溏者', '气短乏力、精神不振、面色萎黄者', '脾虚湿盛、大便偏软或不成形者', '需要温和调理脾胃功能的成年人']）、风味接受度、风味相似度和安全性做初步筛查。风味模块结论：全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。。这些替代仍需要进一步核验其功效保持、风味影响、人群边界和合规性。如替代可能削弱核心目标，应保留原方并优先改进配伍。",
+          "compliance_notes": [
+            "替代前需再次确认替代药材仍属于药食同源目录。",
+            "替代后需评估是否改变适用人群或禁忌范围。",
+            "风味接受度低或目标人群不明确时，不应直接进入最终配方。"
+          ],
+          "baseline_comparison": [
+            {
+              "decision": "降级复核",
+              "source_herb": "人参",
+              "flavor_after": "味:甘；性:微温；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+              "safety_score": 0.55,
+              "flavor_before": "味:甘、微苦；性:微温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7",
+              "candidate_herb": "黄芪",
+              "efficacy_score": 0.6949,
+              "flavor_acceptance": 1.0,
+              "flavor_similarity": 0.675,
+              "population_before_after": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服"
+            },
+            {
+              "decision": "降级复核",
+              "source_herb": "白术",
+              "flavor_after": "味:甘、淡；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+              "safety_score": null,
+              "flavor_before": "味:甘、苦；性:温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7",
+              "candidate_herb": "茯苓",
+              "efficacy_score": 0.2857142857142857,
+              "flavor_acceptance": 0.5,
+              "flavor_similarity": null,
+              "population_before_after": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服"
+            },
+            {
+              "decision": "候选保留",
+              "source_herb": "炙甘草",
+              "flavor_after": "味:辛、甘；性:大热；香气:Spicy Aroma；接受度:0.913；苦味风险:0.1；涩感风险:0.1；药味风险:1.0；后味风险:0.1",
+              "safety_score": null,
+              "flavor_before": "味:甘；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+              "candidate_herb": "肉桂",
+              "efficacy_score": 0.0,
+              "flavor_acceptance": 0.7000000000000001,
+              "flavor_similarity": null,
+              "population_before_after": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用"
+            }
+          ],
+          "applicable_scenarios": [
+            "风味优化场景",
+            "目标人群适配场景",
+            "成本优化场景",
+            "供应链保障场景"
+          ],
+          "recommended_replacements": [
+            {
+              "score": 0.7559,
+              "reason": "CAN_REPLACE Top1 候选；风味接受度 1.0；风味相似度 0.675；需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；需降级复核：安全评分偏低",
+              "source_herb": "人参",
+              "safety_score": 0.55,
+              "flavor_impact": "原药材：味:甘、微苦；性:微温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7；替代药材：味:甘；性:微温；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+              "population_fit": "需复核人群边界：表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服；2～10g。；表实邪盛，气滞湿阻，食积停滞，痈疽初起或溃后热毒尚盛等实证，以及阴虚阳亢者，均须禁服",
+              "recommended_herb": "黄芪",
+              "flavor_acceptance": 1.0,
+              "flavor_similarity": 0.675,
+              "target_population": [
+                "脾胃气虚所致的食欲不振、食少便溏者",
+                "气短乏力、精神不振、面色萎黄者",
+                "脾虚湿盛、大便偏软或不成形者",
+                "需要温和调理脾胃功能的成年人"
+              ],
+              "professional_score": 0.6949,
+              "recommendation_status": "可推荐"
+            },
+            {
+              "score": null,
+              "reason": "CAN_REPLACE Top1 候选；风味接受度 0.5；缺少风味相似度；需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服；需降级复核：风味接受度偏低",
+              "source_herb": "白术",
+              "safety_score": null,
+              "flavor_impact": "原药材：味:甘、苦；性:温；香气:甘甜型风味；接受度:0.838；苦味风险:0.7；涩感风险:0.1；药味风险:0.7；后味风险:0.7；替代药材：味:甘、淡；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1",
+              "population_fit": "需复核人群边界：阴虚而无湿热、虚寒滑精、气虚下陷者慎服；6～10g。；阴虚而无湿热、虚寒滑精、气虚下陷者慎服",
+              "recommended_herb": "茯苓",
+              "flavor_acceptance": 0.5,
+              "flavor_similarity": null,
+              "target_population": [
+                "脾胃气虚所致的食欲不振、食少便溏者",
+                "气短乏力、精神不振、面色萎黄者",
+                "脾虚湿盛、大便偏软或不成形者",
+                "需要温和调理脾胃功能的成年人"
+              ],
+              "professional_score": null,
+              "recommendation_status": "需复核"
+            },
+            {
+              "score": null,
+              "reason": "CAN_REPLACE Top1 候选；风味接受度 0.7000000000000001；缺少风味相似度；需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+              "source_herb": "炙甘草",
+              "safety_score": null,
+              "flavor_impact": "原药材：味:甘；性:平；香气:甘甜型风味；接受度:1.0；苦味风险:0.1；涩感风险:0.1；药味风险:0.1；后味风险:0.1；替代药材：味:辛、甘；性:大热；香气:Spicy Aroma；接受度:0.913；苦味风险:0.1；涩感风险:0.1；药味风险:1.0；后味风险:0.1",
+              "population_fit": "需复核人群边界：有出血倾向者及孕妇慎用；不宜与赤石脂同用；1～3g。；实热、阴虚火旺、血热妄行出血、孕妇忌用；畏赤石脂；有出血倾向者及孕妇慎用；实热、阴虚火旺、血热妄行出血、孕妇忌用",
+              "recommended_herb": "肉桂",
+              "flavor_acceptance": 0.7000000000000001,
+              "flavor_similarity": null,
+              "target_population": [
+                "脾胃气虚所致的食欲不振、食少便溏者",
+                "气短乏力、精神不振、面色萎黄者",
+                "脾虚湿盛、大便偏软或不成形者",
+                "需要温和调理脾胃功能的成年人"
+              ],
+              "professional_score": null,
+              "recommendation_status": "可作为候选"
+            }
+          ]
+        }
+      },
+      "output_payload": {
+        "task_plan": [
+          "确认 KB5 原方依据、组成和君臣佐使是否已保留",
+          "用 KB1 确认候选方剂成分与药食同源目录一致",
+          "用 KB2 评估方剂功效与用户目标匹配度",
+          "用 KB3/KB6 评估风味协调性、剂型和适用人群",
+          "用 KB4 确认单味替代映射是否可行并评估风险",
+          "用 KB7 复核普通食品宣传边界和上市风险"
+        ],
+        "data_sources": [
+          "KB1 药食同源合法性",
+          "KB2 功效病症性味归经",
+          "KB3 风味评价",
+          "KB4 CAN_REPLACE 单味替代",
+          "KB5 名方/方剂",
+          "KB6 产品市场",
+          "KB7 食品合规"
+        ],
+        "next_actions": [
+          "复核 KB5 原方组成、剂量比例和适用人群",
+          "列出保留药材、替代药材和不能完全替代点",
+          "补充禁忌、普通食品宣传边界和适用边界说明",
+          "根据剂型继续完善风味、工艺和小样验证方案",
+          "如存在证据缺口，补充实验或文献验证。"
+        ],
+        "brief_summary": "把四君子汤改造成药食同源代餐粉",
+        "evidence_gaps": [
+          "剂量区间与配伍逻辑需经中药/食品专业复核，并进行小样感官与稳定性验证。",
+          "替代项的收益与风险（功效保持、人群边界、合规性）需进一步核验后再进入定稿。",
+          "风味与接受度结论需结合目标人群口味偏好与剂型做感官小试验证。"
+        ],
+        "final_formula": {
+          "name": "四君子代餐粉（药食同源改良方）",
+          "composition": [
+            {
+              "dose": "3-9g",
+              "name": "人参",
+              "role": "君药",
+              "basis": "",
+              "source": "药食同源候选组方（图谱候选药材）",
+              "rationale": "大补脾胃元气，为全方补气健脾之核心。"
+            },
+            {
+              "dose": "6-12g",
+              "name": "白术",
+              "role": "臣药",
+              "basis": "",
+              "source": "药食同源候选组方（图谱候选药材）",
+              "rationale": "健脾燥湿，辅助人参增强益气健脾之力。"
+            },
+            {
+              "dose": "9-15g",
+              "name": "茯苓",
+              "role": "佐药",
+              "basis": "",
+              "source": "药食同源候选组方（图谱候选药材）",
+              "rationale": "健脾渗湿，使补而不滞，兼助白术燥湿。"
+            },
+            {
+              "dose": "3-6g",
+              "name": "炙甘草",
+              "role": "使药",
+              "basis": "",
+              "source": "药食同源候选组方（图谱候选药材）",
+              "rationale": "益气和中，调和诸药，缓解代餐粉口感刺激。"
+            }
+          ]
+        },
+        "flavor_summary": {
+          "notes": [
+            "味觉：{'dominant': '甘', 'secondary': ['微苦', '淡'], 'intensity': {'sweet': 0.85, 'bitter': 0.35, 'sour': 0.1, 'salty': 0.0, 'umami': 0.1}, 'description': '整体以甘味为主导，人参、白术、茯苓、炙甘草均呈甘味特征；人参、白术带来轻微苦感，茯苓淡味使苦感进一步弱化。'}",
+            "香气：{'type': ['甘甜型', '根茎类土香', '淡雅药香'], 'intensity': '中等偏低', 'description': '香气以甘甜型为主，伴随人参、白术的根茎类土香和茯苓的淡雅菌香，整体偏温和，无明显刺激性香气。'}",
+            "口感：{'texture': '粉质、略粗糙', 'astringency': 0.1, 'aftertaste': '回甘，微带土味', 'description': '代餐粉冲调后呈粉质口感，若粉碎细度不足可能略粗糙；苦味残留低，回味以甘味为主，略带根茎类土味。'}",
+            "人参、白术存在中等偏低的苦味风险，若粉碎后释放充分，可能使代餐粉后味偏苦。",
+            "根茎类土香与菌香叠加，可能产生沉闷感，缺乏清爽层次。",
+            "粉质口感若细度不足，易出现粗糙、糊口问题。",
+            "整体风味偏单一，长期作为代餐食用易产生风味疲劳。",
+            "全方四味药均以甘味为核心，味觉方向高度一致，形成甘温平和的整体风味。人参、白术的微苦被茯苓淡味和炙甘草甘味有效中和，苦味不突出；香气同属甘甜型，协调性较好。主要协调性风险来自人参、白术的根茎土香与微苦，在代餐粉长期食用场景下可能产生风味疲劳。"
+          ],
+          "acceptance": "对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。"
+        },
+        "compliance_risks": [
+          "所有药材均来自国家卫健委公布的药食同源物品目录。",
+          "剂量区间符合成人每日推荐用量，未超过最大安全用量。",
+          "原方禁忌人群：实证、热证而正气不虚者禁用。",
+          "代餐粉产品形态需确保药材粉碎细度与混合均匀度符合食品生产规范。",
+          "人参不宜与藜芦同用，长期大剂量使用可能引起血压升高、失眠等不适。",
+          "白术性温燥，阴虚内热或津液亏耗者慎用。",
+          "茯苓利水渗湿，气虚下陷者慎用。",
+          "炙甘草不宜与海藻、京大戟、红大戟、甘遂、芫花同用；湿盛胀满、水肿者忌用。",
+          "代餐粉长期单一食用可能导致营养不均衡，建议配合其他食物。",
+          "替代前需再次确认替代药材仍属于药食同源目录。",
+          "替代后需评估是否改变适用人群或禁忌范围。",
+          "风味接受度低或目标人群不明确时，不应直接进入最终配方。",
+          "人参不宜与藜芦同用，长期或大剂量使用可能引起血压升高、失眠等不适。",
+          "白术性温燥，阴虚内热或津液亏耗者使用可能加重口干、烦热。",
+          "茯苓利水渗湿，气虚下陷者使用可能加重下坠感或乏力。",
+          "人参作为新食品原料时，仅限5年及5年以下人工种植人参，且每日食用量不超过3g。",
+          "不适宜人群：阴虚内热者",
+          "不适宜人群：湿热内盛者",
+          "不适宜人群：津液亏耗者",
+          "不适宜人群：气虚下陷者",
+          "不适宜人群：湿盛胀满或水肿者",
+          "不适宜人群：孕妇、哺乳期妇女及14周岁以下儿童",
+          "禁忌人群：实证、热证而正气不虚者",
+          "禁忌人群：对人参、白术、茯苓、甘草任一成分过敏者",
+          "禁忌人群：高血压控制不佳或长期失眠者"
+        ],
+        "efficacy_summary": {
+          "effects": [
+            "益气健脾",
+            "燥湿和中",
+            "渗湿止泻",
+            "调和脾胃",
+            "改善脾胃虚弱相关的食欲减退、食少便溏",
+            "缓解气虚所致的气短乏力、精神不振",
+            "辅助调节胃肠功能，改善脾虚湿盛状态"
+          ],
+          "mechanisms": [
+            "人参所含人参皂苷等成分可调节免疫功能、抗疲劳，并具有补气作用，为全方补益核心。",
+            "白术所含挥发油、白术内酯等成分可促进胃肠运动、调节肠道功能，辅助健脾燥湿。",
+            "茯苓所含茯苓多糖等成分具有利水渗湿、调节免疫和安神作用，可改善脾虚湿盛。",
+            "炙甘草所含甘草酸、黄酮类成分可调和诸药、缓解胃肠刺激，并具有抗炎、保护胃黏膜作用。",
+            "四味协同通过补气健脾、燥湿渗湿，改善脾胃运化功能，缓解食少、便溏、乏力等脾虚症状。"
+          ]
+        },
+        "original_formula": {
+          "name": "",
+          "source": "",
+          "changes": {
+            "added": [
+              "人参",
+              "白术",
+              "炙甘草"
+            ],
+            "removed": [],
+            "replaced": [
+              {
+                "to": "黄芪",
+                "from": "人参",
+                "score": 0.7559,
+                "confidence": 0.6949
+              },
+              {
+                "to": "茯苓",
+                "from": "白术",
+                "score": null,
+                "confidence": "待复核"
+              },
+              {
+                "to": "肉桂",
+                "from": "炙甘草",
+                "score": null,
+                "confidence": "待复核"
+              }
+            ],
+            "retained": []
+          }
+        },
+        "consistency_checks": [
+          "已按固定顺序整合各模块结果。",
+          "KB5 名方/方剂知识库单独保留，未将 KB4 误用为方剂替代版本库。",
+          "方剂成分需限定为药食同源目录候选，非药食同源原方药材必须走 KB4 单味替代。",
+          "已检查替代建议是否存在削弱核心目标的风险。",
+          "建议对禁忌人群、剂量区间、风味剂型和合规文案继续做人工核验。"
+        ],
+        "final_recommendation": "针对「把四君子汤改造成药食同源代餐粉」，已形成药食同源候选方：人参、白术、茯苓、炙甘草。\n\n核心功效判断为：益气健脾；燥湿和中；渗湿止泻。\n风味与可接受性评估：对偏好传统药膳、甘淡口感的消费者接受度较高；普通代餐消费者可能因根茎土香和微苦感而接受度中等。整体风味温和，无明显刺激性，适合作为脾胃气虚人群的日常代餐，但需通过辅料和工艺优化提升大众适口性。。\n存在可替代候选，需人工确认替代收益与风险。\n详细组成、君臣佐使、原方依据、替代对比、合规风险与证据缺口见结构化字段；\n建议先做小样验证、感官评价、稳定性和合规文案复核，再进入工艺放大。",
+        "monarch_minister_summary": [
+          {
+            "duty": "针对目标需求与核心功效起主导作用",
+            "role": "君药",
+            "herbs": [
+              "人参"
+            ]
+          },
+          {
+            "duty": "辅助君药增强功效或针对兼证",
+            "role": "臣药",
+            "herbs": [
+              "白术"
+            ]
+          },
+          {
+            "duty": "佐助主药或制约偏性，平衡药性与口感",
+            "role": "佐药",
+            "herbs": [
+              "茯苓"
+            ]
+          },
+          {
+            "duty": "调和诸药、改善整体协调性",
+            "role": "使药",
+            "herbs": [
+              "炙甘草"
+            ]
+          }
+        ]
+      },
+      "latency_ms": 28446,
+      "graph_snapshot_id": null,
+      "prompt_version": "2026-09-01T16:55:15.104423",
+      "created_at": "2026-09-01T17:14:10.196448",
+      "updated_at": "2026-09-01T17:14:38.650361"
+    }
+  ],
+  "created_at": "2026-09-01T17:12:46.147252",
+  "updated_at": "2026-09-01T17:14:38.662424"
+}

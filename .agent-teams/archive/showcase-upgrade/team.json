@@ -1,0 +1,88 @@
+{
+  "name": "showcase-upgrade",
+  "id": "showcase-upgrade",
+  "description": "执行已批准的首页版块升级计划：三大核心能力/企业个人分流/研发协同流程加入 Three.js 迷你场景、3D 卡片倾斜、动态 CSS 与内容增强，构建+Playwright 验收+部署上线（仅前端）。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788103256382,
+  "members": [
+    {
+      "id": "6a57a46d-12b2-4034-b685-df58a58e25ec",
+      "name": "fe-3d",
+      "role": "Three.js 工程师：useSectionThree 基础设施 + 三个迷你场景组件",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788103261784,
+      "status": "removed"
+    },
+    {
+      "id": "0600d392-324b-4925-a2c1-865d18b509dc",
+      "name": "fe-ui",
+      "role": "前端界面工程师：版块集成、3D 倾斜、内容增强、动态 CSS",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788103261817,
+      "status": "removed"
+    },
+    {
+      "id": "c41f4ea4-8646-4e4d-ab7d-01d14df28ab3",
+      "name": "deploy-qa",
+      "role": "验收与上线：构建/Playwright 截图验收/部署/公网回归",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-flash-vision-exp",
+      "reasoningEffort": "max",
+      "joinedAt": 1788103261852,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "t1 Three.js 基础设施与迷你场景组件",
+      "description": "t1 基础设施：useSectionThree + 三个迷你 Three.js 场景组件（不接入版块，只做组件与 composable 并本地自测）。\n工作区：D:\\python_workspace\\neo4j_muti_agents。参照：frontend/src/components/showcase/HeroKnowledgeScene.vue（renderer/场景管理惯例）、composables/useShowcaseMotionPreference.js、showcaseColors.js。three 版本 0.184（ESM，import * as THREE from \"three\"；无后处理、无新依赖）。\n交付：\n1. frontend/src/composables/useSectionThree.js：接受容器 ref 与 options（scene 构建回调、render 回调、onDispose）；内部：WebGLRenderer({antialias:true, alpha:true, powerPreference:'low-power'})，setPixelRatio(min(dpr,1.5))，ResizeObserver 同步尺寸，IntersectionObserver 进视口才启动 rAF（离屏暂停），window 失焦暂停；WebGL 不可用/prefers-reduced-motion 时返回 {ok:false}（组件走静态回退）；提供 dispose；封装 rAF 生命周期与 delta。\n2. frontend/src/components/showcase/UseCaseScene.vue：props { variant: 'graph'|'constellation'|'pipeline', color? }，容器高度自适（父级控制 ~160px），canvas 绝对定位铺满；\n   - graph：6-8 个小球（SphereGeometry 0.35-0.55，MeshBasicMaterial 半透明 additive）+ 连线（THREE.Line，颜色透明），整体缓慢自转（y 0.25rad/s）+ 随鼠标微小视差（容器 mousemove，±0.12 rad）\n   - constellation：中心球 0.5 + 9 颗小球沿黄金角环带（纵向 0.5 压扁）分布，缓慢自转 + 各球呼吸（scale 0.92-1.08 相位错开）\n   - pipeline：6 颗小球沿二次贝塞尔弧线（两端低中间高的拱形）等距排布，能量点（小亮球/加发光点 sprite 简化：MeshBasicMaterial 亮色小球 + RingGeometry 光晕）沿曲线 t=0→1→0 往复循环\n   - 三个 variant 都满足：reduced-motion→单帧；WebGL 失败→渲染空（组件外部用 v-if 回退原 SVG）\n3. frontend/src/components/showcase/AudienceFlowScene.vue：中央路由核心：icosahedron(0.9,1) 半透明青绿 + 双环（TorusGeometry 半径 1.3/1.6 不同倾角自转）+ 中心小核球；两条分叉曲线（从核心向左右两侧延伸，QuadraticBezierCurve3），每侧 8-10 个流动粒子（小球按 t 采样，端点淡出），与核心自转同节奏；容器 220px 高。\n4. frontend/src/components/showcase/AgentFlowScene.vue：props 接收 6 个 DOM 节点（refs 数组或通过 expose 的 setNodes(rects) 接口，由 fe-ui 计算节点中心坐标传入）：构建一条穿过六点的 CatmullRomCurve3（z=0 平面，用三点式近似或 CatmullRom 直接连点）；能量脉冲（带光晕的小球）沿曲线循环；方法 setActive(index) 让脉冲加速并短暂朝向该点（脉冲到达对应节点附近时亮度增强）；Resize（场景 resize 回调重新接收最新 rects）；不遮挡 DOM（canvas 绝对定位 z-index:0）。\n5. 每个组件导出时暴露 mount/dispose 生命周期由 composable 管理；组件需可独立挂载自测（写临时 dev 页面或直接 --temp 路由？不需要：自测方式为临时 App 替换或独立 console 冒烟 + npm run build 类型检查）。\n6. 提交：git add 新文件 && git commit -m \"feat: 展示版块 Three.js 基础设施与迷你场景组件\"。\n输出：文件清单、组件 API 说明（props/expose）、build 结果、commit hash。",
+      "status": "completed",
+      "assignee": "fe-3d",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788103274373,
+      "updatedAt": 1788103854831,
+      "attemptId": "65190ed4-a76d-46d6-a198-826188abba43",
+      "reassigning": false,
+      "output": "完成 t1：Three.js 基础设施与三个迷你场景组件（均未接入版块，纯组件 + composable）。提交 ecb72622「feat: 展示版块 Three.js 基础设施与迷你场景组件」，仅含 4 个新文件（其余工作树文件未动）。\n\n【文件清单】\n1. frontend/src/composables/useSectionThree.js（278 行）\n2. frontend/src/components/showcase/UseCaseScene.vue（370 行）\n3. frontend/src/components/showcase/AudienceFlowScene.vue（243 行）\n4. frontend/src/components/showcase/AgentFlowScene.vue（317 行）\n\n【useSectionThree API】useSectionThree(containerRef, { createScene({scene,camera,renderer,container}), render?(ctx), onResize?({ctx,width,height}), onDispose?() }) → { ok(ref), staticFrame(ref), mount(), dispose() }。内部：WebGLRenderer({antialias:true,alpha:true,powerPreference:'low-power'})、setPixelRatio(min(dpr,1.5))、ResizeObserver 同步、IntersectionObserver 进视口才 rAF（离屏暂停）、window blur/focus 暂停恢复；WebGL 不可用 ok=false；prefers-reduced-motion → staticFrame=true 渲染单帧不启动循环（matchMedia change 热切换）。delta 封顶 0.05，elapsed 自累积避免暂停跳变。同模块导出 disposeObject3D(root) 与 applySceneFit(group,camera,w,h,reqHalfW,reqHalfH,maxScale)。注：api 无 update 时组件渲染空场景，由场景实现 update(delta,elapsed,ctx)。\n\n【props/expose】\n- UseCaseScene：props { variant:'graph'|'constellation'|'pipeline'（默认 graph）, color（默认 #0d9488）}；expose mount/dispose/webglOk/staticFrame。graph=7 球(0.35-0.55 additive 半透明)+10 连线，y 轴 0.25rad/s 自转 + window mousemove±0.12rad 视差（容器 rect 换算，pointer-events:none 也生效）；constellation=中心球 0.5+9 球黄金角环带(y 压扁 0.5)自转+0.92-1.08 相位错开呼吸；pipeline=6 球沿二次贝塞尔拱形等距+亮球+RingGeometry 光晕 t 0→1→0 往复。variant/color watch 变化自动重建。\n- AudienceFlowScene：props { color（默认 #059669）, accent（默认 #eab308 金，呼应版块 gold）}；expose mount/dispose/webglOk/staticFrame。icosahedron(0.9,1) 半透明青绿+线框+中心核球；双环 TorusGeometry r1.3/1.6 不同倾角自转；左右两条 QuadraticBezierCurve3 分叉各 9 粒子流动（端点 sin(πt) 淡出），与核心同时间基准；容器 min-height:220px。\n- AgentFlowScene：props { color（默认 #6366f1）, nodes?(DOM refs 数组) }；defineEmits(['resize'])；expose mount/dispose/setNodes(rects)/setActive(index)/webglOk/staticFrame。CatmullRomCurve3(z=0) 穿 6 点+节点标记球+能量脉冲（亮球+Ring 光晕 billboard）；setActive 加速 1.6s 且在目标点附近（t 环形距离 exp 衰减）光晕/亮度增强；resize 时按最新容器尺寸重投影并 emit('resize') 供 fe-ui 重算 rects；canvas z-index:0+pointer-events:none 不遮挡 DOM。未喂数据时用默认 6 点占位布局。\n\n【验证】\n- 临时 smoke 入口强制 vite build 编译 4 模块：19 modules transformed，通过（已删除临时文件 scene-smoke.html/src/scene-smoke-entry.js/smoke.vite.config.mjs/dist-scene-smoke）。\n- node 侧 THREE r184 API 冒烟：QuadraticBezierCurve3.getPoint(t,target)、CatmullRomCurve3(points,false,'catmullrom',0.5).getPoints(64)、Icosahedron/Torus/Ring/Sphere geometry、LineBasicMaterial/MeshBasicMaterial+AdditiveBlending、Color.lerp 全部 OK。\n- 主构建 npm run build：1800 modules transformed 成功；frontend/dist 跟踪文件与重建产物逐字节一致（无 dist 变更）。\n- 未做浏览器运行冒烟（本机无 Playwright，未装新依赖）——建议 deploy-qa 验收时重点看：浅色版块上 additive 混合的可见度（可能需要提高 opacity 或改 NormalBlending 微调）。"
+    },
+    {
+      "id": "t2",
+      "subject": "t2 版块集成与内容增强",
+      "description": "t2 版块集成：3D 倾斜 / 内容增强 / CSS 动态 + 接入 t1 的三个场景组件。\n工作区：D:\\python_workspace\\neo4j_muti_agents。前置：t1 组件与 composable（UseCaseScene/AudienceFlowScene/AgentFlowScene/useSectionThree/useTilt——useTilt 若 t1 未提供则由你在本任务中于 composables 新建）。\n改三个版块（参考现有结构与 util 类 sc-glass/sc-card-glow/sc-card-hover、showcaseColors.js）：\n1. CapabilitySection.vue：\n   - 每卡片 .capability-visual 内用 UseCaseScene（variant 对应 qa=graph / constitution=constellation / rnd=pipeline）替换静态 SVG（SVG 与虚线 orbit 保留作为 WebGL 回退：用 useSectionThree 返回 ok=false 或 reduced-motion/窄屏时 v-if 显示 SVG）；\n   - 卡片 useTilt 3D 倾斜（perspective 900px，rotate 最大 ±6°，mousemove 驱动 + 高光 glare 跟随，离开复位；reduced-motion 禁用）；\n   - 内容增强（数据取自 README/AGENTS.md）：stat chips 行——问答 `18 类节点 · 86,484 节点 · 207,354 关系`、体质 `9 种体质 · 30 道问卷`、研发 `6 步工作流 · 5 专家 Agent`；KB 标签 chips——问答 KB1–KB7（展示为 KB1·KB2·…·KB7 或前几项+省略）、体质 KB8、研发 KB3+KB4+KB5；放在 flow 下方 stat 区（新 class，不破坏现有布局）；\n   - CSS：卡片渐变描边 hover（border-image 或伪元素）、视觉区径向光晕呼吸、维持三色主题。\n2. AudienceSplitSection.vue：\n   - 中央列接入 AudienceFlowScene（canvas 绝对定位铺满中列、.classifier-bridge 下方 z-index:0，圆核文字 DOM 保持 z-index:1 上层）；CSS 圆环保留作为回退（同 v-if 策略）；\n   - 两面板 useTilt + 统计徽章：企业端 `6 类研发任务`、个人端 `5 类食养路径`；列表项 hover 平移出箭头动效；\n   - 分类器文字区呼吸缩放（±1.5%，4s ease-in-out infinite），与粒子流同节奏。\n3. AgentPipeline.vue：\n   - 接入 AgentFlowScene：场景挂载后对六个 .step-node 取 getBoundingClientRect 中心坐标（相对 .pipeline 容器）并传给场景 setNodes(rects)；响应 Resize/布局变化重算；canvas 绝对定位在 .pipeline 内 z-index:0（.pipeline-item z-index:1）；\n   - 自动轮播：每 4s 聚焦下一个 agent（focusedKey 循环），pipeline 容器 mouseenter 暂停、mouseleave 恢复；点击切换仍可用；轮播时调用 scene.setActive(index)；\n   - 节点 useTilt 微动（±3°）+ 详情面板加 KB 标签 chips（master_control=综合、formula_generation=KB1·KB2·KB5、efficacy_prediction=KB2、flavor_prediction=KB3、replacement_mapping=KB4·KB7、master_control_final=综合）与 `第 {n} 步` 徽章；\n   - CSS：.connector-line 改成渐变流动（background-position 动画或渐变动画）、active 节点光晕（box-shadow 呼吸）。\n4. 统一守则：WebGL 回退路径保留现有视觉；prefers-reduced-motion 不启用循环动画；移动端(<768px)三场景一律回退（canvas 隐藏，CSS 视觉仍在）；不新增依赖、不动 hero 场景与其它版块；保持 ShowcaseReveal3D 滚动显现行为。\n5. 本地验证：npm run build 通过；npm run dev 冒烟（手测 hover 倾斜/轮播/场景挂载，控制台无错）。\n6. 提交：git add frontend/src/components/showcase/*.vue frontend/src/composables/*.js && git commit -m \"feat: 首页三大版块 Three.js+3D+动态 CSS 优化\"（含 dist 重建提交）。\n输出：改动摘要、build 结果、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "fe-ui",
+      "dependencies": [
+        "t1"
+      ],
+      "attempt": 1,
+      "createdAt": 1788103293281,
+      "updatedAt": 1788105352076,
+      "attemptId": "47c75f9e-9204-4f30-ab96-ad08c1409f12",
+      "reassigning": false,
+      "output": "t2 完成。改动摘要：\n1) 新建 frontend/src/composables/useTilt.js：useTilt（容器级 mousemove 事件委托 + rAF lerp 插值，perspective 900px、±maxDeg、glare 跟随 --tilt-gx/--tilt-gy、离开复位、reduced-motion 自动禁用与恢复，hover 停止空转节能）+ useMediaQuery（通用媒体查询 ref，setup 同步求值）。经 fe-3d 确认 useTilt 未在 t1 提供，故由本任务新建。\n2) CapabilitySection.vue：三卡 .capability-visual 接入 UseCaseScene（qa=graph/绿、constitution=constellation/粉、rnd=pipeline/橙），SVG+虚线 orbit 保留为 WebGL/reduced-motion/窄屏回退（v-else + fallback 插槽双路径）；卡片 useTilt ±6° + cap-glare 高光；新增 capability-stats 区（cap-stat chips：18 类节点/86,482 节点/207,354 关系（按 README 基线 86,482，任务文中 86,484 为笔误）、9 种体质/30 道问卷、6 步工作流/5 专家 Agent；cap-kb chips：KB1·KB2·…·KB7、KB8、KB3/4/5，均取自 AGENTS.md/README）；CSS：::after mask 渐变描边 hover、视觉区 ::before 径向光晕呼吸（5.2s clamp 0.45→1）、三色主题保持；reveal-stagger-item 移到 cap-wrap 外层避免与 tilt transform 冲突。\n3) AudienceSplitSection.vue：中央列接入 AudienceFlowScene（.classifier-bridge 内 canvas 绝对定位 z-index:0，圆核 z-index:1 呼吸缩放 ±1.5%/4s），CSS 圆环保留为回退；两面板 useTilt + 渐变描边 + glare；企业端/个人端统计徽章（6 类研发任务/5 类食养路径），列表补齐到 6/5 项；列表项 hover 平移 6px + → 箭头滑入；面板包 panel-wrap 分离 reveal transform。\n4) AgentPipeline.vue：接入 AgentFlowScene（.pipeline 内 z-index:0 铺满、.pipeline-item z-index:1），onMounted/ResizeObserver/transitionend/700ms 后对 6 个 .step-node 取中心坐标 setNodes(rects)（校验 scene.webglOk 布尔）；自动轮播 4s 循环聚焦 + scene.setActive(index)，mouseenter 暂停/mouseleave 恢复，点击切换重启计时（悬停中点击保持暂停），onUnmounted 清理；step-node useTilt ±3° 微动；详情面板加\"第 {n} 步\"徽章 + KB chips（master_control=综合、formula_generation=KB1·KB2·KB5、efficacy_prediction=KB2、flavor_prediction=KB3、replacement_mapping=KB4·KB7、master_control_final=综合）；connector-line 改 repeating 渐变 background-position 流动（纵横两方向）、active 节点 box-shadow 光晕呼吸。\n5) 统一守则：reduced-motion/窄屏(<768px) v-if 回退（场景组件不挂载，canvas=0，CSS/SVG 视觉与 ShowcaseReveal3D 不变）；无新增依赖；未动 hero 场景与其版块。\n\n验证：npm run build 通过（9.4s，chunk 大小告警为既有非失败项）；Playwright 冒烟（dev server，1440x900）：capability 3 卡 3 canvas、tilt transform=perspective(900px)…rotateX 3.17°/rotateY -2.96°、离开复位、cap stats/KB chips 文本正确；audience 1 canvas + panel tilt + 圆核呼吸动画名 classifierBreathe；pipeline 1 canvas + 6 节点 + 4s 轮播（efficacy→flavor）、hover 暂停（flavor 保持）、mouseleave 恢复（→replacement）、点击切换、detail 第 4 步/KB3 正确。移动端 390x844：全页 0 canvas，3 个 SVG 回退图标/圆核/6 节点/详情均可见；无 console.error/pageerror（仅 THREE.Clock 弃用警告与 headless GPU ReadPixels 提示，均来自 t1 已提交代码，非新增）。审查过截图：三版块视觉完整、无布局破坏。\n\ncommit: a204365f (feat: 首页三大版块 Three.js+3D+动态 CSS 优化)，含 dist 重建（index-CDUurgba.js 等）。未部署。"
+    },
+    {
+      "id": "t3",
+      "subject": "t3 构建验收与部署上线",
+      "description": "t3 构建 + Playwright 验收 + 部署 + 公网回归。\n前置：t1/t2 已提交。工作区 D:\\python_workspace\\neo4j_muti_agents。服务器 root@118.24.185.45（SSH 密码 mmfh2025KS686 不回显）；前端目录 /www/wwwroot/neo4j-agents/frontend-dist；后端不重启。\n步骤：\n1. cd frontend && npm run build（确认 dist 最新；记录新资源 hash 清单）。\n2. 本机验收（Playwright 本机 Edge，可 load webapp-testing skill）：起 npm run dev -- --host 127.0.0.1 --port 5173 → 打开首页，滚到三个版块分别截图（每版块：默认态 + hover 态 + 交互态；AgentPipeline 再截自动轮播 2 帧验证焦点变化）：\n   - 核对：三大能力卡片内场景渲染（canvas 存在且非空像素）、卡片倾斜 hover 生效（transform 变化）、分流版块粒子流与核心渲染、流程版块能量脉冲随时间移动、无 console 错误、`document.querySelectorAll('canvas').length<=4`；\n   - `page.emulateMedia({ reducedMotion: 'reduce' })` 截图：三场景回退为静态/CSS 视觉、页面可用；\n   - 移动端视口（390px）截图：场景回退正常、无横向滚动。\n3. 部署：SSH cp -r /www/wwwroot/neo4j-agents/frontend-dist /www/wwwroot/neo4j-agents/frontend-dist.bak-$(date +%Y%m%d%H%M%S) → SFTP 上传 frontend/dist/** 覆盖 → 按 DEPLOY.md 教训清理旧资源（核对 index.html 引用 + 动态 import 的 chunk 全部保留）。\n4. 公网回归：http://118.24.185.45/ 200 且新 bundle 资源 200；/login 200；/api/health 200；登录冒烟 captcha→login→logout。\n5. DEPLOY.md（服务器+本地 deploy/DEPLOY.md）追加「2026-09 首页版块视觉升级」记录（新组件/资源 hash/回滚点/性能守则）。\n6. 汇总验收报告（截图保存 + 逐项 PASS/FAIL，含 FPS 抽样）。关键项失败 → failed 附现象/原因/建议。",
+      "status": "completed",
+      "assignee": "deploy-qa",
+      "dependencies": [
+        "t2"
+      ],
+      "attempt": 1,
+      "createdAt": 1788103293306,
+      "updatedAt": 1788106070861,
+      "attemptId": "29d721c7-930e-4ca5-8864-f5dc22e70e7c",
+      "reassigning": false,
+      "output": "t3 完成，全链路 PASS（构建 34/34 本机验收 + 公网 9/9 回归 + 部署 sha256 4/4 MATCH）。\n\n【构建】npm run build（Vite 5.4.21）→ dist 9 文件。新 hash：index-CDUurgba.js / index-AzZonmcz.css（index.html 引用）、showcase-3d-BbLLm7wP.js（modulepreload）、HeroKnowledgeScene-BmkO4RJu.js + HeroKnowledgeScene-DVgML9Jm.css（主包动态 import chunk）；login-bg 三件套未变。主包含新组件代码（三大核心能力/企业个人端分流/研发协同流程等字符串核验在包内）。\n\n【本机验收】.tmp-showcase-t3/shots/（18 张版块截图 + canvas 帧对）34/34 PASS：\n- 三大能力：canvas 3 个，两帧采样 std 7.4~32.7 / 帧差 0~0.16；hover 后 transform=perspective(900px)+rotateX/rotateY 非零、.tilt-hover 类生效、glare opacity=1；离开复位 inline transform 清空。\n- 分流：canvas 1 个（std 19.1，帧差 0.039），分类器核心可见（classifierBreathe 4s + backdrop blur），企业面板 hover 倾斜生效。\n- 流程：canvas 1 个（std 30.8，帧差 0.27 能量脉冲移动）；4s 自动轮播焦点 1→2 且详情同步；点击第 3 节点交互正确；FPS 抽样 217。\n- 页面 canvas 总数 6（hero1+cap3+aud1+pipe1），无 console 错误（仅既有 /favicon.ico 404 非阻塞，已确认来源）、无 failed request。\n- reduced-motion：全页 0 canvas，三版块 SVG/CSS 回退正常，轮播不推进；移动端 390px：0 canvas、无横向滚动（scrollWidth=390）。\n\n【部署】回滚点 /www/wwwroot/neo4j-agents/frontend-dist.bak-20260831000611；SFTP 覆盖 9 文件；清理旧资源 4 件（HeroKnowledgeScene-x0ezEfm_.js / index-CAw3ZOu8.css / index-DhdqM3mh.js / showcase-3d-CjTivXqx.js），保留清单由脚本自动解析主包动态 import（P6 教训已落实）；chmod 755/644；sha256 抽检 4/4 MATCH。后端未重启未改动。\n\n【公网回归】9/9 PASS：/ 200 引用新 bundle；9 个新资源全部 200；/login 200；/api/health 200（postgres/neo4j/llm_configured 均 true）；登录冒烟 captcha→login→me→logout 全 PASS。生产 Edge headless 复验：canvas=6、cards=3、steps=6、console 零错误。\n\n【DEPLOY.md】本地 deploy/DEPLOY.md 与服务器 /www/wwwroot/neo4j-agents/deploy/DEPLOY.md 均追加「2026-09 首页版块视觉升级（P7）」记录（新组件/资源 hash/回滚点/性能守则，21136 bytes 已回传）。\n\n【备注】期间曾修复两次脚本自身问题（首跑 canvas 截图时机早于 IntersectionObserver 渲染、health 字段名 llm_configured），均为验收脚本修正，无代码问题；本机 dev 验收首次出现 canvas 空白为截图时序问题而非页面缺陷，加入 1.8s 视口等待后全部稳定。"
+    }
+  ],
+  "taskSeq": 3
+}

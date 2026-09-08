@@ -20,6 +20,7 @@ neo4j_muti_agents/
 │  │  ├─ db/                    # 模型、初始化、种子数据
 │  │  ├─ repositories/          # PostgreSQL / Neo4j 访问层
 │  │  ├─ schemas/               # Pydantic Schema
+│  │  ├─ prompts/               # QA 路由规则、思考流程、回答约束、回归用例
 │  │  └─ services/              # QA、R&D 工作流、LLM 编排
 │  ├─ scripts/
 │  │  ├─ run_backend.ps1
@@ -40,7 +41,9 @@ neo4j_muti_agents/
 │  └─ package.json
 ├─ origin_data/                 # 原始数据与补充目录
 ├─ scripts/
-│  └─ import_agent_kg_0604.py   # 0604 KB1-KB8 + CDB1 全量重建脚本
+│  ├─ import_agent_kg_0604.py   # 0604 KB1-KB8 + CDB1 全量重建脚本
+│  ├─ restore_neo4j_backup.py   # Neo4j JSON 备份回退
+│  └─ validate_qa_routing.py    # QA 路由回归（读取 qa_route_eval_cases.json）
 ├─ requirements.txt
 └─ README.md
 ```
@@ -49,7 +52,9 @@ neo4j_muti_agents/
 
 ### 1. 知识问答
 
-- 基于图谱的实体识别与问题类型识别
+- 基于图谱的实体识别与 `qa_route` 业务路由（企业 6 类 / 个人 5 类）
+- 五步「图谱检索与证据整理摘要」：任务分流 → 信息检查 → KB 路由 → 风险合规 → 回答追问
+- 缺失核心信息时按优先级主动追问（体质、人群、风险、口味偏好等）
 - 问答结果与证据子图联动展示
 - 参考来源详情弹窗
 - Prompt / Cypher 模板管理
@@ -171,7 +176,7 @@ python .\scripts\import_agent_kg_0604.py --clear --data-root "D:\工作\多智�
 python .\scripts\restore_neo4j_backup.py --backup neo4j_backups\neo4j_backup_before_0604_rebuild_YYYYMMDD_HHMMSS.json --yes
 ```
 
-本次优化 additionally 导入：KB4 十八反十九畏、评分/风味规则、禁忌排除候选；KB7 分拆合规文件；`consumer_aware_substitute_results.csv`；`0524/meandqi` 方剂补充。
+此外还导入：KB4 十八反十九畏、评分/风味规则、禁忌排除候选；KB7 分拆合规文件；`consumer_aware_substitute_results.csv`；`0524/meandqi` 方剂补充。
 
 ### 0604 dry-run 计划统计
 
@@ -368,18 +373,44 @@ python .\scripts\import_agent_kg_0604.py --clear --data-root "D:\工作\多智�
 
 ### 知识问答升级
 
-重点问题类型：
+业务逻辑来源（外部权威）：
+
+- `思考逻辑流程.html`
+- `药食同源Agent_企业个人分流_名方方剂知识库流程图.html`
+- `README_数据资产与知识图谱对照.md`
+
+项目内规则文件（`backend/app/prompts/`）：
+
+| 文件 | 用途 |
+|------|------|
+| `qa_route_rules.json` | 机器可读主规则：`qa_route`、必检 KB、缺失槽位（含优先级）、回答小标题、证据要求 |
+| `qa_reasoning_flow.md` | 五步思考过程、企业 6 类/个人 5 类任务说明、图谱缺口 |
+| `knowledge_qa_answer_rules.md` | 安全边界、评分展示、禁止项、企业/个人分流长文本约束 |
+| `qa_route_eval_cases.json` | 路由回归用例，供 `validate_qa_routing.py` 使用 |
+
+**企业端 6 类 `qa_route`**：`product_development`（产品研发）、`formula_foodification`（方剂食品化）、`herb_replacement`（单味替代）、`flavor_form_factor`（风味剂型）、`market_analysis`（竞品市场）、`compliance_review`（合规审查）。
+
+**个人端 5 类 `qa_route`**：`constitution_assessment`（体质辨识）、`personalized_food_recommendation`（食养推荐）、`personal_product_fit`（产品适配）、`personal_product_recommendation`（成品选购）、`risk_boundary`（风险边界）。
+
+兼容字段说明：`question_type` 保留给旧模板与检索；**业务分流以 `qa_route` 为准**。
+
+路由回归：
+
+```powershell
+python scripts\validate_qa_routing.py
+```
+
+重点问题类型（兼容 `question_type`）：
 
 - `constitution_recommendation`：体质/症状导向的个人端食养推荐。
 - `product_recommendation`：产品、风味、市场、剂型、合规类企业端问答。
+- `formula_replacement`：方剂食品化、单味药替代。
 
-回答规则集中放在 `backend/app/prompts/knowledge_qa_answer_rules.md`，由 `QAOrchestrator` 拼入系统提示词。推荐类回答按“核心结论、体质/产品判断依据、推荐方案、图谱证据、风险与禁忌、证据边界、追问建议”组织；体质推荐不做医学诊断，产品推荐优先使用产品、原料、功效、风味、市场和 KB7 合规证据。
-
-问答业务路由以 `backend/app/prompts/qa_route_rules.json` 为机器可读主规则，`backend/app/prompts/qa_reasoning_flow.md` 维护可展示的五步过程摘要，`backend/app/prompts/knowledge_qa_answer_rules.md` 维护安全边界、回答风格、禁止项和评分展示规则。企业端覆盖产品研发、方剂食品化、单味替代、风味剂型、市场、合规；个人端覆盖体质辨识、食养推荐、产品适配、成品选购和风险边界。可用 `python scripts\validate_qa_routing.py` 回归校验典型问题的 `qa_route/question_type/audience`。
+回答规则由 `knowledge_qa_answer_rules.md` 拼入系统提示词。推荐类回答按路由 `answer_outline` 组织小标题；体质推荐不做医学诊断，产品推荐优先使用产品、原料、功效、风味、市场和 KB7 合规证据。
 
 产品研发类回答会联查 KB5 名方与 KB4 单味替代关系，并通过 `graph_grounded` 通道按小标题直接流式输出，不等待大模型改写图谱事实。系统优先展示与核心原料存在直接图谱关系的名方及出处；没有直接关系时，只能标注为按功效、人群和风味筛选的“参考原型”。最终配方相对原方逐味归入“保留、替换、新增、删除”，其中“替换”必须有 `CAN_REPLACE` 关系；KB4 原始分与系统综合可信度按 100 分制分列，均表示研发证据强度，不表示临床有效率。
 
-正式回答和“图谱检索与证据整理摘要”统一使用业务判断与行动建议表达。待验证项写成核验原料身份、补充原方剂量、开展感官小试、目标人群验证或专业复核，不向用户展示“图谱未提供”“知识库尚不支持”“知识库未提供”“未命中”等系统视角措辞。
+正式回答和“图谱检索与证据整理摘要”统一使用业务判断与行动建议表达，并按五步编号。个人端缺体质、人群、风险、诉求或口味偏好时主动追问；企业端缺功效、剂型、人群、风味或合规约束时同理。待验证项写成核验原料身份、补充原方剂量、开展感官小试、目标人群验证或专业复核，不向用户展示“图谱未提供”“知识库尚不支持”等系统视角措辞。
 
 ### 登录与权限
 
@@ -514,6 +545,12 @@ npm run dev -- --host 0.0.0.0 --port 5173
 这通常不是错误，而是当前候选药材在正式 `CAN_REPLACE` 替代结果中没有对应边。此时工作流仍会继续，只是 `replacement_mapping` 模块返回空推荐。
 
 ## 常用命令速查
+
+QA 路由回归：
+
+```powershell
+python scripts\validate_qa_routing.py
+```
 
 启动后端：
 

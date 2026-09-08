@@ -1,0 +1,5 @@
+99:## 2026-09 多用户账号服务（P4 上线记录，2026-08-29）
+140:## 2026-09 前端 UI 优化（P5 上线记录，2026-08-30）
+159:## 2026-09 特写内部展开重设计（P6 上线记录，2026-08-30）
+171:- 新 hash 资源：`index-DhdqM3mh.js` / `index-CAw3ZOu8.css` / `HeroKnowledgeScene-x0ezEfm_.js` / `HeroKnowledgeScene-DVgML9Jm.css` / `showcase-3d-CjTivXqx.js`。
+174:- ⚠ 教训：`HeroKnowledgeScene-*.js/css` 是主包动态 import 的异步 chunk，不在 index.html 引用列表内；首轮清理按“保留 index.html 引用项”误删了这两个文件，已当场补传并 sha256 校验 MATCH。后续清理旧资源时必须把主包 bundle 内 mapDeps/动态 import 的 chunk 一并纳入保留清单（本次已线上修复，无影响）。

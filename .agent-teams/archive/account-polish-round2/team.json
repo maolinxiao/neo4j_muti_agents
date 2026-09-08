@@ -1,0 +1,178 @@
+{
+  "name": "account-polish-round2",
+  "id": "account-polish-round2",
+  "description": "修复与优化：① 排查新账号出现\"孕妇能不能吃人参？\"历史记录的根因并修复；② 补齐英文界面适配（剩余页面全量 i18n）；③ 右上角\"修改密码\"改为跳转个人中心安全页而非弹窗；④ 修改密码增加图形验证码（后端+前端）；⑤ 偏好设置 UI 重设计（主题/语言卡片化）；⑥ 体质辨识界面优化（手动选择量表与标准量表测评）。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788337501397,
+  "members": [
+    {
+      "id": "2826d229-c990-4e14-bf65-40a4e1538a59",
+      "name": "diagnose",
+      "role": "根因诊断与修复：新账号历史记录来源排查 + 数据/前端修复",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788337509776,
+      "status": "removed"
+    },
+    {
+      "id": "380aed3f-edc9-4be5-9350-04ddf802d645",
+      "name": "backend",
+      "role": "后端工程师：修改密码增加图形验证码校验",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788337509811,
+      "status": "removed"
+    },
+    {
+      "id": "7d6d594f-ce47-418e-bf12-22634bad29d0",
+      "name": "fe-account",
+      "role": "前端工程师：改密跳转个人中心+验证码表单+偏好设置 UI 重设计",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788337509851,
+      "status": "removed"
+    },
+    {
+      "id": "6782d2ea-a0c0-44ef-b8d9-7dc1f7da84a6",
+      "name": "fe-i18n",
+      "role": "前端工程师：剩余页面全量英文适配（i18n 补全）",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788337509960,
+      "status": "removed"
+    },
+    {
+      "id": "a3b46445-e471-4481-b069-6de557b807bb",
+      "name": "fe-constitution",
+      "role": "前端工程师：体质辨识界面优化（手动选择量表/标准量表测评）",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788337510025,
+      "status": "removed"
+    },
+    {
+      "id": "33afa65f-9d2f-4b5e-94f2-c3c3ccba56d7",
+      "name": "deploy-qa",
+      "role": "验收与上线：构建/Playwright 验收/部署/公网回归",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788337510084,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "t1 新账号历史记录根因诊断",
+      "description": "t1 根因诊断：新账号（注册后未使用过）的历史记录里出现「孕妇能不能吃人参？」。\n工作区 D:\\python_workspace\\neo4j_muti_agents；服务器 root@118.24.185.45（SSH 密码 mmfh2025KS686 不回显）；PG 库 neo4j_agents。\n排查步骤：\n1. 服务端数据归属：psql 查该标题会话（SELECT s.id, s.title, s.user_id, u.username FROM chat_session s JOIN app_user u ON u.id=s.user_id WHERE s.title ILIKE '%孕妇能不能吃人参%'）——确认 user_id 归属（admin 还是新账号）。\n2. 检查迁移回填：P1 迁移曾 UPDATE chat_session SET user_id=最早 admin（仅 NULL 行）——确认该行是否被错误归属。\n3. 客户端状态残留假设：读 frontend/src/stores/chat.js（resetCurrentSession/refreshSessions/loadSession）与 auth 登出流程（stores/auth.js clearSession）——判断\"同浏览器 A 账号登出→B 账号登录\"时 chat store.sessions 是否清空；ChatView hydrate 时序（onMounted/route watch）是否会渲染旧 sessions。\n4. 用 API 复现：新账号 token（服务端直接签发）GET /api/chat/sessions——列表是否包含该会话；再用浏览器 Playwright 模拟 A 登出→B 登录看 UI 是否残留。\n5. 输出：根因结论（服务端数据归属错误 / 客户端 store 未重置 / 其它）+ 证据（SQL 结果、API 返回、代码位置）+ 最小修复方案（指明改哪层、哪些文件；如涉及存量错误数据给出幂等修复 SQL）。\n不改代码（修复另开 t6）。",
+      "status": "completed",
+      "assignee": "diagnose",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788337577049,
+      "updatedAt": 1788338289623,
+      "attemptId": "cacd4d40-9240-4bcd-8b98-914ffe686672",
+      "reassigning": false,
+      "output": "根因结论：**客户端 store 未重置（非服务端数据归属错误）**。\n\n一、服务端证据（全部正确，无需修复）：\n1. PG(127.0.0.1:5432/neo4j_agents)：全部 13 个 chat_session 均属 admin(608aca50...)，0 个 NULL user_id（P1 迁移回填假设排除）；「孕妇能不能吃人参？」在会话 dcffa7aa（标题\"篮球战神\"），user_id=admin，创建于 2026-09-01 16:39，早于新账号 maolinxiao 注册时间 2026-09-02 08:13:54；maolinxiao 名下 0 个会话。\n2. 时间线：admin 08:14:30 登出（auth_session revoked），maolinxiao 08:14:53 登录——同一浏览器 A→B 切换。\n3. API 复现（服务端直签 token，已清理）：maolinxiao token GET /api/chat/sessions → []；访问 admin 会话 → 404。服务端按 current_user.id 过滤（routes.py L450-458 + postgres_repository.list_chat_sessions），隔离正确。\n\n二、客户端根因（Playwright 线上 118.24.185.45 双模式复现成功，截图 t1_repro_1/2/3*.png）：\n1. MainLayout.handleLogout → auth.logout() 只清 auth store；useChatStore.sessions/currentSessionId/messages 留在 pinia 内存（SPA router.replace 无整页刷新）。resetCurrentSession() 不清 sessions（chat.js L286-290）。\n2. HistoryView/ChatView 直接渲染 store.sessions，onMounted 才异步 refreshSessions()：慢网窗口内渲染上一账号的 10 条会话（delay 模式实测 early 窗口含\"篮球战神\"）。\n3. refreshSessions 无 .catch（HistoryView L97-99、ChatView L624-634、RndWorkspaceView hydrate）：接口 500 时旧账号会话**永久残留**（fail 模式实测 3.5s 后仍 10 行，console 未捕获 AxiosError，栈指向 refreshSessions）。\n4. 次生风险：ensureSession() 复用残留 currentSessionId 会把新账号提问发往旧账号会话（服务端 404 兜底拒绝，但同根因）。rnd store 同样存在该模式。\n\n三、最小修复方案（t6 实施，改前端即可，无需改后端/无存量脏数据 SQL）：\nA. stores/chat.js 与 stores/rnd.js 各加 resetAll()：清 sessions/currentSessionId/messages/streamingMessageId/loading。\nB. auth.js clearSession()（或 MainLayout.handleLogout + client.js 401 拦截处）同步调用两个 store 的 resetAll()——登出与 401 双路径覆盖。\nC. HistoryView/ChatView/RndWorkspaceView 的 refreshSessions 加 catch：失败时把 sessions 置空（宁可空列表也不显示他人数据）。\nD.（可选加固）渲染前加 loading 标志，刷新未完成不渲染旧列表。"
+    },
+    {
+      "id": "t2",
+      "subject": "t2 修改密码增加验证码（后端）",
+      "description": "t2 后端：修改密码增加图形验证码校验（与登录一致）。\n工作区 D:\\python_workspace\\neo4j_muti_agents。参照 backend/app/api/routes.py 的 login（captcha_store.verify + _client_ip + _captcha_error_detail 模式）与 change_password 路由、backend/app/schemas/auth.py 的 ChangePasswordRequest。\n改动：\n1. schemas/auth.py：ChangePasswordRequest 增加 captcha_id: str = Field(min_length=1, max_length=64) 与 captcha_text: str = Field(min_length=1, max_length=16)（必填，与 LoginRequest 一致）。\n2. routes.py 的 change-password 端点：先验证码校验（settings.captcha_enabled 为 true 时 verify；失败 400 用 _captcha_error_detail；ip 用 _client_ip(request)——需在函数签名加 request: Request）；再执行 AuthService.change_password（原有逻辑不变：旧密码校验、强度、撤销全部会话）。\n3. 兼容说明：前端 MainLayout 旧弹窗与 AccountView 表单将随之携带验证码（由 t3 处理），后端不再接受无验证码请求（captcha_enabled=true 时）。\n4. 验证：python -m py_compile 两文件；validate_qa_routing.py 回归；本地 TestClient 手测：无验证码→400、错验证码→400、正确验证码+正确旧密码→200 且旧 token 全部失效（用服务端签发 token + captcha 取码后直调——注意验证码一次性，先 GET /auth/captcha 再提交）。commit（feat: 修改密码增加图形验证码）。\n输出：改动摘要、验证结果、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "backend",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788337577147,
+      "updatedAt": 1788337905560,
+      "attemptId": "69ad5a5a-f8af-4650-9d54-b3e036a4468e",
+      "reassigning": false,
+      "output": "后端已为修改密码增加图形验证码校验（与登录一致）。改动：1) schemas/auth.py ChangePasswordRequest 增加必填 captcha_id(min1/max64)+captcha_text(min1/max16)；2) routes.py change-password 签名加 request: Request，captcha_enabled=true 时先 captcha_store.verify(_client_ip(request))，失败 400 + _captcha_error_detail，随后原有 AuthService.change_password 逻辑不变。验证：py_compile 两文件通过；validate_qa_routing.py 全 PASS(14 routes/17 cases)；TestClient 手测 8/8 PASS——缺验证码字段→422(Pydantic 必填校验，与登录端点一致；注：任务预期\"无验证码→400\"，必填字段在路由前即被 422 拦截，与 LoginRequest 行为完全一致)、无效 captcha_id→400、错验证码→400、正确验证码+正确旧密码→200 且两个旧 token 全部 401/新密码生效旧密码失效、复用已用验证码→400 used(一次性)、正确验证码+错误旧密码→400 原密码不正确。commit 6f6e911b \"feat: 修改密码增加图形验证码\"（2 files, +9）。未部署。兼容说明：captcha_enabled=true 时旧前端不带验证码的请求将被 422 拒绝，t3 前端需同步携带验证码。"
+    },
+    {
+      "id": "t3",
+      "subject": "t3 改密跳转/验证码表单/偏好 UI（前端）",
+      "description": "t3 前端：① 右上角\"修改密码\"改为跳转个人中心安全页（去掉弹窗）；② 个人中心修改密码表单加验证码；③ 偏好设置 UI 重设计。\n工作区 D:\\python_workspace\\neo4j_muti_agents。参照：frontend/src/layouts/MainLayout.vue（现含 passwordDialog 弹窗与 openChangePassword/submitChangePassword/passwordRules 等代码，需删除弹窗与相关逻辑）、frontend/src/views/portal/AccountView.vue（security tab 现有改密表单、preferences tab）、frontend/src/api/client.js（getCaptcha/changePassword 已存在）、composables/useI18n.js、useTheme.js。\n改动：\n1. MainLayout.vue：移除密码弹窗（模板 el-dialog 与脚本 passwordDialogVisible/passwordForm/passwordRules/openChangePassword/resetPasswordForm/submitChangePassword 及未再使用的 import/样式）；下拉菜单「修改密码」点击改为 router.push({ name: \"account\", query: { tab: \"security\" } })；菜单文案沿用 t(\"menu.changePassword\")。\n2. AccountView.vue：\n   - 支持路由 query.tab 指定初始 tab（onMounted 读 route.query.tab，合法值 profile/security/stats/preferences 用之；watch 路由变化切换 tab）——需引入 useRoute。\n   - security tab 修改密码表单加验证码行（模式同登录页：GET /api/auth/captcha → captcha_id+image_base64+mime，点击图片刷新；提交带 captcha_id/captcha_text；验证码类 400 提示原因并自动刷新验证码与清空输入）；改密成功后照旧提示并强制重新登录。\n   - preferences tab 重设计：主题改为三张可视化卡片（浅色/深色/跟随系统，每张含迷你预览色块+说明+选中态边框/勾选图标）；语言改为两张卡片（中文/English，含语言名与说明）；点击即生效；hover/选中动效；沿用 useTheme/useI18n；文案走 t()（account.theme*/account.lang* 已有，可补充说明键）。\n3. 验证：npm run build 通过；npm run dev 手测：下拉「修改密码」跳转 /app/account?tab=security；改密表单验证码可刷新、错码提示并自动刷新；主题/语言卡片点击生效且刷新保持；删除弹窗后无残留引用/console 无错。commit（feat: 修改密码入口跳转个人中心+验证码+偏好设置卡片化）。\n输出：改动摘要、build 结果、commit hash。不部署；与 fe-i18n 约定：MainLayout/AccountView 由本任务负责（含其中 i18n），fe-i18n 不碰这两个文件。",
+      "status": "completed",
+      "assignee": "fe-account",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788337577277,
+      "updatedAt": 1788339449199,
+      "attemptId": "d4cde36e-5399-412e-8a47-c8f608d7584e",
+      "reassigning": false,
+      "output": "t3 完成。commit a1e4aeb2（分支 codex/rnd-fix-2026-08-26）。\n\n改动：\n1. MainLayout.vue：删除改密弹窗及 passwordDialog/openChangePassword/submitChangePassword/resetPasswordForm/passwordRules 等全部逻辑与无用 import（vue 的 reactive/ref、ElMessage、api）；下拉「修改密码」改为 goChangePassword → router.push({name:'account', query:{tab:'security'}})，文案沿用 t(\"menu.changePassword\")。\n2. AccountView.vue：\n   - 支持 ?tab= 初始页签：useRoute + VALID_TABS + applyTabFromQuery + watch(route.query.tab)，onMounted 应用。\n   - security 改密表单新增验证码行（模式同登录页）：loadCaptcha 取 GET /api/auth/captcha，点击图片刷新；提交带 captcha_id/captcha_text（未启用时 n/a 兜底）；验证码类 400 展示后端原因并自动刷新验证码+清空输入；补必填/一致性客户端校验；改密成功后提示并 await auth.logout() + router.replace(login) 强制重新登录（修复原 setTimeout(auth.logout) 因 /logout 接口 200 不触发 401 拦截器导致滞留页面）。\n   - preferences 重设计：主题三张卡片（浅色/深色/跟随系统，各含迷你预览色块+说明+选中边框/勾选）、语言两张卡片（中文/English + 徽标+说明）；hover/选中动效；点击即生效；修复模板中 ref 自动解包问题（theme.value → theme，原 radio 版本同样存在该隐患）。\n   - i18n：新增 account.themeLightDesc/themeDarkDesc/themeSystemDesc/langZhDesc/langEnDesc/captcha/captchaPlaceholder/captchaHint/captchaRequired/captchaAutoRefreshed/passwordRequired 共 11 键 ×2 语言。注意：这些键随 fe-i18n 的 f36a0808 一并提交进 HEAD（当时已在工作区）。\n3. 验证：npm run build 通过（exit 0，仅大 chunk 警告）；本地 E2E（Playwright + 调试后端 8001 + 临时 vite 5174，均用后已清理）20/20 通过：下拉跳转 ?tab=security、验证码渲染/点击刷新、错码提示+自动刷新+清空、正确验证码改密成功→强制回 /login、DB 校验新密码生效/旧密码失效、深色/English 卡片点击生效且刷新保持、无 console 错误（有意触发的 400 除外）。\n4. 注意：frontend/dist/ 因本地 build 有工作区变动未提交（部署前由 t7 重新构建）；fe-i18n 与 fe-constitution 文件未触碰；测试用户已清理（DB 无残留）。不部署。"
+    },
+    {
+      "id": "t4",
+      "subject": "t4 英文界面全量适配补全",
+      "description": "t4 英文界面全量适配补全（i18n 扫尾）。\n工作区 D:\\python_workspace\\neo4j_muti_agents。背景：自研 i18n 已就绪（frontend/src/composables/useI18n.js 的 t(key,params) + locales/zh-CN.json、en-US.json；Element Plus locale 已切）。已覆盖：菜单/登录/注册/聊天核心/个人中心/用户管理。本任务补齐剩余页面。**不得改动**：MainLayout.vue、AccountView.vue（fe-account 负责）、ConstitutionView.vue/ConstitutionAssessmentPanel.vue（fe-constitution 负责重写并自行 i18n）。\n范围与要求：\n1. 逐文件把界面硬编码中文替换为 t()（并补字典键，zh 与 en 同步）：\n   - frontend/src/views/portal/HistoryView.vue（历史记录页：标题/问题/时间/查看/空态）\n   - frontend/src/views/portal/HomeView.vue（工作台首页卡片文案）\n   - frontend/src/views/portal/RndWorkspaceView.vue（研发协同：面板标题/输入占位/按钮/提示/brief 区/阶段卡片流/证据与结果 tab 与分区标题/各 agent 名/按钮——用现有 rnd.* 与 rnd.agents.* 键，缺失键补充；**保留业务数据内容不翻译**（LLM 输出、配方表头等数据字段标题可译））\n   - frontend/src/views/admin/OverviewView.vue、PromptView.vue、TemplateView.vue、LogsView.vue、UsersView.vue（管理后台页面文案；UsersView 已有部分键 admin.users.*，补全其余）\n   - frontend/src/stores/chat.js、rnd.js 等前端 ElMessage 文案（如\"操作失败\"等）\n   - router/index.js 无标题逻辑（页面 title 在 MainLayout，已 i18n）\n2. 字典：新增键集中在各域命名空间（history/home/rnd/admin…）；zh-CN 与 en-US 保持键一致；t() 缺键时自动回退中文（无需担心遗漏崩溃）。\n3. 验证：npm run build 通过；Playwright 或手测切 en-US 后遍历上述页面（/app/history、/app、/app/rnd、/app/admin/*）检查关键文案为英文、无 console 错误；暗色主题下正常。\n4. commit（feat: 剩余页面英文适配全量补全）。输出：改动文件清单+新增字典键数、build 结果、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "fe-i18n",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788337577383,
+      "updatedAt": 1788339074141,
+      "attemptId": "41f64f57-42c4-46ba-8a90-7c25fc25be30",
+      "reassigning": false,
+      "output": "剩余页面英文适配全量补全完成。改动 10 个文件（commit f36a0808，分支 codex/rnd-fix-2026-08-26）：HistoryView/HomeView/RndWorkspaceView + admin 五个页面（Overview/Prompt/Template/Logs/Users）全量接入 t()；新增字典键 241 个（history/home/rnd.sections/rnd.moduleLabels/rnd.roleDuty/admin.overview/prompts/templates/logs/users 等命名空间），zh-CN/en-US 完全同构（528=528，键逐一对齐）。chat.js/rnd.js 的 ElMessage 文案改动已随 diagnose 的 6aaf3ce9 一并入库。验证：npm run build 通过（仅 chunk 警告）；Playwright 实测（本地 dev 栈 5173+8000，captcha 求解登录 admin）切 en-US 遍历 /app、/app/history、/app/rnd、/app/admin/* 共 8 条路由：禁查中文 UI 文案 0 命中、关键英文文案全部出现、console 0 错误；admin/logs 唯一中文命中经数据扫描确认为 DB 内 trace_summary 业务数据（表头/Tab 已验证全英文，符合“业务数据不翻译”要求）；暗色主题 4 条路由 html.dark 生效且 computed style 为暗色（表格头 EP dark 变量、rnd 卡片 --app-panel-2），0 console 错误。另：locale 共享文件同时携带了 fe-account（11 键）与 fe-constitution（70 键）并行新增的键，均为纯增量；dist/ 已重构建但未提交（避免打包其他成员未提交代码），上线时由 deploy-qa 重新构建。未触碰 MainLayout/AccountView/ConstitutionView。"
+    },
+    {
+      "id": "t5",
+      "subject": "t5 体质辨识界面优化",
+      "description": "t5 体质辨识界面优化（手动选择量表 + 标准量表测评）。\n工作区 D:\\python_workspace\\neo4j_muti_agents。先完整读：frontend/src/views/portal/ConstitutionView.vue、frontend/src/components/ConstitutionAssessmentPanel.vue、frontend/src/stores/constitution.js、frontend/src/api/client.js（getConstitutionTypes/Questionnaire/Profile/Assessments 等）与 backend 相关接口（routes.py constitution_router、schemas）。\n目标（保持全部现有功能与接口契约不变，仅视觉/交互升级）：\n1. 问卷区（标准量表测评）：题干卡片化（题目序号徽章 + 题干 + 选项按钮组 radio 化，选中态主题色）、顶部进度条（已答/总数 + 百分比）、上一题/下一题导航与\"一键跳题\"缩略条、提交前未答提示；移动端单列适配。\n2. 手动选择量表（如存在\"手动选量表\"模式）：量表类型卡片选择（九种体质卡片：名称+描述+图标色），选择后进入对应问卷；如当前是纯文本选择器则升级为卡片网格。\n3. 结果区：体质结果大卡片（主体质 + 次体质标签 + 分数条/雷达或条形）、食养方向与慎用原料分区卡片化、历史测评时间线样式优化；档案区卡片化。\n4. 空态/加载态统一美化；暗色主题兼容（用 --app-* CSS 变量）；**全部界面文案接入 t()**（constitution.* 键已有，缺失补进 locales/zh-CN.json 与 en-US.json 两处，键一致）。\n5. 验证：npm run build 通过；npm run dev + Playwright 手测：进入体质辨识、加载问卷、答几题看进度、提交看结果、手动选量表切换、历史测评查看；中/英与浅/深色均无错位、无 console 错误。\n6. commit（feat: 体质辨识界面优化（问卷卡片化/进度/结果卡/量表选择/i18n））。输出：改动摘要、build 结果、commit hash。不部署；不得改动 MainLayout/AccountView（他人负责），RndWorkspaceView 等他人文件不碰。",
+      "status": "completed",
+      "assignee": "fe-constitution",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788337611092,
+      "updatedAt": 1788339151247,
+      "attemptId": "ce3fe3f9-8867-4285-8d90-b74f8e4618e8",
+      "reassigning": false,
+      "output": "体质辨识界面优化完成。commit ebffbfa9（feat: 体质辨识界面优化（问卷卡片化/进度/结果卡/量表选择/i18n），3 文件 +1168/-322）。\n\n改动摘要：\n1. ConstitutionAssessmentPanel.vue 全面重写（保持 props/接口/交互契约不变）：\n   - 问卷区卡片化：题干卡片（序号徽章 + 题号 + 题干 + 标签），选项按钮组 radio 化（圆形单选框 + 选中态主题色），顶部进度条（已答/总数 + 百分比 + 条纹动效），左侧跳题缩略条 + 跳到未答题，未答提示带可点击题号芯片（点击直达），移动端单列适配（900px/640px 两档断点）。\n   - 手动选量表：九种体质卡片网格（名称+类别+描述+食养方向+类型图标色，9 色映射+散列兜底），点击选中带 ✓；新增\"进入该体质量表\"→ 按体质筛选问卷（filter-chip 可清除），支持按该体质子量表提交。\n   - 结果区：体质结果大卡片（大图标+主体质+次体质标签+来源/更新时间/备注）、体质评分横条（by_constitution 平均分 1-5 映射百分比条，9 色）、测评摘要、食养方向卡（食养方向/适宜原料/推荐原料）+ 慎用原料卡分区；档案区卡片化（重新测评按钮）。\n   - 历史测评：el-table → el-timeline 时间线卡片，点击展开该次评分条。\n   - 空态/加载态：初始 el-skeleton 骨架屏 + 各处 el-empty 统一小图标样式；全部样式改用 --app-* CSS 变量（暗色兼容），语义色用 rgba 覆盖（深浅色通用）。\n   - 全量文案接入 t()：constitution.* 新键（modes/manual/assessment/scoreScale/result/history/empty/messages 等）已补进 locales/zh-CN.json 与 en-US.json（键一致）；store 与视图 ElMessage 也走 t()。\n2. ConstitutionView.vue：标题/描述/刷新按钮接入 t() + CSS 变量 + 移动端栈式布局。\n3. stores/constitution.js：仅 ElMessage 文案 i18n，方法/契约不变。\n\n验证：\n- npm run build ✓（vite 9.07s，仅既有 chunk-size 警告）。\n- Playwright 实测（dev server 5173 + 本地起后端 8000 + Neo4j）：进入体质辨识→9 类型/30 题加载→手动卡片选中→\"进入该体质量表\"筛选 3 题→答 1 题进度 33%→清除筛选→30 题全答 100%→提交→结果大卡 9 条评分条+2 张食养/慎用卡→历史时间线 3 条可展开评分→en-US+dark 与 375px 移动端（中/英 × 浅/深）全部无横向溢出、无 console 错误、无 page error。\n\n注意：\n- locales 两个文件含队友 fe-i18n 未提交改动，其在我提交前先以 f36a0808 提交（已包含我的 constitution.* 键），故本 commit 只含 3 个源文件。\n- 后端 8000 与 Neo4j 曾宕机，我以后台任务拉起（run_server.py + neo4j console），我的会话结束后可能需重拉。\n- 未部署；未动 MainLayout/AccountView/RndWorkspaceView 等他人文件。"
+    },
+    {
+      "id": "t6",
+      "subject": "t6 修复新账号历史记录问题",
+      "description": "t6 按 t1 结论修复\"新账号出现孕妇能不能吃人参？历史记录\"问题。\n工作区 D:\\python_workspace\\neo4j_muti_agents。按 t1 根因分支执行：\n- 若服务端数据归属错误：写幂等修复（SQL/迁移脚本）修正 chat_session 归属（如把不属于任何现存用户或错误回填的行归到正确用户/或删除演示数据前先备份）；在服务器 PG 执行并验证列表。\n- 若客户端 store 未重置（同浏览器切账号残留）：改 frontend/src/stores/chat.js（登出/切换账号时清空 sessions/messages）与必要时 stores/auth.js 的 clearSession 联动（清 chat store；注意保留登出前最后会话选择逻辑，避免清空影响正常使用——只在登录用户变化时重置，可用 auth.user?.id 前后对比或登出事件）；同样检查 rnd store 是否需同处理。\n- 无论哪层，修复后验证：A 账号（含\"孕妇能不能吃人参？\"会话）登出 → B 新账号登录 → 列表为空/仅自己的会话；服务器 API 列表只返回本人会话。\n- 验证：py_compile（如改后端）；npm run build（如改前端）；本地/线上冒烟；commit（fix: 修复新账号历史记录归属/残留问题）。\n输出：修复说明、验证证据、commit hash。不部署。",
+      "status": "completed",
+      "assignee": "diagnose",
+      "dependencies": [
+        "t1"
+      ],
+      "attempt": 1,
+      "createdAt": 1788337611176,
+      "updatedAt": 1788338616090,
+      "attemptId": "072533ce-8bfd-4965-8545-bf8cc3926319",
+      "reassigning": false,
+      "output": "修复完成（客户端分支，t1 结论：store 未重置）。commit 6aaf3ce9d6165b4eae53bd8c8f136257e6d4098d（分支 codex/rnd-fix-2026-08-26）。\n\n改动（3 个文件，+47/-7）：\n1. frontend/src/stores/chat.js：新增 resetAll()（清 sessions/loading/currentSessionId/messages/streamingMessageId）；refreshSessions() 加 try/catch，失败时 sessions 置空（宁可不展示也不残留他人会话）。\n2. frontend/src/stores/rnd.js：新增 resetAll()（清 sessions/loading/submitting + 复用 reset() 停轮询）；refreshSessions() 同样失败置空。\n3. frontend/src/stores/auth.js：setSession() 用 user.id 前后对比，切换账号时调两 store 的 resetAll()；clearSession()（登出事件）同步 resetAll()——登出与登录切换双路径覆盖，不依赖组件卸载。\n\n设计说明：resetAll 只在「登出事件」和「登录用户变化」时触发，正常使用（刷新列表/新建会话/同一账号重登）不受影响；同一账号重登后由服务端列表正常恢复会话（含自动打开首个会话逻辑）。\n\n验证证据：\n- npm run build 通过（1816 modules，chunk 大警告非失败条件）。\n- Playwright 对本地新构建（vite preview :4180）双模式回归，stub 真实 admin 会话数据：\n  * delay 模式（B 账号接口慢 2.5s）：B 登录后打开历史页 early(300ms)=0 行、late(3.5s)=0 行，任何时刻无「篮球战神/孕妇人参」残留（修复前实测 10 行残留）；\n  * fail 模式（B 账号接口 500）：3.5s 后仍 0 行，无未捕获异常（修复前实测永久残留 10 行）；\n  * 回归：admin 正常 10 行含「篮球战神」；admin 登出重登后列表正常恢复 10 行——正常使用不受影响。\n- 服务端 API 只返回本人会话：t1 已实测（maolinxiao token → []，跨账号访问 404），无需后端改动。\n\n备注：\n1. chat.js/rnd.js 中已含 fe-i18n 队友未提交的 i18n 文案改动（useI18n + t()，locale key 齐全、构建验证通过），随本次提交一并入库，请 fe-i18n 知晓。\n2. 本地 npm run build 重新生成了 frontend/dist（含各队友进行中的改动，未提交），最终构建与部署请由 deploy-qa 在全部任务合并后统一执行；本任务按要求未部署。"
+    },
+    {
+      "id": "t7",
+      "subject": "t7 构建验收与部署上线",
+      "description": "t7 构建验收与部署上线。\n前置：t2/t3/t4/t5/t6 已提交。工作区 D:\\python_workspace\\neo4j_muti_agents。服务器 root@118.24.185.45（密码 mmfh2025KS686 不回显）；后端面板项目 neo4j-agents-backend；前端目录 frontend-dist；.env 不动。\n步骤：\n1. 本地：python -m py_compile 后端改动文件；python scripts/validate_qa_routing.py；cd frontend && npm run build。\n2. Playwright（本机 Edge）验收（dev 5173）：\n   - 中/英 × 浅/深 四组合抽查关键页（登录/注册/聊天/历史/研发/体质/个人中心/管理后台）：英文下关键文案为英文、暗色下无刺眼浅色块、无 console 错误；\n   - 右上角「修改密码」跳转 /app/account?tab=security；改密表单有验证码且错码提示自动刷新；偏好主题/语言卡片切换生效；\n   - 体质辨识：问卷进度/选项/结果卡正常；\n   - 新账号场景：A 登出→B 登录，B 聊天列表不含 A 的「孕妇能不能吃人参？」会话。\n3. 部署：后端改动文件（先备份）→ 面板重启 → health 200；前端 dist 上传（备份+清理旧资源，保留动态 chunk）→ 公网回归：首页/登录/注册/聊天/研发/体质/个人中心关键接口 200，改密（验证码）接口冒烟（正确码走 200 或旧密码错误 400 语义，不真改生产密码）、新账号历史列表修复验证。\n4. DEPLOY.md（服务器+本地）追加「2026-09 第二轮账号与界面优化」记录（变更清单/回滚点）。\n5. 汇总验收报告（逐项 PASS/FAIL + 截图路径）。关键项失败 → failed 附现象/原因/建议。",
+      "status": "completed",
+      "assignee": "deploy-qa",
+      "dependencies": [
+        "t2",
+        "t3",
+        "t4",
+        "t5",
+        "t6"
+      ],
+      "attempt": 1,
+      "createdAt": 1788337611200,
+      "updatedAt": 1788342655551,
+      "attemptId": "db943d79-dbec-4675-89ab-9935526b6acf",
+      "reassigning": false,
+      "output": "t7 构建验收与部署上线全部完成，全部关键项 PASS。\n\n【本地验证】py_compile(routes.py/auth.py) PASS；validate_qa_routing.py 17/17 PASS；npm run build 成功（新 hash：index-BVbhVAst.js / index-BnTlgyQe.css / HeroKnowledgeScene-lkNFM12D.js）。\n\n【dev(5173) Playwright 验收 43/43 PASS】（截图 t7_accept/shots/，25 张）\n- 中/英×浅/深四组合抽查全 PASS：中文浅色全流程（登录/改密跳转/偏好卡片/聊天/历史/研发/体质双模式/个人中心/管理后台4页/登出）、英文浅色（登录/注册/菜单/改密/聊天/管理后台英文文案）、中英深色（body 亮度 19、近白像素 ≤0.001，无刺眼浅色块）。\n- 修改密码：右上角入口 → /app/account?tab=security；错误验证码提示+图片自动刷新+输入清空；正确码+错误旧密码 → 「原密码不正确」（未改密码）。\n- 偏好主题/语言卡片切换即时生效；体质手动量表（9卡/保存/结果卡）+标准量表（过滤问卷进度 0/3→3/3→提交→结果卡+历史时间线）PASS。\n- 新账号隔离：A(admin) 建「孕妇能不能吃人参？」会话→登出→B 登录，B 聊天侧栏/历史均不含该会话，体质无残留档案。console 0 错误。\n\n【部署】\n- 后端：备份 backups/pre-t7-round2-20260902174510 → 上传 routes.py+auth.py（sha256 MATCH、服务器 py_compile OK）→ 面板 restart（pid 1502631, listen 8000）→ health 200（postgres/neo4j/llm 全 true），启动 0 ERROR。\n- 前端：整目录备份 frontend-dist.bak-20260902174540 → 上传 4 文件 → 清理 9 个旧 hash 资源（保留动态 chunk）→ 权限 755/644；.env 未触碰。\n\n【公网回归 28/28 PASS】\n- / 200 引用新 bundle；5 新资源 200；/login /register 200；health 200。\n- 登录冒烟（OCR→admin 200→me/chat/rnd/constitution/admin 全 200）；改密冒烟（错误码 400、正确码+错误旧密码 400 语义，未真改生产密码）。\n- 新账号历史修复验证：注册 t7verify_* →启用→登录→chat/rnd 会话列表均 0 条→停用清理。公网首页 canvas=6、登录页验证码渲染、console 0 错误。\n\n【DEPLOY.md】服务器+本地已追加「2026-09 第二轮账号与界面优化（P9）」记录（变更清单+回滚点）。\n\n【观察项（非阻塞）】① 聊天页「新建会话」在页面加载初期点击会被在途 auto-select 覆盖回旧会话（稳定后正常），建议下轮加互斥标志；② 本地验收注册命中 429 限流属预期保护；③ Neo4j judgement_rule 属性缺失警告为既有项。"
+    }
+  ],
+  "taskSeq": 7
+}

@@ -1,0 +1,198 @@
+{
+  "name": "neo4j-agents-deploy",
+  "id": "neo4j-agents-deploy",
+  "description": "执行已批准的部署计划：将药食同源多智能体平台（FastAPI+Vue3+PostgreSQL+Neo4j+DeepSeek）部署到宝塔服务器 118.24.185.45，含基础环境、代码与图谱数据上传、服务托管、前端站点、日志备份与整体验收。",
+  "captainSessionId": "session-91dc3bc7-afe2-4ebb-af5f-dce2f3c1efe6",
+  "createdAt": 1788000174485,
+  "members": [
+    {
+      "id": "91236b54-ee70-422a-846e-f1ace5d04355",
+      "name": "builder",
+      "role": "本地构建工程师：负责本机构建前端产物与上传清单",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788000181024,
+      "status": "removed"
+    },
+    {
+      "id": "af5e335b-a3c2-4e45-b460-3a8dfe614eee",
+      "name": "infra",
+      "role": "服务器基础工程师：PostgreSQL/JDK/Neo4j 安装配置、目录与生产配置、日志轮转与备份",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788000181052,
+      "status": "removed"
+    },
+    {
+      "id": "54c40a8a-2f67-4722-8d0d-c3d7dd846bff",
+      "name": "deploy",
+      "role": "应用部署工程师：代码与图谱数据上传、图谱导入、后端服务、前端站点与 nginx",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788000181087,
+      "status": "removed"
+    },
+    {
+      "id": "f646cb54-cd46-4def-9724-05234943d1da",
+      "name": "qa",
+      "role": "验收工程师：全链路冒烟测试、端口与安全核查、验收报告",
+      "provider": "deepseek-official",
+      "model": "deepseek-v4-pro",
+      "reasoningEffort": "max",
+      "joinedAt": 1788000181132,
+      "status": "removed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t1",
+      "subject": "T1 本地构建前端产物并产出上传清单",
+      "description": "角色：本地构建（不要碰服务器）。\n工作目录：D:\\python_workspace\\neo4j_muti_agents\n步骤：\n1. 确认 Node 可用（若 PATH 中没有，使用 E:\\nodejs\\node.exe 与 E:\\nodejs\\npm.cmd；npm 缓存权限问题时 `npm config set cache ..\\.npm-cache --location=user`）。\n2. 若 frontend\\node_modules 不存在：先 `npm install`（在 frontend 目录）。\n3. `cd frontend && npm run build`（Vite 构建，输出 frontend\\dist）。大 chunk 警告不是失败条件。\n4. 校验 dist：存在 index.html 与 assets/，记录文件数与总大小（预期约 9 文件 / 6MB）。\n5. 产出「上传清单」（记录在任务输出中，供 deploy 成员核对）：列出 4 个上传根及其大小/文件数：\n   (a) backend 代码（排除 _vendor、__pycache__、logs、runtime、.venv、.env、.env.example 以外的敏感文件——即只上传 app/ 目录与 requirements.txt；注意 backend\\app\\data\\ingredient_regulatory_overrides.json 必须包含）\n   (b) 根目录 scripts\\*.py（import_agent_kg_0604.py、restore_neo4j_backup.py、validate_qa_routing.py）\n   (c) 图谱数据根：D:\\工作\\多智能体-宋\\最新数据\\6-4\\药食同源agent项目（全部 71 个文件，约 24.9MB，含子目录「药食同源Agent_8类知识库-0531」「0512-消费者_体质」「0524」与根下 consumer_aware_substitute_results.csv）\n   (d) frontend\\dist 全部内容\n输出：构建是否成功、dist 校验数字、上传清单（四组：路径、文件数、字节数）。\n不要上传任何东西；不要执行服务器操作。",
+      "status": "completed",
+      "assignee": "builder",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788000214146,
+      "updatedAt": 1788000325989,
+      "attemptId": "1bc2bef3-6e76-41ce-8c4a-dfb166f35f9f",
+      "reassigning": false,
+      "output": "前端构建成功。dist 校验：9 文件 / 6,204,649 字节（≈5.92MB），index.html 与 assets/ 均存在，符合预期（约 9 文件/6MB）。Vite v5.4.21，1796 模块，11.09s 完成；仅大 chunk 警告（非失败条件）。\n\n上传清单（4 组，供 deploy 成员核对）：\n(a) backend 代码 = backend\\app\\ + requirements.txt：40 个文件（app/ 内，已排除 7 个 __pycache__ 目录中的 .pyc）+ requirements.txt(130B) = 719,463 字节（≈703KB）。排除项核对：backend 顶层含 _vendor/logs/runtime/.env/.env.example 均不传；app/ 内无 .env/pem/secret 文件。ingredient_regulatory_overrides.json 存在（backend\\app\\data\\ingredient_regulatory_overrides.json，4,593 字节）✓。\n(b) scripts\\*.py：glob 共 9 个 .py = 207,917 字节（≈203KB）。任务点名的三个：import_agent_kg_0604.py(70,227B)、validate_qa_routing.py(23,950B)、restore_neo4j_backup.py(7,413B)，小计 101,590 字节。其余 6 个（import_agent_project_data.py、import_neo4j_graph_v3.py、import_neo4j_kg.py、import_classic_prescriptions.py、apply_knowledge_overrides.py、build_2026_08_26_ppt.py）。建议按 glob 全传 9 个（apply_knowledge_overrides.py 与 app\\data 的 overrides json 配套），由 deploy 决定。\n(c) 图谱数据根 D:\\工作\\多智能体-宋\\最新数据\\6-4\\药食同源agent项目：71 文件 / 26,059,812 字节（≈24.85MB，与预期 24.9MB 吻合）✓。子目录 药食同源Agent_8类知识库-0531 ✓、0512-消费者_体质 ✓、0524 ✓；根下 consumer_aware_substitute_results.csv ✓（500,502B）。另含 neo4j_graph_v3 子目录、.DS_Store、dump、2 个 HTML、import_neoj.py、README（属 71 文件口径内，全部上传）。\n(d) frontend\\dist：9 文件 / 6,204,649 字节（≈5.92MB）——index.html(794B) + assets/ 5 文件(1,254,878+544,111+34,819 JS、429,407+686 CSS) + login-bg 3 文件(mp4 1,916,063B、png 2,023,058B、svg 833B)。\n合计约 4 组 ≈ 33.5MB。未执行任何上传/服务器操作。"
+    },
+    {
+      "id": "t2",
+      "subject": "T2 服务器基础环境与生产配置",
+      "description": "角色：服务器基础环境。目标：118.24.185.45 就绪 PostgreSQL、JDK17、Neo4j 5.28、目录结构与生产 .env。\n\nSSH 通道（paramiko，本机 Python 3.11 可用）：\nhost=118.24.185.45, port=22, user=root, password=mmfh2025KS686（见团队共享上下文；严禁把任何密码写进任务输出）。\n宝塔 MCP 通道：你有 mcp__baota-mcp__* 全套 98 个工具（含 SoftwareInstall/SoftwareList/JavaJdk/PythonEnv 等）。\n红线（必须遵守）：不修改宝塔面板自身源码；不停止/重启/升级/卸载面板及核心服务（nginx reload 除外，且只用 nginx -s reload 不用 ServiceControl restart）；不修改 bt_agent_mcp 插件目录、绝不读取其 data/ 下文件；禁止调用需要 confirm 的高风险 MCP 工具（SiteDelete/DatabaseDelete/MysqlExecute 等）。\n注意：审批弹窗在本会话被禁用，凡带 confirm 参数的写工具会直接失败——改用 SSH 完成。\n\n步骤：\n1. 建目录：/www/wwwroot/neo4j-agents/{backend,frontend-dist,data,scripts,logs/backend,logs/import,backups,deploy/nginx}\n2. PostgreSQL：先 mcp__baota-mcp__SoftwareList 搜索 postgresql 查可选版本；若面板有则 SoftwareInstall(name=\"postgresql\")（异步，用 SoftwareList 轮询 setup=1，必要时 30 分钟）。面板没有或安装失败 → SSH `dnf install -y postgresql-server postgresql` → `postgresql-setup --initdb` → `systemctl enable --now postgresql`。然后建库建号：`sudo -u postgres psql -c \"CREATE ROLE neo4j_agents LOGIN PASSWORD '<强随机密码>';\" -c \"CREATE DATABASE neo4j_agents OWNER neo4j_agents;\"`。密码用 openssl rand 生成并只记录在 /www/wwwroot/neo4j-agents/backups/creds.txt（chmod 600，供 deploy/qa 用，勿输出）。\n3. JDK：先 mcp__baota-mcp__JavaJdk action=list 看已装版本；没有则 action=install 装 17（或面板可选的最新 LTS）；面板失败 → `dnf install -y java-17-openjdk-headless`。验证 java -version。\n4. Neo4j：`curl -fsSL https://dist.neo4j.org/neo4j-community-5.28.0-unix.tar.gz -o /tmp/neo4j.tgz`（失败换 5.26.x 同站地址），解压到 /opt/neo4j（mv 单层目录），创建系统用户 neo4j 并 chown。编辑 /opt/neo4j/conf/neo4j.conf：server.default_listen_address=127.0.0.1、server.memory.heap.initial_size=512m、server.memory.heap.max_size=1g、server.memory.pagecache.size=512m。写 /etc/systemd/system/neo4j.service（User=neo4j，ExecStart=/opt/neo4j/bin/neo4j console，Restart=on-failure，LimitNOFILE=60000）→ daemon-reload → enable --now。用 neo4j-admin dbms set-initial-password 设强随机密码（记录到 creds.txt，勿输出）。验证 `ss -tlnp | grep 7687` 仅 127.0.0.1 监听；用 cypher-shell（密码通过环境变量/管道传入，勿出现在命令行回显）执行 `RETURN 1` 成功。\n5. 生产 .env：写 /www/wwwroot/neo4j-agents/backend/.env（chmod 600；backend 目录已建）：APP_ENV=prod、APP_HOST=127.0.0.1、APP_PORT=8000、POSTGRES_DSN=postgresql+psycopg://neo4j_agents:<pg密码>@127.0.0.1:5432/neo4j_agents、NEO4J_URI=neo4j://127.0.0.1:7687、NEO4J_USERNAME=neo4j、NEO4J_PASSWORD=<neo4j密码>、DEFAULT_ADMIN_USERNAME=admin、DEFAULT_ADMIN_PASSWORD=<openssl 随机生成>、AUTH_SESSION_TTL_HOURS=24、DEEPSEEK_API_BASE=https://api.deepseek.com、DEEPSEEK_API_KEY=<从本地 D:\\python_workspace\\neo4j_muti_agents\\backend\\.env 的 DEEPSEEK_API_KEY 原样复制，绝不输出>、DEEPSEEK_MODEL=deepseek-v4-pro、DEEPSEEK_THINKING_ENABLED=true、MAX_GRAPH_NODES=40、MAX_GRAPH_EDGES=80。\n6. 自启：postgresql 与 neo4j 都 systemctl enable（面板安装的 postgresql 确认面板侧开机自启已开）。\n输出：各组件版本与监听地址、自启状态、.env 已生成（不含任何密码原文）、creds.txt 路径。遇阻塞性失败（JDK/PostgreSQL 均装不上）→ 任务 failed 并写明错误与建议，不要绕过。",
+      "status": "completed",
+      "assignee": "infra",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788000214270,
+      "updatedAt": 1788001506294,
+      "attemptId": "f1188088-71d6-4baa-94d7-1764598c0cf1",
+      "reassigning": false,
+      "output": "T2 完成。服务器 118.24.185.45（OpenCloudOS 9.6, 2C/8G, 85G 盘）基础环境全部就绪：\n1) 目录：/www/wwwroot/neo4j-agents/{backend,frontend-dist,data,scripts,logs/backend,logs/import,backups,deploy/nginx} 已建。\n2) PostgreSQL 15.19（dnf 安装，面板无 postgresql 直装包、pgsql_manager 插件无法经 MCP 驱动，按任务 fallback 走 dnf）：initdb 完成，127.0.0.1:5432 监听，host 认证改为 scram-sha-256（原配置备份于 backups/pg_hba.conf.bak），库 neo4j_agents + 角色 neo4j_agents 已建，psql 密码登录验证通过；postgresql.service enabled+active。\n3) JDK：面板 JavaJdk(install jdk-17.0.8) 已提交但截至收尾仍 operation=3（面板队列缓慢），已按 fallback 用 dnf 安装 TencentKona OpenJDK 17.0.19（/usr/lib/jvm/java-17-konajdk-17.0.19-1.oc9，java -version 验证通过），Neo4j 即用此 JDK 运行。\n4) Neo4j：注意 5.28.0 不存在/不可得——dist.neo4j.org 从服务器与本机均 403 地域封锁，国内镜像（huawei/aliyun/tencent/tuna/ustc/nju/163 等）均无此包，官方 yum 仓库仅有 4.4.x，Maven Central 无 5.x 发行包；按任务明确允许的 fallback 装了 5.26.1 社区版（5.x 最新 LTS 线，经 Homebrew bottle ghcr.io 获取并 sha256 校验）。安装于 /opt/neo4j（用户 neo4j），neo4j.conf 已设 listen=127.0.0.1、heap 512m/1g、pagecache 512m（进程实测 -Xms524288k/-Xmx1048576k）；systemd 单元 /etc/systemd/system/neo4j.service（console 模式、LimitNOFILE=60000）enabled+active；强随机密码经 neo4j-admin set-initial-password 设定（免强制改密），cypher-shell RETURN 1 与 dbms.components 验证通过；7687/7474 仅 loopback 监听。\n5) 生产 .env：/www/wwwroot/neo4j-agents/backend/.env（0600，17 个键齐全：prod、127.0.0.1:8000、PG/Neo4j DSN、admin 账号、DeepSeek 配置、MAX_GRAPH 40/80 等），DEEPSEEK_API_KEY 已从本地原样复制。注意 .env 当前 root:root 0600，deploy 若以非 root 运行后端需自行 chown。\n6) 自启：postgresql 与 neo4j 均 systemctl enabled。\n7) 凭据：/www/wwwroot/neo4j-agents/backups/creds.txt（0600，含 PG/Neo4j/admin 三组密码，供 deploy/qa 取用，未输出到任何任务输出）；另有无密码事实文件 backups/infra-facts.txt（版本/路径/端口/单元）。\n红线遵守：未动面板源码、未启停面板核心服务（仅 reload 自装的 postgresql）、未读 bt_agent_mcp data/ 下文件（仅把 Upload 工具写入的自有文件 mv 出上传目录）。"
+    },
+    {
+      "id": "t3",
+      "subject": "T3 上传代码、脚本、图谱数据与前端产物",
+      "description": "角色：应用部署（上传）。前置：T1 构建完成、T2 基础环境与目录/.env 就绪（backend 目录与 backend/.env 已由 infra 生成）。\nSSH/SFTP：paramiko，host=118.24.185.45 port=22 user=root password=mmfh2025KS686（勿输出任何密码）。\n步骤：\n1. 本地新增一个文件 backend\\scripts\\run_server.py（UTF-8）：\n   import uvicorn\n   if __name__ == \"__main__\":\n       uvicorn.run(\"app.main:app\", host=\"127.0.0.1\", port=8000, log_level=\"info\")\n2. 用 paramiko SFTP 上传（保持结构；幂等可重传）：\n   (a) 本地 backend\\app\\ 整个目录（排除 __pycache__）→ /www/wwwroot/neo4j-agents/backend/app/\n   (b) backend\\requirements.txt → /www/wwwroot/neo4j-agents/backend/requirements.txt\n   (c) backend\\scripts\\run_server.py → /www/wwwroot/neo4j-agents/backend/scripts/run_server.py\n   (d) 根目录 scripts\\import_agent_kg_0604.py、restore_neo4j_backup.py、validate_qa_routing.py → /www/wwwroot/neo4j-agents/scripts/\n   (e) 图谱数据根 D:\\工作\\多智能体-宋\\最新数据\\6-4\\药食同源agent项目 全部内容（71 文件 ≈24.9MB，保留相对结构）→ /www/wwwroot/neo4j-agents/data/（目标结构：data/药食同源Agent_8类知识库-0531/…、data/0512-消费者_体质/…、data/0524/…、data/consumer_aware_substitute_results.csv）\n   (f) frontend\\dist\\ 全部内容 → /www/wwwroot/neo4j-agents/frontend-dist/\n3. 严禁覆盖 /www/wwwroot/neo4j-agents/backend/.env（T2 已生成，若发现被覆盖视为失败）。\n4. 校验：与 T1 清单对比远端各目录文件数与字节数；对 (e) 抽样 3 个文件比对本地与远端 sha256；跑 `find /www/wwwroot/neo4j-agents -type f | wc -l`。\n5. 不要启动任何服务、不要做图谱导入（那是 T4）。\n输出：上传统计表、校验结果（一致/不一致明细）。任何关键上传失败：任务 failed 并给错误与建议。",
+      "status": "completed",
+      "assignee": "deploy",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788000256935,
+      "updatedAt": 1788000605061,
+      "attemptId": "1dd17be0-1450-4318-b503-1d4c0b201581",
+      "reassigning": false,
+      "output": "T3 上传完成，全部校验通过。\n\n【本地准备】新增 backend\\scripts\\run_server.py（UTF-8，uvicorn app.main:app @127.0.0.1:8000）；源 requirements.txt 在仓库根目录（130B，7 包），已按该源上传。\n\n【上传统计表】（paramiko SFTP → /www/wwwroot/neo4j-agents/，共 125 文件 / 33,525,636 B ≈31.97MB）\n(a) backend\\app\\（排除 __pycache__）→ backend/app/：40 文件 / 719,333 B，与 T1 清单一致；远端 0 个 __pycache__ 目录\n(b) requirements.txt → backend/requirements.txt：130 B\n(c) backend\\scripts\\run_server.py → backend/scripts/run_server.py：内容已远端 cat 核对一致\n(d) 根 scripts 3 文件 → scripts/：import_agent_kg_0604.py 70,227B、restore_neo4j_backup.py 7,413B、validate_qa_routing.py 23,950B，小计 101,590 B（与 T1 一致）\n(e) 图谱数据根 → data/：71 文件 / 26,059,812 B，与 T1（71/26,059,812）完全一致；结构含 药食同源Agent_8类知识库-0531、0512-消费者_体质、0524、neo4j_graph_v3、consumer_aware_substitute_results.csv 等\n(f) frontend\\dist\\ → frontend-dist/：9 文件 / 6,204,649 B，与 T1 一致（index.html 794B、assets 5 件、login-bg 3 件）\n\n【校验结果】\n- 四组逐组对比（文件数+字节数+逐文件大小）：全部 0 missing / 0 extra / 0 size_mismatch，VERIFY PASS。\n- 图谱数据抽样 3 文件本地/远端 sha256：3/3 MATCH（data/0524/…/meandqi方剂数据_中文整理.xlsx、data/neo4j_graph_v3/compound_nodes.csv、data/neo4j_graph_v3/.DS_Store）。\n- 远端 find /www/wwwroot/neo4j-agents -type f | wc -l = 127 = 125（本次上传）+ 2（infra 的 backups/creds.txt、backups/pg_hba.conf.bak，非本任务范围）。\n- backend/.env 保护：上传前后 stat 均 MISSING（infra T2 尚未写完，无文件可覆盖），我的 125 个上传路径不含 backend/.env，已发消息请 infra 完成后回执，T4/T5 前再复核。\n\n未启动任何服务、未做图谱导入（留待 T4）。本地保留临时脚本 deploy_t3_upload.py / deploy_t3_verify.py / _deploy_manifest_t3.json（未提交 git），供 T4/T5 复用 SSH 通道。"
+    },
+    {
+      "id": "t4",
+      "subject": "T4 创建 venv 并导入 0604 知识图谱",
+      "description": "角色：应用部署（图谱导入）。前置：T2（Neo4j 就绪+密码）、T3（数据与脚本已上传）。\nSSH：root@118.24.185.45，密码 mmfh2025KS686（不回显密码）。\n步骤：\n1. 面板托管 venv：mcp__baota-mcp__PythonEnv action=list 看是否已有可用环境；否则 action=create（venv_name=\"neo4j-agents-backend\"，python_bin 用服务器系统 python3 路径，如 /usr/bin/python3，ps=\"neo4j-agents backend venv\"）。记下返回的 bin_path（形如 /www/server/pyporject_evn/neo4j-agents-backend/bin/python3）。若面板 create 失败 → 回退 SSH：`python3 -m venv /www/wwwroot/neo4j-agents/backend/.venv`（venv bin 路径 /www/wwwroot/neo4j-agents/backend/.venv/bin/python3）。\n2. 用该 venv 安装依赖：`<venv-python> -m pip install -r /www/wwwroot/neo4j-agents/backend/requirements.txt -i https://mirrors.aliyun.com/pypi/simple/`（requirements 仅 7 个包）。\n3. dry-run：cd /www/wwwroot/neo4j-agents && <venv-python> scripts/import_agent_kg_0604.py --dry-run --data-root /www/wwwroot/neo4j-agents/data 2>&1 | tee logs/import/dry-run-$(date +%Y%m%d-%H%M%S).log；核对计划统计 ≈ 86,482 节点 / 207,354 关系、Compound=0。若 dry-run 报路径/文件错误：修正数据目录结构（对照脚本里 data_root 相对路径：药食同源Agent_8类知识库-0531、0512-消费者_体质、0524/方剂/meandqi方剂数据_中文整理.xlsx、consumer_aware_substitute_results.csv），不要改脚本逻辑。\n4. 正式导入：<venv-python> scripts/import_agent_kg_0604.py --clear --data-root /www/wwwroot/neo4j-agents/data --backup-dir /www/wwwroot/neo4j-agents/backups/neo4j_backups 2>&1 | tee logs/import/import-$(date +%Y%m%d-%H%M%S).log（全新库，脚本会先备份旧图谱再清空重建）。\n5. 验收查询（密码从 /www/wwwroot/neo4j-agents/backups/creds.txt 读取，用管道传给 cypher-shell，勿出现在命令行回显）：\n   MATCH (n) RETURN count(n) AS nodes;\n   MATCH ()-[r]->() RETURN count(r) AS rels;\n   MATCH (c:Compound) RETURN count(c) AS compound_count;\n   期望 nodes=86482、rels=207354、compound_count=0（允许小偏差需说明）。\n输出：venv 路径、依赖安装结果、dry-run 统计、导入结果、三项验收数字。失败则任务 failed 并附日志尾部与建议。",
+      "status": "completed",
+      "assignee": "deploy",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788000256973,
+      "updatedAt": 1788001734738,
+      "attemptId": "988ca55d-bbc9-4b2d-8d56-abb7eb7ab27f",
+      "reassigning": false,
+      "output": "T4 完成：venv 创建、依赖安装、dry-run、正式导入、验收查询全部通过。\n\n1) venv：面板托管创建成功 → /www/server/pyporject_evn/neo4j-agents-backend/bin/python（Python 3.11.6，磁盘核验通过）。\n2) 依赖：阿里云镜像安装 requirements 7 个直接包+依赖共 28 包，EXIT 0（fastapi 0.116.1 / uvicorn 0.35.0 / sqlalchemy 2.0.43 / psycopg 3.2.9 / neo4j 5.28.1 / httpx 0.28.1 / pydantic 2.11.7）。\n3) dry-run：EXIT 0，计划 86,484 节点 / 207,356 关系、Compound=0、consumer_persona_imported=true；日志 logs/import/dry-run-20260829-185300.log。过程中补传了主导入脚本的依赖模块 scripts/import_neo4j_kg.py（T3 上传范围补充，未改脚本逻辑）。\n4) 正式导入：--clear 执行成功，IMPORT_EXIT=0，实际导入 86,484 节点 / 207,356 关系；旧图谱备份 backups/neo4j_backups/neo4j_backup_before_0604_rebuild_20260829_190713.json；日志 logs/import/import-20260829-190649.log。\n5) 验收查询（凭据从 backups/creds.txt 服务器侧读取，未回显）：\n   nodes = 86,484（基线 86,482，+2）\n   rels = 207,356（基线 207,354，+2）\n   compound_count = 0 ✓（Neo4j 返回 UnknownLabelWarning 证明 Compound 标签不存在）\n   CDB1：ConsumerProfile=106、ConsumerSegment=3,033、ConsumerReview=63,522（均 >0）\n   偏差说明：+2/+2 与 0604 基线 86,482/207,354 的微小差异属可接受范围（本机 dry-run 口径即 86,484/207,356，导入与计划完全一致）。\n前置核验：backend/.env 已由 infra 生成（600/root:root/581B/17 键），未被 T3 上传覆盖；Neo4j active 且仅监听 127.0.0.1:7687/7474。无密码/Key 写入任何输出。"
+    },
+    {
+      "id": "t5",
+      "subject": "T5 后端服务托管与健康验证",
+      "description": "角色：应用部署（后端服务）。前置：T3（代码与 .env）、T4（venv 与依赖就绪）。\n目标：后端 uvicorn 以 127.0.0.1:8000 常驻、开机自启、日志可控。\n注意：审批弹窗禁用，禁止 confirm 类 MCP 写工具；nginx 只在 T6 处理。\n步骤：\n1. 主方案（宝塔 Python 项目，stype=command）：mcp__baota-mcp__PythonProjectCreate(project_name=\"neo4j-agents-backend\", project_path=\"/www/wwwroot/neo4j-agents/backend\", python_bin=<T4 venv 的 python 路径>, stype=\"command\", project_cmd=\"{python_bin} -u {rfile}\", rfile 用占位符由工具替换——实际把 rfile 传 \"/www/wwwroot/neo4j-agents/backend/scripts/run_server.py\"，port=0，auto_run=true, user=\"root\", ps=\"药食同源平台后端\")。创建后 PythonProjectInfo 轮询 prep_status=complete，再看 run/listen（等待最多 15 分钟）。\n2. 若面板项目创建或启动失败：回退 systemd。写 /etc/systemd/system/neo4j-agents-backend.service：\n   [Unit] Description=neo4j-agents backend (药食同源平台) After=network.target postgresql.service neo4j.service\n   [Service] Type=simple User=root WorkingDirectory=/www/wwwroot/neo4j-agents/backend EnvironmentFile=/www/wwwroot/neo4j-agents/backend/.env ExecStart=<venv-python> -m uvicorn app.main:app --host 127.0.0.1 --port 8000 Restart=always RestartSec=3 StandardOutput=append:/www/wwwroot/neo4j-agents/logs/backend/backend.out.log StandardError=append:/www/wwwroot/neo4j-agents/logs/backend/backend.err.log\n   [Install] WantedBy=multi-user.target\n   daemon-reload → enable --now → systemctl status 验证 active。\n3. 健康与初始化验证：curl -s http://127.0.0.1:8000/api/health 应为 200/JSON；日志确认 initialize_database() 建表与种子成功；psql（sudo -u postgres psql -d neo4j_agents）查表数 >0（prompt_template、users 等）；日志确认 Neo4j warmup 无 fatal。\n4. 登录冒烟：POST /api/auth/login {\"username\":\"admin\",\"password\":<从服务器 .env 读取，绝不输出>} 应返回 200 与 token；再 GET /api/auth/me 带 Bearer token 验证 200。\n5. 记录最终托管方式（面板项目名或 systemd 单元名）与开机自启状态。\n输出：托管方式、health/login/me 结果、表初始化证据、日志尾部（脱敏）。失败→failed 附日志。",
+      "status": "completed",
+      "assignee": "deploy",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788000256987,
+      "updatedAt": 1788001988037,
+      "attemptId": "e1b42f6c-9b8d-4489-82fa-9e360a41a1fd",
+      "reassigning": false,
+      "output": "T5 完成：后端已由宝塔面板托管运行并通过全部健康验证。\n\n【托管方式】宝塔 Python 项目 neo4j-agents-backend（stype=command，主方案成功，未回退 systemd）。配置：project_cmd=<venv> -u /www/wwwroot/neo4j-agents/backend/scripts/run_server.py，user=root，auto_run=true（面板托管开机自启），venv=/www/server/pyporject_evn/neo4j-agents-backend（3.11.6）。prep_status=complete，run=true，pid=176137，listen=8000，ss 确认仅 127.0.0.1:8000 监听（不暴露公网）。\n【排障记录】首次启动报 ModuleNotFoundError: No module named 'app'——面板启动时 CWD 不在 backend 目录；已最小修复 run_server.py（增加 sys.path 引导至 backend 目录，其余不变，本地与远端同步更新），修复后 start_main 一次成功。\n【健康与初始化】GET /api/health → 200 {\"status\":\"ok\",\"postgres\":true,\"neo4j\":true,\"llm_configured\":true}（首轮即通过）；应用日志当前 boot 段 clean（startup complete，无 warmup failed/ERROR/FATAL；旧 traceback 为修复前历史）；PostgreSQL neo4j_agents 库 16 张表全部建好（app_user/auth_session/chat_message/chat_session/constitution_assessment/constitution_profile/cypher_template/entity_profile/graph_snapshot/prompt_template/qa_trace/system_config/user_feedback/workflow_run/workflow_session/workflow_step_run），种子初始化无异常。\n【登录冒烟】POST /api/auth/login（凭据服务器侧从 .env 读取，未回显）→ 200 且返回 access_token（bearer）；GET /api/auth/me（Bearer token）→ 200，username=admin，role=admin；错误密码 → 401。\n【日志】应用日志 /www/wwwlogs/python/neo4j-agents-backend/error.log（append）；环境准备日志 /www/server/python_project/vhost/logs/neo4j-agents-backend.log。无任何密码/Key 进入输出。"
+    },
+    {
+      "id": "t6",
+      "subject": "T6 前端站点与 nginx 反代上线",
+      "description": "角色：应用部署（前端站点与 nginx）。前置：T5 后端在 127.0.0.1:8000 正常。\n目标：http://118.24.185.45/ 提供前端，/api/ 反代后端，SSE 可用，站点面板可见。\n步骤：\n1. mcp__baota-mcp__ProxyProjectCreate(domains=[\"118.24.185.45\"], proxy_pass=\"http://127.0.0.1:8000\", proxy_path=\"/api\", remark=\"药食同源平台站点\")。记下站点名（主域名 118.24.185.45）。\n2. 先备份：SSH cp 该站点 nginx 配置到 /www/wwwroot/neo4j-agents/deploy/nginx/<站点名>.conf.bak（配置路径用 mcp__baota-mcp__ProxyProjectInfo 查 config_file）。\n3. mcp__baota-mcp__ProxyWriteConfig(site_name=<站点名>, conf_data=<完整配置>)：在面板生成的 /api 反代基础上补全为：\n   server 块保持面板生成的 listen 80 与 server_name 118.24.185.45；root /www/wwwroot/neo4j-agents/frontend-dist; index index.html;\n   location / { try_files $uri $uri/ /index.html; }\n   location /api/ { proxy_pass http://127.0.0.1:8000; proxy_http_version 1.1; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header Connection \"\"; proxy_buffering off; proxy_cache off; proxy_read_timeout 300s; proxy_send_timeout 300s; }\n   保留面板 SSL/域名相关既有片段；不要动其他站点。\n4. 校验：SSH `nginx -t` 必须通过；失败立即恢复备份配置并重新校验。通过后 `nginx -s reload`（不要用 ServiceControl restart）。\n5. 验证（SSH 与公网）：curl -sS -H \"Host: 118.24.185.45\" http://127.0.0.1/ 返回含 <div id=\"app\"> 的 HTML；curl -sS http://127.0.0.1/api/health 200；公网 curl -sS http://118.24.185.45/api/health 200；curl -sS http://118.24.185.45/ 首页 200 且引用 /assets/ 的 JS。\n6. 把最终完整配置副本存 /www/wwwroot/neo4j-agents/deploy/nginx/nginx.conf.final。\n输出：站点名、nginx -t 结果、四项验证结果、配置副本路径。失败→failed 附 nginx 错误。",
+      "status": "completed",
+      "assignee": "deploy",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788000257041,
+      "updatedAt": 1788002188221,
+      "attemptId": "431483bf-384a-4494-9989-ffe161b11cec",
+      "reassigning": false,
+      "output": "T6 完成：前端站点与 nginx 反代已上线，http://118.24.185.45/ 可访问。\n\n【站点】宝塔反代项目站点名：118.24.185.45（id=2，status=1 运行中，面板可见）。nginx 配置：/www/server/panel/vhost/nginx/118.24.185.45.conf。\n【配置】root=/www/wwwroot/neo4j-agents/frontend-dist，index=index.html；location / { try_files $uri $uri/ /index.html; }（SPA）；location ^~ /api { proxy_pass http://127.0.0.1:8000; proxy_http_version 1.1; Host/X-Real-IP/X-Forwarded-For; proxy_set_header Connection \"\"; proxy_buffering off; proxy_cache off; proxy_read_timeout 300s; proxy_send_timeout 300s; }（SSE 兼容）。保留面板 SSL/域名/well-known/安全拦截等既有片段，未动任何其它站点。\n【校验】nginx -t：syntax ok / test successful（RC=0）→ 通过后仅执行 nginx -s reload（未用 ServiceControl restart），80 端口监听正常。\n【四项验证】\n1. curl -H \"Host: 118.24.185.45\" http://127.0.0.1/ → HTTP 200，HTML 含 id=\"app\" ✓\n2. 本地 /api/health：带 Host 头 → HTTP 200 {\"status\":\"ok\",\"postgres\":true,\"neo4j\":true,\"llm_configured\":true} ✓；说明：不带 Host 的 curl http://127.0.0.1/api/health 会被面板既有 127.0.0.1 phpfpm-status 站点拦截返回 404（环境既有 vhost，未改动，反代本身已验证通）。\n3. 公网 curl http://118.24.185.45/api/health → HTTP 200 ✓\n4. 公网 curl http://118.24.185.45/ → HTTP 200，HTML 引用 /assets/ 的 JS（3 处）✓\n【配置副本】/www/wwwroot/neo4j-agents/deploy/nginx/nginx.conf.final（3293B，最终生效版）；面板原始配置备份 /www/wwwroot/neo4j-agents/deploy/nginx/118.24.185.45.conf.bak（3646B）。\n【备注】面板 proxy_info 元数据显示 cache_status=true，但实际 conf 为 proxy_cache off（nginx -t 与实测均按 conf 生效）；SSE 真实流式体验留给 T8 验收。"
+    },
+    {
+      "id": "t7",
+      "subject": "T7 日志轮转、每日备份与运维手册",
+      "description": "角色：日志与运维收尾。前置：T5 后端托管完成、T6 前端站点上线。\nSSH：root@118.24.185.45（密码 mmfh2025KS686，不回显）。\n步骤：\n1. logrotate：写 /etc/logrotate.d/neo4j-agents（daily、rotate 7、compress、missingok、notifempty、copytruncate、size 10M），覆盖 /www/wwwroot/neo4j-agents/logs/backend/*.log 与 /www/wwwroot/neo4j-agents/logs/import/*.log；用 logrotate -d 验证配置语法。\n2. 备份脚本 /www/wwwroot/neo4j-agents/scripts/backup.sh（chmod 700）：\n   - pg_dump：从 /www/wwwroot/neo4j-agents/backend/.env 解析 POSTGRES_DSN 取密码（脚本内部用，不回显）→ gzip 到 backups/pg/neo4j_agents_$(date +%F).sql.gz\n   - neo4j：/opt/neo4j/bin/neo4j-admin database dump neo4j --to-path=/www/wwwroot/neo4j-agents/backups/neo4j/dump_$(date +%F)（需要时用 --overwrite-destination；密码经管道传入）\n   - cp backend/.env backups/env/.env.$(date +%F)（chmod 600）\n   - find backups -type f -mtime +7 -delete\n   - 手动执行一次验证产物生成。\n3. 宝塔计划任务：mcp__baota-mcp__ManageCrontab(action=add, name=\"neo4j-agents-daily-backup\", schedule={type:\"day\", hour:\"3\", minute:\"0\"}, task={type:\"shell\", command:\"bash /www/wwwroot/neo4j-agents/scripts/backup.sh >> /www/wwwroot/neo4j-agents/logs/import/backup.log 2>&1\"})；失败则 SSH crontab -l 追加（先备份原 crontab）。\n4. 运维手册 /www/wwwroot/neo4j-agents/deploy/DEPLOY.md：目录结构、组件版本与端口、启停命令（后端面板项目/systemd、neo4j、postgresql、nginx reload）、日志位置与轮转、备份/恢复步骤、密码存放位置说明（只写位置，不写密码原文）、已知注意事项（SSE 配置、Neo4j 内存上限）。\n输出：logrotate 验证结果、备份脚本单次执行产物列表、计划任务注册结果、DEPLOY.md 路径。",
+      "status": "completed",
+      "assignee": "infra",
+      "dependencies": [
+        "t5",
+        "t6"
+      ],
+      "attempt": 1,
+      "createdAt": 1788000311622,
+      "updatedAt": 1788002439148,
+      "attemptId": "9b2ee8a2-211a-4745-a142-2a8a6c5c3436",
+      "reassigning": false,
+      "output": "T7 完成，四项全部落地并实测验证：\n1) logrotate：/etc/logrotate.d/neo4j-agents（daily/rotate 7/compress/missingok/notifempty/copytruncate/size 10M，覆盖 logs/backend/*.log 与 logs/import/*.log），logrotate -d 验证通过（backend 目录暂无日志自动跳过，import 日志正常判定无需轮转）。\n2) 备份脚本 /www/wwwroot/neo4j-agents/scripts/backup.sh（0700，bash -n 通过）并手动执行一次成功：pg_dump→backups/pg/neo4j_agents_2026-08-29.sql.gz（12K，--no-owner --no-privileges）；Neo4j dump→backups/neo4j/dump_2026-08-29/neo4j.dump（41M，54 files/377.3MiB）；.env 副本→backups/env/.env.2026-08-29（0600）；7 天保留清理 find -mtime +7 -delete（已加白名单保护：creds.txt/infra-facts.txt 永不删除，防误删凭据）。注意：社区版 neo4j-admin dump 要求停库，脚本采用 stop→dump→start + EXIT trap 兜底拉起，实测 23 秒完成且 Neo4j 自动恢复 active（cypher 复核 86,484 节点不变）。停库窗口期后端 /api/health 曾瞬时 500（SessionExpired，连接池自愈，数秒后恢复 200 ok），已写入手册作为已知项。\n3) 计划任务：ManageCrontab 创建成功（id=2「neo4j-agents-daily-backup」，每日 03:00，status=1 启用），并已实测同步进 root crontab（0 3 * * * 指向面板包装脚本，脚本内容即 backup.sh 命令，日志追加 logs/import/backup.log）。\n4) 运维手册 /www/wwwroot/neo4j-agents/deploy/DEPLOY.md（87 行，无任何密码原文）：目录结构、组件版本与端口（PG 15.19/JDK Kona 17/Neo4j 5.26.1/后端 8000）、启停命令（后端面板项目、neo4j/postgresql systemd、nginx 仅 reload）、日志位置与轮转、备份/恢复步骤（pg 恢复 psql、neo4j load 命令）、密码存放位置（仅写路径）、已知注意事项（SSE 反代缓冲、Neo4j 内存上限、03:00 备份窗口瞬时 500、面板 JDK 卡顿可忽略、pg_hba 变更）。\n系统现状复核：neo4j/postgresql 均 active，后端 8000 /api/health 三依赖全 true。密码/密钥未出现在任何输出。"
+    },
+    {
+      "id": "t8",
+      "subject": "T8 全链路验收与安全核查",
+      "description": "角色：整体验收与安全核查。前置：T4 图谱导入完成、T6 站点上线。\n环境：SSH root@118.24.185.45（密码 mmfh2025KS686，不回显）；服务器上敏感值（admin 密码、neo4j 密码、pg 密码）从 /www/wwwroot/neo4j-agents/backend/.env 与 backups/creds.txt 读取，只在服务器侧使用，绝不输出原文。接口清单先看本地 D:\\python_workspace\\neo4j_muti_agents\\backend\\app\\api\\routes.py。\n步骤（逐项记录 pass/fail + 证据）：\n1. 公网入口：curl -sS -o /dev/null -w \"%{http_code}\" http://118.24.185.45/ → 200；首页 HTML 含 id=\"app\"；curl http://118.24.185.45/api/health → 200。\n2. 认证链路：POST /api/auth/login（admin 密码从服务器 .env 读）→ 200 拿 token；GET /api/auth/me 带 Bearer → 200；错密码 → 401。\n3. 问答 SSE：用 admin token 调知识问答接口（企业端问\"把四君子汤改造成药食同源代餐粉\"、个人端问\"我是什么体质\"各一次），确认返回 200 且流式事件正常（SSE 经 nginx 未被缓冲——观察首字节延迟与事件连续到达）。若接口形态与 routes.py 不符，按实际端点测并记录。\n4. 研发工作流 smoke：POST /api/rnd/sessions 创建会话 → POST runs 触发（BackgroundTasks）→ 轮询 GET run 状态，确认各 Agent 步骤完成且无致命错误（LLM 失败走 fallback 也算通过，但要记录）。\n5. 管理后台：GET 管理概览/日志/Prompt 列表接口 200。\n6. 图谱验收：通过 cypher-shell（密码管道传入）查 nodes=86482、rels=207354、Compound=0；ConsumerProfile/ConsumerSegment/ConsumerReview 计数 >0。\n7. 端口与自启核查：SSH `ss -tlnp` 确认 5432/7474/7687/8000 仅 127.0.0.1（或未监听公网）；`systemctl is-enabled postgresql neo4j`（若存在）与后端托管自启状态；从公网探测 5432/7474/7687/8000 不可达（用 nc/timeout 或本机 curl 端口探测）。\n8. 安全核查：backend/.env 权限 600；grep 服务器日志与 backups 目录不含明文密码/API key 的意外泄漏（只检查，不输出命中内容——若命中，报告\"发现泄漏，位置 XXX\"）。\n9. 汇总验收报告：每项 pass/fail、证据、遗留问题清单。\n任一关键项失败：任务 failed 并写明现象、原因判断与建议，不要绕过。",
+      "status": "pending",
+      "dependencies": [
+        "t4",
+        "t6"
+      ],
+      "attempt": 1,
+      "createdAt": 1788000311633,
+      "updatedAt": 1788003376354,
+      "reassigning": false,
+      "handoffId": "2719f802-f275-4e72-b479-aba993f9faad"
+    },
+    {
+      "id": "t9",
+      "subject": "T9 修复登录唯一会话缺陷并恢复后端",
+      "description": "修复登录 500 缺陷并恢复验收（T8 发现的阻断项）。\n根因（qa 已定位）：auth_session 表 user_id 唯一约束 + create_session 插入前不撤销旧会话 → 每用户第二次登录起 500。\n步骤：\n1. 本地读 D:\\python_workspace\\neo4j_muti_agents\\backend\\app\\db\\models.py 与 backend\\app\\services\\auth_service.py（找到 create_session / 登录流程）。注意 AGENTS.md 约定：repository 层做数据访问，改动保持最小。\n2. 最小修复方案（选其一，以代码实际为准，最小改动）：登录创建会话前先删除该用户既有会话（DELETE 旧行再 INSERT），或按 user_id 做 upsert（存在即更新 token/过期时间）。保留唯一约束与现有字段语义。同时确保 logout 仍能正常删除会话。\n3. 本地验证：python -m py_compile backend\\app\\services\\auth_service.py（及改动涉及文件）通过。\n4. 同步服务器：SFTP 覆盖 /www/wwwroot/neo4j-agents/backend/app/services/auth_service.py（如 models.py 有改动一并同步；改前先 cp 备份到 backups/）。\n5. 应急解锁：SSH `sudo -u postgres psql -d neo4j_agents -c \"DELETE FROM auth_session;\"`（密码用 peer 认证 root→postgres 即可；不动其它表）。\n6. 重启后端：mcp__baota-mcp__PythonProjectControl(project_name=\"neo4j-agents-backend\", action=\"restart\")，随后 PythonProjectInfo 确认 run/listen 正常、curl 127.0.0.1:8000/api/health=200。\n7. 自验：连续两次 POST /api/auth/login（admin 密码从服务器 .env 读，不回显）均 200 并各得 token；错密码 401；用第二个 token GET /api/auth/me=200。旧 token（若有）行为如实记录。\n输出：改动 diff 摘要（文件名+关键行，不含密码）、py_compile 结果、重启后 health、双登录自验结果。失败→failed 附日志。",
+      "status": "completed",
+      "assignee": "deploy",
+      "dependencies": [],
+      "attempt": 1,
+      "createdAt": 1788003006176,
+      "updatedAt": 1788003086286,
+      "attemptId": "b538d401-68bb-485d-ba05-099bbd01f5a0",
+      "reassigning": false,
+      "output": "T9 完成：登录唯一会话 500 缺陷已修复，后端已恢复，自验全部通过。\n\n【改动摘要】backend/app/services/auth_service.py（仅此 1 个文件，最小改动）：\n- L6：import 行 from sqlalchemy import select → from sqlalchemy import delete, select\n- create_session()：在创建新会话前新增一行 `self.session.execute(delete(AuthSession).where(AuthSession.user_id == user.id))`，先删除该用户既有会话再 INSERT（保留 user_id 唯一约束与字段语义；旧 token 随之失效）。logout/revoke_token 未改动（对当前会话正常删除，返回 200）。models.py 未改动。\n【本地验证】python -m py_compile backend\\app\\services\\auth_service.py → 通过。\n【服务器同步】改前备份 /www/wwwroot/neo4j-agents/backups/auth_service.py.bak.20260829-193051；SFTP 覆盖上传（远端 grep 确认 delete 语句在位）；应急解锁 sudo -u postgres psql -d neo4j_agents -c \"DELETE FROM auth_session;\" → DELETE 1（清除残留旧会话行）。\n【重启】面板 PythonProjectControl restart → PythonProjectInfo run=true、pid=182629、listen=8000；GET /api/health → 200 {\"status\":\"ok\",\"postgres\":true,\"neo4j\":true,\"llm_configured\":true}。\n【双登录自验】（admin 凭据服务器侧从 .env 读，未回显）\n- login#1 → 200 + token1 ✓；login#2 → 200 + token2 ✓；token1 ≠ token2 ✓（修复点：第二次登录不再 500）\n- 错密码 → 401 ✓\n- me(token2) → 200，username=admin ✓\n- me(token1 旧 token，登录#2 之后) → 401（旧会话行已删除，符合\"每用户唯一活跃会话\"语义，如实记录）\n- logout(token2) → 200 {\"message\":\"ok\"}；logout 后 me(token2) → 401 ✓\n【备注】无密码/Key 进入输出；改动已同步本地与服务器两端。"
+    },
+    {
+      "id": "t10",
+      "subject": "T10 复测阻断项并输出最终验收报告",
+      "description": "复测 T8 中因登录缺陷被阻断的验收项，并给出最终验收结论。\n前置：T9 完成（登录缺陷已修复）。\n步骤（逐项 pass/fail + 证据；敏感值只从服务器读取，绝不输出）：\n1. 认证链路复测：连续两次登录 200/200（各得 token）；错密码 401；GET /api/auth/me 带新 token=200。\n2. 问答 SSE：用 token 各调一次企业端（如\"把四君子汤改造成药食同源代餐粉\"）与个人端（如\"我是什么体质\"）知识问答接口，确认 200、SSE 事件连续到达（nginx 未缓冲，记录首字节与总时长）。接口形态以 /www/wwwroot/neo4j-agents/backend/app/api/routes.py 与本地同文件为准。\n3. 研发工作流 smoke：POST /api/rnd/sessions → POST runs → 轮询 run 状态至终态，确认各 Agent 步骤完成、无致命错误（LLM fallback 属通过，记录）。\n4. 管理后台：概览/日志/Prompt 列表等 GET 接口 200。\n5. 汇总最终验收报告：合并 T8 已通过项（公网入口、图谱、端口/自启、安全）与本次复测结果，给出整体结论（通过/遗留项）与遗留问题清单。\n任一关键项失败：failed 并写明现象/原因/建议。",
+      "status": "completed",
+      "assignee": "qa",
+      "dependencies": [
+        "t9"
+      ],
+      "attempt": 1,
+      "createdAt": 1788003006543,
+      "updatedAt": 1788003346775,
+      "attemptId": "1827d5a8-58a8-4fdf-b8b1-6bb47f88e2f9",
+      "reassigning": false,
+      "output": "T10 复测完成：T8 被阻断的 4 项全部通过，最终验收结论 = 整体通过。\n\n【T9 修复核验】部署代码 create_session() 已加入「先 delete 该用户既有 auth_session 再插入新会话」，import 行同步为 from sqlalchemy import delete, select；本地仓库 backend/app/services/auth_service.py 与服务器一致（防回归）；后端已重启（pid 182629，19:30 起），重启后日志零新增错误（仅 INFO 200 访问记录，3 处 ASGI 异常块均为修复前登录 500 历史痕迹）。\n\n【复测结果】\n1. 认证链路 PASS：连续三次登录 200/200/200（token 各不同）；新 token GET /api/auth/me=200（username=admin, role=admin）；旧 token=401（单会话替换语义正确，旧会话被删、旧 token 失效）；错密码=401。\n2. 问答 SSE PASS（双场景，均经公网 nginx）：\n   - 企业端「把四君子汤改造成药食同源代餐粉」：200，TTFB 0.06s，总时长 35.1s，30 个增长采样点（t+1s 首事件 191B → t+34s 55KB → 终 116KB）连续到达，nginx 未缓冲；事件流 = 7 think + 1491 token + evidence + graph + done，内容正确路由 formula_foodification 并输出五步思考。\n   - 个人端「我是什么体质」：200，TTFB 0.05s，0.55s 完成，事件序 think→token→evidence→graph→done，回答正确引导先完成体质档案/量表测评（符合 constitution_assessment 缺槽位追问规则）。\n3. 研发工作流 smoke PASS：POST /api/rnd/sessions → 200；POST runs 返回 run_id（status=queued）；~90s 至终态 completed；6/6 步骤（master_control/formula_generation/efficacy_prediction/flavor_prediction/replacement_mapping/master_control_final）全部 completed、无 error，每步含结构化 input_payload/output_payload/latency_ms/prompt_version；summary_metrics={stepCount:6, formulaCount:1, replacementCount:4, graphSnapshotCount:4}；final_report/brief 为结构化 JSON（含真实模块输出，如 flavor_prediction 的缺陷分析与 KB3 数据源引用）——DeepSeek 真实输出，未见 fallback。\n4. 管理后台 PASS：/api/admin/overview、prompts、chat-logs、workflow-logs、cypher-templates 全部 200；overview 内 neo4j_ok/postgres_ok/llm_configured=true，prompt_templates=7、cypher_templates=6、graph_labels=18（与图谱 18 类标签互证）。\n\n【最终验收总表】（合并 T8）\n1 公网入口 PASS｜2 认证链路 PASS（T8 FAIL→T9 修复→本次 PASS）｜3 问答 SSE PASS｜4 研发工作流 PASS｜5 管理后台 PASS｜6 图谱验收 PASS（86,484 节点/207,356 关系/Compound=0/CDB1 三类>0，与 T4 计划一致）｜7 端口与自启 PASS（8000/5432/7687/7474 仅 loopback、postgresql/neo4j enabled、后端面板项目 auto_run=true、公网四端口不可达）｜8 安全核查 PASS（.env/creds.txt 600、真实密钥值精确扫描日志/备份 clean、Web 层无泄漏）。\n整体结论：部署验收通过。\n\n【遗留问题清单（均非阻断）】\n1. cypher-shell 5.26.1 stdin 管道传密码报 authentication failure，需用 -p（值服务器侧提取）；建议补入 DEPLOY.md。\n2. error.log 保留修复前 3 处登录 500 traceback 历史（无害，logrotate 会轮转）。\n3. SPA try_files 使任意缺失路径返回 200+index.html（已验证无凭据内容，属前端行为）。\n4. 服务器既有公网监听 22/80/888/8765/3306/20022（面板/MySQL/SSH 组件，非本次部署引入，建议另行评估收紧）。\n5. 每日 03:00 备份短暂停 Neo4j（DEPLOY.md 已记录，期间 /api/health 可能瞬时 500）。\n6. 面板 proxy_info 元数据 cache_status=true 与 conf 实际 proxy_cache off 不一致（仅面板显示，实测按 conf 生效）。"
+    }
+  ],
+  "taskSeq": 10
+}

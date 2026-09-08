@@ -1,0 +1,510 @@
+{
+ "scripts": {
+  "backend/requirements.txt": {
+   "size": 130,
+   "sha256": "040c94fab9e627ac286144b6580649d98eb62f497fb163955e5f129b304ebe7a"
+  },
+  "backend/scripts/run_server.py": {
+   "size": 122,
+   "sha256": "33d8dff5dd2dbaa3e610648f9b6f44827f542528eaabca23ac66abe4cb37be4c"
+  },
+  "scripts/import_agent_kg_0604.py": {
+   "size": 70227,
+   "sha256": "4b30e9f8ab17e2a7658f818f240b2f849edde908c82414a54d3a661b19d64dfc"
+  },
+  "scripts/restore_neo4j_backup.py": {
+   "size": 7413,
+   "sha256": "17a86f256a33f3791c3cd182f984864f274d019a63c39d838e88e65124b1d3f1"
+  },
+  "scripts/validate_qa_routing.py": {
+   "size": 23950,
+   "sha256": "a6c25b70d3df37b69007dd50792c9e56b862d391f9357140d82a95085cc929e9"
+  }
+ },
+ "data": {
+  "data/.DS_Store": {
+   "size": 10244,
+   "sha256": "3424d28e071f8cc4a2f0e1e844481b28b87673f1b63fa8bdcda3fe71ac090419"
+  },
+  "data/consumer_aware_substitute_results.csv": {
+   "size": 500502,
+   "sha256": "39243d2e01c0b5ca7c10f640f233c272d3ccad1bac350a3bb6cca3f64c839580"
+  },
+  "data/import_neoj.py": {
+   "size": 13395,
+   "sha256": "79a133209f258ad81bb741c0288ad507a840633f1885293336b68d5a4ce27767"
+  },
+  "data/neo4j-2026-05-08T07-54-21.dump": {
+   "size": 2419759,
+   "sha256": "b94237fe20598415a07dd1cc9408ffec34c67050382f8808a4f8437164768112"
+  },
+  "data/README_数据资产与知识图谱对照.md": {
+   "size": 41834,
+   "sha256": "8975bfd156db0ef03e9b4314f666b94ef0c30eb8669b88862d6278080fae53ab"
+  },
+  "data/思考逻辑流程.html": {
+   "size": 25338,
+   "sha256": "d3e5bcc0bc4f69e919e5e8419f815157109c2ead5a744c1b19cb15081663e51d"
+  },
+  "data/药食同源Agent_企业个人分流_名方方剂知识库流程图.html": {
+   "size": 12114,
+   "sha256": "f4a105edc02d7b4fa99df03450847f4ee17169915b30714a8970c759a3592744"
+  },
+  "data/0512-消费者_体质/.DS_Store": {
+   "size": 6148,
+   "sha256": "2a2bc2f5863ccf5e6c74e0deab9323b2d7ab39d852509f0c2ceb8560264b4606"
+  },
+  "data/0512-消费者_体质/中医体质症状/GBT+46939-国标原文件.pdf": {
+   "size": 426600,
+   "sha256": "c5c982edc6e7da036f4563b1410f44d1e14a5c9b1821aabd7fcbbdb73fe5046f"
+  },
+  "data/0512-消费者_体质/中医体质症状/中医体质分类与判定题目.xlsx": {
+   "size": 15162,
+   "sha256": "8296f697a1e76776b69ba63e34877044027faa90ce38655bf6c1adc6f430d3e9"
+  },
+  "data/0512-消费者_体质/消费者评价数据/consumer_profile_table_商品对应消费者画像表.xlsx": {
+   "size": 55505,
+   "sha256": "9fec33d78f0036b83273fdccf683271104e281d310061265313256e3c68a8bee"
+  },
+  "data/0512-消费者_体质/消费者评价数据/药食同源消费者数据_评论标签化_人群分组.xlsx": {
+   "size": 13897681,
+   "sha256": "c5641efb005fd9309af467264d1b7573aff0222f4deb9a56de924ee768004b1d"
+  },
+  "data/0524/.DS_Store": {
+   "size": 6148,
+   "sha256": "72dc99340ba89c5e3cbb72996e74730c0084c6e15f6e85d9da963580e4acb851"
+  },
+  "data/0524/药食同源_替换.xlsx": {
+   "size": 1107453,
+   "sha256": "79fceec00b86779700b3258371f1894dee1479948e417ce6b909dcfac633da16"
+  },
+  "data/0524/方剂/meandqi方剂数据_中文整理.xlsx": {
+   "size": 292110,
+   "sha256": "b2a27168984fed8ae2a8720e2302bd7b70433eb79456b0802c0ba9b5712591e7"
+  },
+  "data/0524/方剂/TCMM_3000条.xlsx": {
+   "size": 449685,
+   "sha256": "c04db63cf4396db0c66db2234dae0ec98f1ffd97896892fb0e6258d96b99159f"
+  },
+  "data/0524/方剂/方剂学_伤寒论.xlsx": {
+   "size": 105905,
+   "sha256": "0f38d667c333f995784075c2f979a73f2c13dd86b48496e35539d77a7c0b71dd"
+  },
+  "data/neo4j_graph_v3/.DS_Store": {
+   "size": 10244,
+   "sha256": "938b35603d9fd44a2f491021c2bd25a69f279eb961df395476ef08cdccc2fb05"
+  },
+  "data/neo4j_graph_v3/compound_effect_edges.csv": {
+   "size": 348037,
+   "sha256": "daad6f2dd98a34be2a4808de6e51750079c91ec8f1fb04727441ddd17e548a3e"
+  },
+  "data/neo4j_graph_v3/compound_flavor_edges.csv": {
+   "size": 3411,
+   "sha256": "acf7a8b30a0db1f40cccb18988e8468125883fe0ed93e0ccd66afc578cf82d6f"
+  },
+  "data/neo4j_graph_v3/compound_nodes.csv": {
+   "size": 3759422,
+   "sha256": "6351284ba049735dffb3f88b797c0384892f0b0feb909d0b64729e98a14d8bf7"
+  },
+  "data/neo4j_graph_v3/effect_category_nodes.csv": {
+   "size": 234,
+   "sha256": "f585099c168fddb32a7edc0cac2194e4d31c453facfb34686f266d5b2a29f6f4"
+  },
+  "data/neo4j_graph_v3/effect_nodes.csv": {
+   "size": 3283,
+   "sha256": "cdf9b29ee7fd6aafd027a6ce98ae9806dbc44c482d8e8e3d3cf6a18651e9e9b4"
+  },
+  "data/neo4j_graph_v3/flavor_nodes.csv": {
+   "size": 284,
+   "sha256": "174e20b67c3336d8f49787188e6b70e06caecc688510f0a5b60f30038a194ffe"
+  },
+  "data/neo4j_graph_v3/formula_effect_edges.csv": {
+   "size": 4798,
+   "sha256": "126267371da526e91b1382d7b62081b8633a03e774eb038305055f6b808da220"
+  },
+  "data/neo4j_graph_v3/formula_nodes.csv": {
+   "size": 38236,
+   "sha256": "31fd8b4d6e4777adb6876fae7435419bab2b1d6c1bfae196445a33fb4b9b886f"
+  },
+  "data/neo4j_graph_v3/formula_role_edges.csv": {
+   "size": 22608,
+   "sha256": "59e7fd9591bdaa7fa3436bcbdf37d9ab79957bc7be4205bfc37b408ed9a6164c"
+  },
+  "data/neo4j_graph_v3/formula_source_edges.csv": {
+   "size": 4734,
+   "sha256": "882a969acb17cb3e8d6e1329e0fedc13f58a603cfef799ed7a4cc74c8dbb32a3"
+  },
+  "data/neo4j_graph_v3/formula_symptom_edges.csv": {
+   "size": 12867,
+   "sha256": "0483ba17711556cc20c79cb69e8b3bdce7f016601aa7f7a46d6eafad00111af5"
+  },
+  "data/neo4j_graph_v3/formula_taboo_edges.csv": {
+   "size": 5951,
+   "sha256": "58f6e7e8e1e8e5a4f0f30ab9e267558fca2d4b469ae3390e1ee180a85f597d63"
+  },
+  "data/neo4j_graph_v3/herb_compound_edges.csv": {
+   "size": 186427,
+   "sha256": "a22ea7834a78e2f0b5a18b2d5c56ca803c525590988e277a32dcedd9d7efb1d8"
+  },
+  "data/neo4j_graph_v3/herb_effect_category_edges.csv": {
+   "size": 14132,
+   "sha256": "2a5a8c8f8a580efb8022532fbe52e014b1a2da112a83a258b1a5fd35d24d6e02"
+  },
+  "data/neo4j_graph_v3/herb_effect_edges.csv": {
+   "size": 25383,
+   "sha256": "fb659edcb452c08fdd8733ff5889579a02c385bbf9dd3818dff4c455ca174759"
+  },
+  "data/neo4j_graph_v3/herb_flavor_edges.csv": {
+   "size": 16745,
+   "sha256": "865bcd337a3d2a7892ce11ea223713db4948d0cdcb92b0cb8adcc65b7cc85e20"
+  },
+  "data/neo4j_graph_v3/herb_formula_edges.csv": {
+   "size": 35547,
+   "sha256": "6686d2d2c7509f5282cb53e0decde9ccf0cfb09e8c1248519c8eb90390988309"
+  },
+  "data/neo4j_graph_v3/herb_meridian_edges.csv": {
+   "size": 8360,
+   "sha256": "c585f79a39aa25947ae103719bd7f4f98ec8a3d5250cdd852c8d838154299d60"
+  },
+  "data/neo4j_graph_v3/herb_nature_flavor_edges.csv": {
+   "size": 8717,
+   "sha256": "4bf83b807512ae6069b601935f18528fea21474b2dc9998821756737fe8bae5d"
+  },
+  "data/neo4j_graph_v3/herb_nodes.csv": {
+   "size": 98376,
+   "sha256": "6e7cf1439e4f79687eccf44d5bd3d7b5ba7ab2e66716711beeca2d544bb0518f"
+  },
+  "data/neo4j_graph_v3/herb_symptom_edges.csv": {
+   "size": 33700,
+   "sha256": "27511174853dd73852f38b3cbe469daf7040f38a340912034dee57ec55e6b8fc"
+  },
+  "data/neo4j_graph_v3/herb_taboo_edges.csv": {
+   "size": 11126,
+   "sha256": "2f8edfff043a1b03e4c353b22caa23cbce98fd9acf22f4adc421ad8b800278e6"
+  },
+  "data/neo4j_graph_v3/import_neo4j_graph_v2.py": {
+   "size": 5842,
+   "sha256": "77838a178e3783c5ee1409e8cd2747f4816b4f1f0cb7769dbb3a71e0731a2d0a"
+  },
+  "data/neo4j_graph_v3/meridian_nodes.csv": {
+   "size": 172,
+   "sha256": "9048c1ad18c0a9425eb8c3222764e073a12a2ca774e53e474e1482e002a1a0ab"
+  },
+  "data/neo4j_graph_v3/nature_flavor_nodes.csv": {
+   "size": 212,
+   "sha256": "ff4ff2b591778f9e69f768a04fdf8ee48bfddf3c12a5a64c6e7733b2b2fe1d26"
+  },
+  "data/neo4j_graph_v3/README_v3_full.md": {
+   "size": 917,
+   "sha256": "b5aaa240349fa141194f9d45d577439d6a890c4f652fd5bc9a4c7f1502dd9c4a"
+  },
+  "data/neo4j_graph_v3/source_nodes.csv": {
+   "size": 1056,
+   "sha256": "aafe94e09ef56c3504f343bd5d8645c4c3fdfbdbeb29bcb7a074a2e3a6cca17d"
+  },
+  "data/neo4j_graph_v3/symptom_nodes.csv": {
+   "size": 18220,
+   "sha256": "95a8b7ce3d1736edcd3e20d7c6b289e6cf43b85b0f99e7ccff4a7d5a9b6b6a5f"
+  },
+  "data/neo4j_graph_v3/taboo_nodes.csv": {
+   "size": 7814,
+   "sha256": "0b2c1ebd843910cd1e1f1f1f06a48a743b12031f1bf908f8854c5f8899530b87"
+  },
+  "data/neo4j_graph_v3/_summary_full.csv": {
+   "size": 2065,
+   "sha256": "5f0b6ab3827d439d0c13dbb2e2872cd71b8ff0188aca7175c43f85acca591aff"
+  },
+  "data/neo4j_graph_v3/_summary_full.xlsx": {
+   "size": 10429,
+   "sha256": "69e31679eaa6ed91f1f64a8c6b41dd20c95a2a3e771ee77f67917d1c0bb046fc"
+  },
+  "data/药食同源Agent_8类知识库-0531/.DS_Store": {
+   "size": 8196,
+   "sha256": "b6cbbb9934ceb838a78339a7ffa4a9ddda265ba8474b3b145126249b09762f0c"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB1_药食同源原料合法性库.xlsx": {
+   "size": 37479,
+   "sha256": "d3418805e9e9cba3a9e1fcfc1711b274c8ac13eb353b690b83d7a2adec9b29cf"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB2_功效-病症-性味归经库.xlsx": {
+   "size": 81331,
+   "sha256": "7863d97554dc91f03df9658f0b3aa63a62e55b3bfedb79a48a936cbc83731ea7"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB3_风味评价库.xlsx": {
+   "size": 34708,
+   "sha256": "45c8bc92f13dd862dd86af3bae12b60234123c76dfc38df0efd2014c53587af3"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB4_药食同源_替换.xlsx": {
+   "size": 1107453,
+   "sha256": "79fceec00b86779700b3258371f1894dee1479948e417ce6b909dcfac633da16"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB6_产品与市场库.xlsx": {
+   "size": 17550,
+   "sha256": "57152636394047f6c9dc81e2af3ae551306e768f11a55afbc18f06a3222e06d0"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB5_名方-名剂知识库/100经典名方-处理过.xlsx": {
+   "size": 31637,
+   "sha256": "9b8ba911536c8bd9cdc2f979fdf62b4034c065015df7312847df814eead3cfbc"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB5_名方-名剂知识库/TCMM_3000条.xlsx": {
+   "size": 449685,
+   "sha256": "c04db63cf4396db0c66db2234dae0ec98f1ffd97896892fb0e6258d96b99159f"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB5_名方-名剂知识库/方剂学_伤寒论.xlsx": {
+   "size": 105905,
+   "sha256": "0f38d667c333f995784075c2f979a73f2c13dd86b48496e35539d77a7c0b71dd"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/.DS_Store": {
+   "size": 6148,
+   "sha256": "05df30fc5394448058220787b89f43af67a461ee2fa3fac1a1c9bf1dd5344608"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/01_药食同源目录.xlsx": {
+   "size": 10379,
+   "sha256": "6ffad7eb76b6bec80d4c73a24287344faa693a9ee8aeea0f1204c541d1620d30"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/02_GB2760添加剂规则.xlsx": {
+   "size": 7022,
+   "sha256": "b1ca0274f05f1f967854e25cb4ac502634a47009e041716425032714bcdb0e07"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/03_GB7718标签规则.xlsx": {
+   "size": 6779,
+   "sha256": "21efd0ce3e2d022b946fca7f857dff4c0eac54b6c182250efb0bf11e6161ed97"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/04_普通食品宣传边界.xlsx": {
+   "size": 6276,
+   "sha256": "f2552baf78700b522100652dc8e46950ed7a2c693889bf40c6ae7ea21058ba4b"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/05_禁用慎用表述.xlsx": {
+   "size": 7418,
+   "sha256": "6743672fca8d1e0920bf2b094a4f1c33dd1e79522bc2a67bd1886734abae8fe8"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB7_食品标准合规库/食品标准合规.xlsx": {
+   "size": 16487,
+   "sha256": "a2e027d02a2fb426ef2c4737d1e01c51e9450fc5b8eb8fbfaca17bb80d8f2cc3"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB8_9种体质辨识与食养规则库/01_体质问卷.xlsx": {
+   "size": 8829,
+   "sha256": "e77f42f725014b2b6b3477a3a8cb9628af58241dc4ad709ead471c4761344a86"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB8_9种体质辨识与食养规则库/02_评分规则.xlsx": {
+   "size": 6731,
+   "sha256": "edc7be38bcb7e59ddc07b4a50522be4e192d8d1481107282315f5a45a9ba7677"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB8_9种体质辨识与食养规则库/03_九种体质.xlsx": {
+   "size": 8561,
+   "sha256": "98ac012823e394e709199f8f2b9e46714fc095a4bff2c8329507fd9bff95585b"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB8_9种体质辨识与食养规则库/04_体质-食养方向.xlsx": {
+   "size": 8121,
+   "sha256": "1bc6991af044d2e75dc7e1739fd575fe60e3eb33f19faf0b2d1b27c567eb667a"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB8_9种体质辨识与食养规则库/05_体质慎用原料.xlsx": {
+   "size": 7347,
+   "sha256": "9de39c4cf943244f4283e082edac863c5db864ccffe569b9479e17db04754f44"
+  },
+  "data/药食同源Agent_8类知识库-0531/KB8_9种体质辨识与食养规则库/README_KB8说明.txt": {
+   "size": 838,
+   "sha256": "e07e93dc057523804fa8510b8811100a885caedd3b298e7cc4c806cb04f9e1c9"
+  }
+ },
+ "dist": {
+  "frontend-dist/index.html": {
+   "size": 794,
+   "sha256": "db358dbff61dac601cfa520599ed5be64ada25de89699640315981bf95ab2f3d"
+  },
+  "frontend-dist/login-bg-poster.svg": {
+   "size": 833,
+   "sha256": "1699cde3bd285c15e84df2ce8cdc33f418fc158a13969b9874f4a79a7b5ddc6a"
+  },
+  "frontend-dist/login-bg-still.png": {
+   "size": 2023058,
+   "sha256": "78335cedee32f35d89a2b0f528bdd0359b3dffae1f8c0332bd74456b81ee9b87"
+  },
+  "frontend-dist/login-bg.mp4": {
+   "size": 1916063,
+   "sha256": "ce759ea04c089a125b067c35ac85eba92c860d239f27ae5ea2d8db3108280b17"
+  },
+  "frontend-dist/assets/HeroKnowledgeScene-C-8iVdx5.js": {
+   "size": 34819,
+   "sha256": "ebfc901e2f062f40e800630dff1fb55127d00d6542ee45331836325c72a3b002"
+  },
+  "frontend-dist/assets/HeroKnowledgeScene-Cvd5r07J.css": {
+   "size": 686,
+   "sha256": "00c449c0618b218919663a0a28f8eddd22f087ebffe75f14e810206a27b52e85"
+  },
+  "frontend-dist/assets/index-CbZLgZSu.css": {
+   "size": 429407,
+   "sha256": "54a94fe93da36fca172c684013d0ee7d6287e0c2cbcb98d09767f9de53836300"
+  },
+  "frontend-dist/assets/index-ChBrgTV3.js": {
+   "size": 1254878,
+   "sha256": "407e82ed87123dd7768be20313705734038646b3124f4465620c79cbeb8480e4"
+  },
+  "frontend-dist/assets/showcase-3d-D6giQCCZ.js": {
+   "size": 544111,
+   "sha256": "f56a2393f462823cb6781655cf38905ea72fb88c36f60d77779e1ed9ca54cfb9"
+  }
+ },
+ "app": {
+  "backend/app/main.py": {
+   "size": 1700,
+   "sha256": "c849a947d9c8e8727e879bdfd8ce35193894f01322db9ac9bcb8a2f74cde5638"
+  },
+  "backend/app/__init__.py": {
+   "size": 166,
+   "sha256": "6eee0606fd04cd24bebc6e55abcfe1886406d2876034b5f93eabc756f66c81cf"
+  },
+  "backend/app/api/deps.py": {
+   "size": 2986,
+   "sha256": "73effb58009231513e63c1be5b353d6d168897632f4534bcb35c3997f34c45f9"
+  },
+  "backend/app/api/routes.py": {
+   "size": 20952,
+   "sha256": "72a26e48efedb20f3372688e20f8907dbc086aa50e402cb0339d4792d34c85c0"
+  },
+  "backend/app/api/__init__.py": {
+   "size": 1,
+   "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "backend/app/core/config.py": {
+   "size": 2370,
+   "sha256": "78c07542045897d6ba4c32bd8848e9979877978227ee2ebb268a80c499f50ddf"
+  },
+  "backend/app/core/__init__.py": {
+   "size": 1,
+   "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "backend/app/data/ingredient_regulatory_overrides.json": {
+   "size": 4593,
+   "sha256": "e1f2b5988399878843c5767398fd112930c8894ee4a4294b99f3a25ccdfa83be"
+  },
+  "backend/app/db/init_db.py": {
+   "size": 4914,
+   "sha256": "5531b0e3db16b654c2b35e90abf301166fc722d50a755ddc93d3f6a6996735aa"
+  },
+  "backend/app/db/models.py": {
+   "size": 12128,
+   "sha256": "4ee8e22fdc0b58ea2f35479824a1a0338e04e6ad604fcf2d873cd1301444cbd0"
+  },
+  "backend/app/db/seed_data.py": {
+   "size": 27036,
+   "sha256": "324203071dc2bfe04822c79260119e2441fb477695a98ad8b769f7db407b1863"
+  },
+  "backend/app/db/sqlalchemy.py": {
+   "size": 545,
+   "sha256": "dcbece4d28b666722f984d77300455bcf468364195440cbccd5faa8e7bb04ae9"
+  },
+  "backend/app/db/__init__.py": {
+   "size": 1,
+   "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "backend/app/prompts/knowledge_qa_answer_rules.md": {
+   "size": 23469,
+   "sha256": "d9bea254509c0879825916f210a8db356f562e939f181b4e56b282a0888d6740"
+  },
+  "backend/app/prompts/qa_reasoning_flow.md": {
+   "size": 8570,
+   "sha256": "4d0ed3d8fac91f4c2b1fc879e03d7da6fdfdd7a37d6e054c5fa00230bdb3e390"
+  },
+  "backend/app/prompts/qa_route_eval_cases.json": {
+   "size": 4168,
+   "sha256": "8e02274fca20d53d38bd3890747cbffb9ffe90e6a047931a58459762dd6fd72f"
+  },
+  "backend/app/prompts/qa_route_rules.json": {
+   "size": 39919,
+   "sha256": "861dbc1193120b09d1b78dcbdc75ccc6ebaf3f8ef1c9d4722d820683a48e3829"
+  },
+  "backend/app/repositories/neo4j_repository.py": {
+   "size": 89918,
+   "sha256": "b7edb5292a8dc8e7286d75e9b1f5cce612bc8a87b12176a3a62283518e84a4ff"
+  },
+  "backend/app/repositories/postgres_repository.py": {
+   "size": 10225,
+   "sha256": "afe500c7ba84eccf9d26c314510f06e71422e4f6cd1e44164ebce3e309df82c3"
+  },
+  "backend/app/repositories/__init__.py": {
+   "size": 1,
+   "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "backend/app/schemas/admin.py": {
+   "size": 1969,
+   "sha256": "da1fb560a84040c34933398f3587f4b30eeb0aa98a0876aa5c7571a9d38b8f48"
+  },
+  "backend/app/schemas/auth.py": {
+   "size": 515,
+   "sha256": "9b12c011751feaaf72b3b61cbd439adb4b493aa37e867d6a1a922a5d90f29012"
+  },
+  "backend/app/schemas/chat.py": {
+   "size": 1685,
+   "sha256": "509bc46bc23ddbb9b4c9f7a348874ec85074997a5402f807ad9810c640d6b79a"
+  },
+  "backend/app/schemas/common.py": {
+   "size": 586,
+   "sha256": "8487ee11cad7c84ba97b84744726a8b1b499019daba0e8ee3e97933a470fe16b"
+  },
+  "backend/app/schemas/constitution.py": {
+   "size": 2648,
+   "sha256": "4094db8df08d78a24c4631f288649dd377d5abf33619c9319119d907b70853ef"
+  },
+  "backend/app/schemas/entity.py": {
+   "size": 344,
+   "sha256": "5c87e2417f3620b85b343fb9464d92e7365865b835aa3f354fdf5722a68e9453"
+  },
+  "backend/app/schemas/rnd.py": {
+   "size": 1807,
+   "sha256": "b6084955123e27a9e32f8d5a7da72d3ac3dbbe11c3953bfaf071d1895939c97f"
+  },
+  "backend/app/schemas/__init__.py": {
+   "size": 1,
+   "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  },
+  "backend/app/services/auth_service.py": {
+   "size": 3122,
+   "sha256": "dea86873e03c077f20e9c416ffda0c1c1f39864e3734bf0b938bc59e30f85928"
+  },
+  "backend/app/services/constitution_service.py": {
+   "size": 6919,
+   "sha256": "b0de196ea14ab4ba790ef96d8e43b8e6f43db890fc863e55108c0331ac2c71a3"
+  },
+  "backend/app/services/deepseek_client.py": {
+   "size": 36191,
+   "sha256": "baa956a908db58adedfe69f8328cec7803ba482737f79538d939405dfb96da37"
+  },
+  "backend/app/services/entity_resolver.py": {
+   "size": 9885,
+   "sha256": "81a0905c32ac4c77b66e451bc5a9cad03a9697f7234674c079ce938f7857b132"
+  },
+  "backend/app/services/graph_retriever.py": {
+   "size": 46874,
+   "sha256": "ea61e9193dd4298ae575cccb6f120f610bd35d34931015e70daa3bbab560a2b5"
+  },
+  "backend/app/services/minimax_client.py": {
+   "size": 332,
+   "sha256": "333aa5cb3d6fb61bec28fb1fe5314761a3bf351b2398be86b885de25d24b3f86"
+  },
+  "backend/app/services/qa_answer_templates.py": {
+   "size": 27460,
+   "sha256": "de2589b74d2fb2b4014d8ef10110099960e9a56fefc7420d2e93067f4280feb8"
+  },
+  "backend/app/services/qa_orchestrator.py": {
+   "size": 255452,
+   "sha256": "88516cdd2d602775075f29418ad66a50448c33953b0e3315566c2bcf698fcada"
+  },
+  "backend/app/services/qa_routing.py": {
+   "size": 15185,
+   "sha256": "7c62a8fb256911e90e496962a46d65f437886e0a44683b5e34d535cdd91bd6d8"
+  },
+  "backend/app/services/question_classifier.py": {
+   "size": 3799,
+   "sha256": "e8bffe1230d290baba086282f6f055bcd128ba83cc843ab810a3cb14855cacc7"
+  },
+  "backend/app/services/rnd_workflow_orchestrator.py": {
+   "size": 50895,
+   "sha256": "dd5c01779a1701cd01178ce046d19180ae585986a6cf82ad86731deef756826c"
+  },
+  "backend/app/services/__init__.py": {
+   "size": 1,
+   "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+  }
+ }
+}

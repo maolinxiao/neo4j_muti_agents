@@ -1,0 +1,172 @@
+[
+ {
+  "item": "page total canvas count",
+  "ok": true,
+  "detail": "count=6 (设计=hero1+cap3+aud1+pipe1=6)"
+ },
+ {
+  "item": "page main content load",
+  "ok": true,
+  "detail": "id=app visible"
+ },
+ {
+  "item": "card count",
+  "ok": true,
+  "detail": "capability cards=3"
+ },
+ {
+  "item": "audience panels",
+  "ok": true,
+  "detail": "panels=2"
+ },
+ {
+  "item": "pipeline steps",
+  "ok": true,
+  "detail": "steps=6"
+ },
+ {
+  "item": "capability canvas count==3",
+  "ok": true,
+  "detail": "count=3"
+ },
+ {
+  "item": "capability canvas[0] non-empty pixels",
+  "ok": true,
+  "detail": "size=362x141 std=30.7/32.7 nonbg=0.585/0.653 framediff=0.1625"
+ },
+ {
+  "item": "capability canvas[1] non-empty pixels",
+  "ok": true,
+  "detail": "size=362x141 std=7.4/6.8 nonbg=0.397/0.347 framediff=0.0000"
+ },
+ {
+  "item": "capability canvas[2] non-empty pixels",
+  "ok": true,
+  "detail": "size=362x141 std=16.4/16.1 nonbg=0.544/0.425 framediff=0.0375"
+ },
+ {
+  "item": "capability tilt hover transform",
+  "ok": true,
+  "detail": "before=(none) after=perspective(900px) translateY(-3px) rotateX(3.04deg) rotateY(-2.42deg) scale3d(1, 1, 1)"
+ },
+ {
+  "item": "capability tilt-hover class",
+  "ok": true,
+  "detail": "class=True"
+ },
+ {
+  "item": "capability glare opacity>0",
+  "ok": true,
+  "detail": "opacity=1"
+ },
+ {
+  "item": "capability tilt direction change",
+  "ok": true,
+  "detail": "transform=perspective(900px) translateY(-3px) rotateX(-3.7deg) rotateY(2.72deg) scale3d(1, 1, 1)"
+ },
+ {
+  "item": "capability tilt reset on leave",
+  "ok": true,
+  "detail": "after=''"
+ },
+ {
+  "item": "audience canvas count==1",
+  "ok": true,
+  "detail": "count=1"
+ },
+ {
+  "item": "audience canvas[0] non-empty pixels",
+  "ok": true,
+  "detail": "size=150x621 std=19.1/19.5 nonbg=0.141/0.140 framediff=0.0385"
+ },
+ {
+  "item": "audience classifier core visible",
+  "ok": true,
+  "detail": "core=True"
+ },
+ {
+  "item": "audience core breathe animation",
+  "ok": true,
+  "detail": "anim={'animation': 'classifierBreathe-98c9cb8b', 'backdrop': 'blur(14px) saturate(1.3)'}"
+ },
+ {
+  "item": "audience panel tilt hover",
+  "ok": true,
+  "detail": "transform=perspective(900px) translateY(-3px) rotateX(2.46deg) rotateY(-2.38deg) scale3d(1, 1, 1)"
+ },
+ {
+  "item": "pipeline canvas count==1",
+  "ok": true,
+  "detail": "count=1"
+ },
+ {
+  "item": "pipeline canvas[0] non-empty pixels",
+  "ok": true,
+  "detail": "size=1138x148 std=30.7/31.2 nonbg=0.561/0.562 framediff=0.2438"
+ },
+ {
+  "item": "pipeline energy pulse moves over time",
+  "ok": true,
+  "detail": "diff_ratio=0.2725"
+ },
+ {
+  "item": "pipeline auto-carousel advances",
+  "ok": true,
+  "detail": "idx 1->2 name 方剂生成专家->功效预测专家"
+ },
+ {
+  "item": "pipeline click interaction",
+  "ok": true,
+  "detail": "idx=2 name=功效预测专家"
+ },
+ {
+  "item": "FPS sample >= 30",
+  "ok": true,
+  "detail": "fps=217.0"
+ },
+ {
+  "item": "no console error",
+  "ok": true,
+  "detail": "console_errors=0 known_favicon404=1 page_errors=0 raw=[('error', 'Failed to load resource: the server responded with a status of 404 (Not Found)')]"
+ },
+ {
+  "item": "no failed requests",
+  "ok": true,
+  "detail": "failed=0 ([])"
+ },
+ {
+  "item": "reduced-motion: zero canvases (CSS fallback)",
+  "ok": true,
+  "detail": "canvas=0"
+ },
+ {
+  "item": "reduced-motion: capability svg fallback icons",
+  "ok": true,
+  "detail": "icons=3"
+ },
+ {
+  "item": "reduced-motion: audience core present",
+  "ok": true,
+  "detail": ""
+ },
+ {
+  "item": "reduced-motion: carousel paused",
+  "ok": true,
+  "detail": "idx 0->0"
+ },
+ {
+  "item": "reduced-motion: no page errors",
+  "ok": true,
+  "detail": "errors=[]"
+ },
+ {
+  "item": "mobile: zero section canvases (CSS fallback)",
+  "ok": true,
+  "detail": "canvas=0"
+ },
+ {
+  "item": "mobile: no horizontal scroll",
+  "ok": true,
+  "detail": "scrollWidth=390 innerWidth=390"
+ }
+]

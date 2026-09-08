@@ -40,7 +40,7 @@
             >{{ typeIconChar(store.profile.primary_constitution) }}</span>
             <div class="result-info">
               <div class="result-kicker">{{ t("constitution.result.currentProfile") }}</div>
-              <div class="result-primary">{{ store.profile.primary_constitution }}</div>
+              <div class="result-primary">{{ typeName(store.profile.primary_constitution) }}</div>
               <div class="result-tags">
                 <el-tag
                   v-for="(sec, idx) in store.profile.secondary_constitutions || []"
@@ -75,7 +75,7 @@
             <span class="subtitle-note">{{ t("constitution.result.scoreNote") }}</span>
           </div>
           <div v-for="entry in scoreEntries" :key="entry.name" class="score-bar-row">
-            <span class="score-bar-name" :title="entry.name">{{ entry.name }}</span>
+            <span class="score-bar-name" :title="entry.name">{{ typeName(entry.name) }}</span>
             <div class="score-bar-track">
               <div
                 class="score-bar-fill"
@@ -98,7 +98,7 @@
               {{ t("constitution.result.dietDirection") }}
             </div>
             <p class="diet-text">
-              {{ currentType?.diet_direction || currentType?.food_homology_direction || t("constitution.result.noDiet") }}
+              {{ dietText(currentType) || t("constitution.result.noDiet") }}
             </p>
             <template v-if="currentType?.suitable_ingredient_examples">
               <div class="diet-sub">{{ t("constitution.result.suitableIngredients") }}</div>
@@ -172,7 +172,7 @@
                 :style="{ background: typeColor(item.constitution_type_name) }"
               >{{ typeIconChar(item.constitution_type_name) }}</span>
               <div class="type-head-text">
-                <span class="type-name">{{ item.constitution_type_name }}</span>
+                <span class="type-name">{{ typeName(item.constitution_type_name) }}</span>
                 <span class="type-category">{{ item.constitution_category || t("constitution.manual.defaultCategory") }}</span>
               </div>
               <span
@@ -181,7 +181,7 @@
               >✓</span>
             </div>
             <span class="type-summary">{{ item.summary || t("constitution.manual.noSummary") }}</span>
-            <span class="type-diet">{{ item.diet_direction || item.food_homology_direction || t("constitution.manual.noDiet") }}</span>
+            <span class="type-diet">{{ dietText(item) || t("constitution.manual.noDiet") }}</span>
           </button>
         </div>
         <el-empty v-else :description="t('constitution.empty.noTypes')" :image-size="72" />
@@ -252,7 +252,7 @@
                       active: index === currentIndex,
                       answered: answeredSet.has(question.question_code),
                     }"
-                    :title="`${question.question_code} ${question.question_text}`"
+                    :title="`${question.question_code} ${questionText(question)}`"
                     @click="goToQuestion(index)"
                   >{{ index + 1 }}</button>
                 </div>
@@ -267,7 +267,7 @@
                   >{{ currentIndex + 1 }}</span>
                   <div class="question-meta">
                     <el-tag v-if="currentQuestion.constitution_type_name" size="small">
-                      {{ currentQuestion.constitution_type_name }}
+                      {{ typeName(currentQuestion.constitution_type_name) }}
                     </el-tag>
                     <el-tag v-if="currentQuestion.reverse_scored" size="small" type="warning" effect="light">
                       {{ t("constitution.assessment.reverseScored") }}
@@ -278,7 +278,7 @@
                   </div>
                 </div>
                 <h4 class="question-text">
-                  <span class="question-code">{{ currentQuestion.question_code }}</span>{{ currentQuestion.question_text }}
+                  <span class="question-code">{{ currentQuestion.question_code }}</span>{{ questionText(currentQuestion) }}
                 </h4>
 
                 <!-- 选项按钮组（radio 化） -->
@@ -333,7 +333,7 @@
                         :key="item.question_code"
                         type="button"
                         class="unanswered-chip"
-                        :title="`${item.question_code} ${item.question_text}`"
+                        :title="`${item.question_code} ${questionText(item)}`"
                         @click="goToQuestion(item.index)"
                       >{{ item.index + 1 }}</button>
                     </span>
@@ -375,7 +375,7 @@
               @click="toggleHistory(item.id)"
             >
               <div class="history-head">
-                <strong class="history-primary">{{ item.primary_constitution }}</strong>
+                <strong class="history-primary">{{ typeName(item.primary_constitution) }}</strong>
                 <span
                   v-for="(sec, idx) in item.secondary_constitutions || []"
                   :key="idx"
@@ -388,7 +388,7 @@
               <div v-if="item.result_summary" class="history-summary">{{ item.result_summary }}</div>
               <div v-if="expandedHistoryId === item.id && historyEntries(item).length" class="history-scores">
                 <div v-for="entry in historyEntries(item)" :key="entry.name" class="score-bar-row">
-                  <span class="score-bar-name" :title="entry.name">{{ entry.name }}</span>
+                  <span class="score-bar-name" :title="entry.name">{{ typeName(entry.name) }}</span>
                   <div class="score-bar-track">
                     <div
                       class="score-bar-fill"
@@ -416,6 +416,13 @@ import { ElMessage } from "element-plus";
 
 import { useI18n } from "../composables/useI18n";
 import { useConstitutionStore } from "../stores/constitution";
+import {
+  CONSTITUTION_TYPE_EN,
+  DIET_DIRECTION_EN,
+  QUESTION_TEXT_EN,
+  SCORE_DESC_EN,
+  localizedText,
+} from "../utils/constitutionEn";
 
 const props = defineProps({
   payload: {
@@ -428,8 +435,23 @@ const props = defineProps({
   },
 });
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const store = useConstitutionStore();
+
+// ---- 图谱中文数据按语言渲染（en-US 走映射，缺失回退原文；类型名原值仍用于配色） ----
+const isEn = computed(() => locale.value === "en-US");
+const typeName = (name) => (name ? localizedText(locale.value, CONSTITUTION_TYPE_EN, name) : "");
+const questionText = (question) =>
+  question
+    ? isEn.value
+      ? QUESTION_TEXT_EN[question.question_code] || question.question_text
+      : question.question_text
+    : "";
+const dietText = (type) => {
+  if (!type) return "";
+  const raw = type.diet_direction || type.food_homology_direction || "";
+  return localizedText(locale.value, DIET_DIRECTION_EN, raw);
+};
 
 const activeMode = ref("assessment");
 const manualSelectedType = ref("");
@@ -557,11 +579,11 @@ const scoreLabel = (option) => {
 const scoreDescription = (value) => {
   const question = currentQuestion.value;
   if (!question) return "";
-  return (
+  const raw =
     question[`score_${value}`] ||
     store.scoreOptions.find((item) => item.value === value)?.label ||
-    ""
-  );
+    "";
+  return localizedText(locale.value, SCORE_DESC_EN, raw);
 };
 
 // ---- 交互动作 ----

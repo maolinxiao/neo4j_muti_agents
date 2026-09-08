@@ -423,3 +423,16 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 ### 公网验收（2026-09-08，全部 PASS）
 - `accept_t3_showcase.py --url http://118.24.185.45` **34/34 PASS**：canvas 总数 6（aud1+pipe1）、分类器核心可见 + classifierBreathe、轨道帧差 0.0136>0.001、4s 轮播推进、点击切换详情、FPS≥30、console/pageerror 0、reduced-motion 0 canvas + 轮播静止、390px 移动端 0 canvas 无横向滚动。
 - 生产截图 `.tmp-showcase-t13-prod/`：分流区无斜线、流程区绿→金渐变轨道清晰（卡片间隙可见颜色过渡）、无文字「删除线」感。
+
+## 2026-09 体质辨识题目/体质名/选项英文适配（P11 上线记录，2026-09-08）
+
+### 本次改动（仅前端）
+- 图谱 KB8 数据（题干/体质名/食养方向）为中文，i18n 之前只覆盖页面框架文案 → 切英文后题目仍是中文。
+- 新增 `frontend/src/utils/constitutionEn.js`：CCMQ 量表通行英译映射——题干 30 条（按 question_code）、体质类型名 9 条、选项分数描述 5 条（图谱 score_1..5 为通用量表文案）、食养方向 9 条；`localizedText()` 统一「en-US 走映射、缺失回退中文原文」。
+- `ConstitutionAssessmentPanel.vue`：题干（含题目地图/未答跳转 tooltip）、体质标签（题卡/结果主型/历史记录/分数字条）、选项描述、手动模式类型卡与食养方向、结果区食养方向全部按 locale 渲染；类型原值仍传给 typeColor/typeIconChar（配色不受影响）。
+- 范围说明：测评历史 `result_summary`（后端生成的中文结论文本）与推荐/慎用原料（中药名，作为专有名词）暂保留中文。
+
+### 上线（2026-09-08）
+- 回滚点：`/www/wwwroot/neo4j-agents/frontend-dist.bak-20260908220742`（以实际时间为准，`ls -dt frontend-dist.bak-* | head -1`）。
+- 上传：`deploy_t14_constitution_i18n_upload.py` 9 文件 sha256 抽检 MATCH；清理旧资源 3 件（index-5FKKSM-t.js / index-C0O4xntb.css / HeroKnowledgeScene-B1t_D0jI.js）；新 hash `index-D4_yKH04.js` / `index-BBazs1he.css` / `HeroKnowledgeScene-CriBNMwz.js`。
+- 验证：dev(5173→生产 API 代理) 与公网双端 Playwright 实测——en-US 题干 "A.1-1 Do you feel full of energy?" / 选项 "Not at all" / 类型标签 "Balanced"；zh-CN 完整回归中文；两语言 0 pageerror。

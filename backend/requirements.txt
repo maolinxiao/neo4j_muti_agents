@@ -1,0 +1,11 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+sqlalchemy==2.0.43
+psycopg[binary]==3.2.9
+neo4j==5.28.1
+httpx==0.28.1
+pydantic==2.11.7
+# 图形验证码绘制（captcha_service.py）
+pillow>=10.4
+# 头像等 multipart 上传（/api/auth/avatar）
+python-multipart>=0.0.9

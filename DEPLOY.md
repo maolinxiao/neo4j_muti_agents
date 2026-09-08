@@ -436,3 +436,16 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - 回滚点：`/www/wwwroot/neo4j-agents/frontend-dist.bak-20260908220742`（以实际时间为准，`ls -dt frontend-dist.bak-* | head -1`）。
 - 上传：`deploy_t14_constitution_i18n_upload.py` 9 文件 sha256 抽检 MATCH；清理旧资源 3 件（index-5FKKSM-t.js / index-C0O4xntb.css / HeroKnowledgeScene-B1t_D0jI.js）；新 hash `index-D4_yKH04.js` / `index-BBazs1he.css` / `HeroKnowledgeScene-CriBNMwz.js`。
 - 验证：dev(5173→生产 API 代理) 与公网双端 Playwright 实测——en-US 题干 "A.1-1 Do you feel full of energy?" / 选项 "Not at all" / 类型标签 "Balanced"；zh-CN 完整回归中文；两语言 0 pageerror。
+
+## 2026-09 站点 favicon 上线（P12 记录，2026-09-08）
+
+### 设计与接入（仅前端静态资产）
+- 新增站点图标「Herbal Intelligence · 本草灵芽」：翡翠绿对角渐变圆角砖（#34d399→#059669→#047857，站点主色）+ 白色斜置叶形（两道镜像弧线收尖）+ 叶尖呼吸间距处一粒琥珀金点（#f59e0b，呼应站点金色点缀、寓意「被点亮的智能体节点」）。设计理念文档 `.tmp-icon-t15/design_philosophy.md`（临时，不入库）。
+- 资产：`frontend/public/favicon.svg`（现代浏览器矢量源）、`favicon.ico`（16/32/48 多尺寸，Playwright 逐尺寸矢量光栅化 + Pillow 合成）、`apple-touch-icon.png`（180px 满幅方角版，iOS 自加圆角遮罩）。
+- 接入：`frontend/index.html` head 增加 icon//apple-touch-icon 三条 link（原站无 favicon，浏览器标签显示默认图标，DEPLOY.md P5 遗留项就此闭环）。
+
+### 上线与验证（2026-09-08）
+- 回滚点：`frontend-dist.bak-20260908223129`（以 ls -dt 为准）。
+- `deploy_t15_favicon_upload.py` 12 文件 sha256 抽检 MATCH（index-D4_yKH04.js/index-BBazs1he.css 未变）；旧资源无清理项。
+- 公网验证：/favicon.ico 200 image/x-icon、/favicon.svg 200 image/svg+xml、/apple-touch-icon.png 200；index.html 三条 icon link 生效。
+- 提示：浏览器标签图标有本地缓存，用户首次可能需 Ctrl+F5 或重开标签页。

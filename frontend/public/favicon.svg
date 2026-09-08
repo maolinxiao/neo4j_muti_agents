@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 药食同源多智能体平台 · 站点图标
+       绿 = 本草（#2dd4a0 → #059669 → #047857 对角渐变）
+       白叶 = 药食同源的签名；金点 = 被点亮的智能体节点 -->
+  <defs>
+    <linearGradient id="leafTile" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#34d399"/>
+      <stop offset="0.55" stop-color="#059669"/>
+      <stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="url(#leafTile)"/>
+  <!-- 叶：两道互为镜像的弧线，斜置 45°，两端收尖 -->
+  <path d="M17 47 C 18.5 30.5, 29.5 16.5, 47 14.5 C 45.5 31, 34 45, 17 47 Z" fill="#ffffff"/>
+  <!-- 叶脉：一条呼吸线（两端内缩，不触叶缘） -->
+  <path d="M20.5 43.5 C 26.5 37, 33.5 28.5, 42 18.5" fill="none" stroke="#059669" stroke-opacity="0.5" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- 金点：被点亮的节点，悬于叶尖的呼吸间距处 -->
+  <circle cx="52.5" cy="10.5" r="4.6" fill="#f59e0b"/>
+</svg>

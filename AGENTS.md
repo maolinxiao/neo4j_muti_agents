@@ -114,6 +114,8 @@ frontend/src/
 - `scripts/import_neo4j_graph_v3.py`、`scripts/import_agent_project_data.py`：历史/参考脚本，非当前主线。
 - `frontend/remotion/`：登录背景等视频/视觉生成相关代码。
 - `frontend/public/` 与 `frontend/dist/`：登录背景资源和构建产物。
+- `DEPLOY.md`：生产部署运维手册 + 历次上线/验收记录（见 12.5 节）；`deploy/`：nginx 配置存档。
+- `backend/requirements.txt`、`backend/gunicorn_conf.py`、`backend/uwsgi.ini`：生产依赖与宝塔运行时配置（2026-09-08 自服务器同步入库）。
 
 ---
 
@@ -619,11 +621,32 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 - 前端过程区标题为“图谱检索与证据整理摘要”。
 - 回答和证据摘要不出现 `<think>`、提示词、系统设定、JSON 字段冲突、“图谱未提供”等系统视角措辞。
 
+### 12.5 生产部署与版本一致性
+
+生产环境：腾讯云 `118.24.185.45`（宝塔面板，OpenCloudOS），站点根 `/www/wwwroot/neo4j-agents/`（`backend/` 源码 + `frontend-dist/` 静态站；PostgreSQL 15 / Neo4j 5.26 / FastAPI 后端 127.0.0.1:8000）。完整运维手册与历次上线验收记录见 `DEPLOY.md`，改部署相关内容前必读。
+
+部署流程（本地 → 服务器）：
+
+1. 本地改代码 → 按 12.1/12.2 验证 → 前端 `npm run build`。
+2. 上传用仓库根的 `deploy_*_upload.py`（paramiko SFTP，逐文件 sha256 校验 MATCH）；后端上传前先在服务器 `backups/pre-<task>-<ts>/` 备份旧文件，作为回滚点。
+3. 后端上传后用宝塔面板「Python项目」重启；前端静态站无需重启，覆盖后清理 assets 中未被新 index.html 引用的旧 hash 资源（保留清单 = index.html 引用 + 主包动态 import 的 chunk，见 DEPLOY.md P6 教训）。
+4. 上线后在公网做回归验收，并把记录追加进 `DEPLOY.md`。
+
+版本一致性事实（未来 agent 必读）：
+
+- 服务器**没有前端源码**：`frontend/src` 只存在于本仓库，本地 `frontend/dist` 即线上静态站；误删本地源码无法从服务器找回。
+- 截至 2026-09-08：本地工作树 = 服务器 = GitHub（commit `e7e955d0`）；`backend/requirements.txt`、`gunicorn_conf.py`、`uwsgi.ini` 已从服务器同步入库。
+- 服务器侧 `*.bak-*` 与 `backend/uploads/` 属运行时数据/部署备份，不回灌仓库；本地 `backend/_vendor/`、`backend/logs|runtime/`、`backend/scripts/*.ps1` 仅本地使用，不上传。
+- 判断本地与线上是否一致：对 `backend/**` 与 `frontend/dist/** ↔ frontend-dist/**` 做逐文件 sha256 比对（做法参考 `.tmp-inner-check/sync_compare_t12.py`，临时脚本不入库）。
+
 ---
 
 ## 13. Git 与文件保护
 
 - 不提交 `.env`、`node_modules/`、`__pycache__/`、`*.pyc`、临时调试脚本、`neo4j_backups/`。
+- 根目录 `deploy_*.py`、`push_*.py` 等部署脚本内含**明文服务器凭据**，必须永远保持未跟踪状态；正式凭据只存服务器 `/www/wwwroot/neo4j-agents/backups/creds.txt`。
+- 提交业务文件时按路径显式 `git add <path>`，禁止 `git add -A` / `git add .`（会把含凭据的临时脚本一起带入）。
+- Windows 行尾陷阱：`git status` 显示 `M` 可能只是 CRLF/LF 假差异；判断真实改动必须 `git diff` 看内容，严禁仅凭 `M` 状态执行 checkout/restore 回滚（曾发生把工作区当已修改误回退的事故）。
 - 不随意回滚用户已有修改；工作树可能是 dirty。
 - 生成或构建导致 `frontend/dist/` 变化时，要在最终说明中说明。
 - 提交信息格式：`{类型}: {简要描述}`，类型包括 `feat`、`fix`、`refactor`、`docs`、`chore`。

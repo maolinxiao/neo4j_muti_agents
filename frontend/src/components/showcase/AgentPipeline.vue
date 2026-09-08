@@ -11,12 +11,20 @@
       <div
         ref="pipelineRef"
         class="pipeline"
+        :class="{ 'pipeline--no-scene': !useScene3d }"
         @mouseenter="pauseCarousel"
         @mouseleave="resumeCarousel(); tilt.onLeave()"
         @transitionend.capture="scheduleMeasure"
         @mousemove="tilt.onMove"
       >
-        <AgentFlowScene v-if="useScene3d" ref="flowScene" class="pipeline-scene" @resize="scheduleMeasure" />
+        <AgentFlowScene
+          v-if="useScene3d"
+          ref="flowScene"
+          class="pipeline-scene"
+          color-a="#059669"
+          color-b="#d97706"
+          @resize="scheduleMeasure"
+        />
         <template v-for="(agent, index) in agents" :key="agent.key">
           <div class="reveal-stagger-item pipeline-item" :style="{ '--reveal-index': index }">
             <button
@@ -32,7 +40,8 @@
               <span class="step-key">{{ agent.key }}</span>
             </button>
           </div>
-          <div v-if="index < agents.length - 1" class="step-connector" aria-hidden="true">
+          <!-- canvas 激活时由 3D 能量轨道承担连接表达；虚线连接线仅作无 canvas 回退 -->
+          <div v-if="index < agents.length - 1 && !useScene3d" class="step-connector" aria-hidden="true">
             <span class="connector-line" />
           </div>
         </template>
@@ -258,7 +267,8 @@ const tilt = useTilt(pipelineRef, {
   height: 100%;
 }
 
-.pipeline::before {
+/* 无 canvas 回退模式下的水平基线（canvas 激活时由 3D 轨道承担） */
+.pipeline--no-scene::before {
   content: "";
   position: absolute;
   left: 2rem;
@@ -288,7 +298,8 @@ const tilt = useTilt(pipelineRef, {
   border-radius: 12px;
   color: var(--sc-text);
   cursor: pointer;
-  background: var(--sc-bg-panel);
+  /* 底色比 --sc-bg-panel 更实：能量轨道只从卡片间隙穿过，避免透过玻璃形成「删除线」 */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.88));
   transition: border-color 0.25s ease, background 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
   will-change: transform;
 }
@@ -298,14 +309,14 @@ const tilt = useTilt(pipelineRef, {
 .step-node.active {
   outline: none;
   border-color: rgba(5, 150, 105, 0.3);
-  background: rgba(5, 150, 105, 0.05);
+  background: linear-gradient(180deg, rgba(233, 248, 240, 0.97), rgba(223, 244, 233, 0.93));
   transform: translateY(-3px);
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
 }
 
 /* active 节点底色与编号强调 + 光晕呼吸 */
 .step-node.active {
-  background: rgba(5, 150, 105, 0.08);
+  background: linear-gradient(180deg, rgba(222, 245, 233, 0.98), rgba(208, 241, 224, 0.95));
   border-color: rgba(5, 150, 105, 0.42);
   animation: stepNodeGlow 3.2s ease-in-out infinite;
 }
@@ -513,7 +524,7 @@ const tilt = useTilt(pipelineRef, {
     align-items: stretch;
   }
 
-  .pipeline::before {
+  .pipeline--no-scene::before {
     top: 1.75rem;
     bottom: 1.75rem;
     left: 50%;

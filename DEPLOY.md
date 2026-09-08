@@ -405,3 +405,21 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 1. 聊天页「新建会话」在页面加载初期（自动选中最近会话完成前）点击，会被在途 auto-select 覆盖回旧会话；等列表稳定后点击正常。建议 ChatView 的 createNewSession 增加 auto-select 在途标志位互斥。
 2. 本机验收期间注册接口命中限流 429（同 IP 短时间多次注册触发），属预期保护机制；验收脚本已改为复用既有测试账号。
 3. Neo4j constitution 查询对 ConstitutionType.judgement_rule 的 UnknownPropertyKeyWarning（图谱属性缺失警告）为既有非阻塞项。
+
+## 2026-09 首页分流区去斜线 + 研发流程渐变能量轨道重设计（P10 上线记录，2026-09-08）
+
+### 本次改动（仅前端 4 组件）
+- commit「feat: 首页分流区去斜线+研发流程渐变能量轨道重设计」：
+  - `AudienceSplitSection.vue`：删除中央两条 ±7° CSS 斜线（`.classifier-line*` 全部模板/CSS/响应式）；
+  - `AudienceFlowScene.vue`：删除 canvas 内两条静态贝塞尔 Line（保留曲线作粒子路径），粒子加大调柔（0.085→0.10）——分流区只保留「分类器核心 + 流动粒子」一种连接表达；
+  - `AgentFlowScene.vue`：视觉层整体重写——1px 靛蓝线（#6366f1，游离于站点 token 外）替换为 TubeGeometry 双层「渐变能量轨道」（内层实色 vertexColors 翡翠绿 #059669→琥珀金 #d97706 + 外层 additive 辉光管）；单脉冲球升级为「彗星」（亮头 + 7 节渐隐尾迹，另有一枚相位差半圈的暗色环境彗星）；setActive 到达节点时触发扩散光环；**新增 pxUnit 屏幕恒定尺寸机制**（applySceneFit 缩放后按「屏幕像素→世界单位」反推管径/彗星/光环半径，修复扁长容器下线条缩成亚像素的根因）；修复到达光环在 boost 窗口到期后读取已重置 targetT 的 pageerror（位置/颜色触发时锁定）；
+  - `AgentPipeline.vue`：`.step-connector` 虚线与 `.pipeline::before` 中线改为仅 `!useScene3d` 回退模式渲染（canvas 激活时由 3D 轨道承担连接）；step-node 底色改不透明渐变（含 hover/active 态），消除轨道透过 85% 玻璃卡形成的「删除线」感。
+
+### 构建与上线（deploy-qa，2026-09-08）
+- 本地：dev 5173 `accept_t3_showcase.py` 34/34 PASS（截图 `.tmp-showcase-t13/`）；`npm run build` 新 hash：`index-5FKKSM-t.js` / `index-C0O4xntb.css` / `showcase-3d-CCxkc7wr.js` + 动态 chunk `HeroKnowledgeScene-B1t_D0jI.js`（`HeroKnowledgeScene-DVgML9Jm.css` 未变）。
+- 回滚点：`/www/wwwroot/neo4j-agents/frontend-dist.bak-20260908215410`（上线前完整状态：index-DLfjPMkS.js + 旧资产，已核验）。
+- 上传：`deploy_t13_showcase_redesign_upload.py`（paramiko）9 文件 sha256 抽检 4 件 MATCH；清理旧资源 4 件（index-DLfjPMkS.js / index-BjeSgrr1.css / HeroKnowledgeScene-CBURvL24.js / showcase-3d-BbLLm7wP.js）；保留清单 = index.html 引用 + 主包动态 chunk（P6 教训已内置）；权限 755/644；静态站无需重启。
+
+### 公网验收（2026-09-08，全部 PASS）
+- `accept_t3_showcase.py --url http://118.24.185.45` **34/34 PASS**：canvas 总数 6（aud1+pipe1）、分类器核心可见 + classifierBreathe、轨道帧差 0.0136>0.001、4s 轮播推进、点击切换详情、FPS≥30、console/pageerror 0、reduced-motion 0 canvas + 轮播静止、390px 移动端 0 canvas 无横向滚动。
+- 生产截图 `.tmp-showcase-t13-prod/`：分流区无斜线、流程区绿→金渐变轨道清晰（卡片间隙可见颜色过渡）、无文字「删除线」感。

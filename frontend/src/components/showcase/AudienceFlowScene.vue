@@ -15,8 +15,8 @@
  * 场景构成：
  *   - 核心：IcosahedronGeometry(0.9, 1) 半透明青绿实体 + 同尺寸线框 + 中心小核球
  *   - 双环：TorusGeometry r=1.3 / r=1.6，不同倾角（pivot 旋转）绕各自法向自转
- *   - 分叉：两条 QuadraticBezierCurve3 从核心向左右两侧延伸；
- *          每侧 9 个流动粒子（小球按 t 采样，端点 sin(πt) 淡出），
+ *   - 分叉：两条 QuadraticBezierCurve3 从核心向左右两侧延伸（仅作粒子运动路径，
+ *          不渲染静态线条）；每侧 9 个流动粒子（小球按 t 采样，端点 sin(πt) 淡出），
  *          流动节奏与核心自转共享同一时间基准
  *   容器高度由父级控制（约 220px），内容按容器纵横比自适应缩放。
  *   prefers-reduced-motion → 单帧静态；WebGL 失败 → 渲染空（插槽 fallback）
@@ -138,22 +138,11 @@ const buildScene = ({ scene, camera }) => {
   ];
   const particles = [];
   branches.forEach((branch, side) => {
-    const faintLine = new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(branch.curve.getPoints(40)),
-      new THREE.LineBasicMaterial({
-        color: branch.color.clone(),
-        transparent: true,
-        opacity: 0.18,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      }),
-    );
-    group.add(faintLine);
     for (let i = 0; i < 9; i += 1) {
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.085, 12, 12),
+        new THREE.SphereGeometry(0.1, 12, 12),
         new THREE.MeshBasicMaterial({
-          color: branch.color.clone().lerp(WHITE, 0.28),
+          color: branch.color.clone().lerp(WHITE, 0.35),
           transparent: true,
           opacity: 0,
           blending: THREE.AdditiveBlending,

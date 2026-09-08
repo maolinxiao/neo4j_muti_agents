@@ -33,8 +33,6 @@
               <strong>问题分类器</strong>
               <small>企业研发 / 个人食养</small>
             </div>
-            <div class="classifier-line classifier-line--top" />
-            <div class="classifier-line classifier-line--bottom" />
           </div>
           <div class="reveal-stagger-item panel-wrap" :style="{ '--reveal-index': 2 }">
             <article class="audience-panel personal sc-glass sc-card-hover sc-card-glow">
@@ -270,49 +268,6 @@ const tilt = useTilt(tiltScope, {
   color: var(--sc-text);
 }
 
-.classifier-line {
-  position: absolute;
-  left: -22%;
-  right: -22%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.42), transparent);
-  overflow: visible;
-}
-
-/* 连接线渐变流光 */
-.classifier-line::after {
-  content: "";
-  position: absolute;
-  top: -1px;
-  left: 0;
-  width: 18%;
-  height: 3px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, transparent, rgba(5, 150, 105, 0.65), transparent);
-  animation: classifierFlow 2.6s ease-in-out infinite;
-}
-
-.classifier-line--bottom::after {
-  animation-delay: 1.3s;
-}
-
-@keyframes classifierFlow {
-  0% { left: -18%; opacity: 0; }
-  20% { opacity: 1; }
-  80% { opacity: 1; }
-  100% { left: 100%; opacity: 0; }
-}
-
-.classifier-line--top {
-  top: 39%;
-  transform: rotate(-7deg);
-}
-
-.classifier-line--bottom {
-  top: 61%;
-  transform: rotate(7deg);
-}
-
 @keyframes classifierSpin {
   to { transform: rotate(360deg); }
 }
@@ -488,11 +443,6 @@ const tilt = useTilt(tiltScope, {
 
   .classifier-bridge {
     min-height: 130px;
-  }
-
-  .classifier-line {
-    left: 12%;
-    right: 12%;
   }
 }
 </style>

@@ -13,12 +13,18 @@
             v-for="(item, index) in capabilities"
             :key="item.key"
             class="reveal-stagger-item cap-wrap"
+            :class="`cap-wrap--${item.key}`"
             :style="{ '--reveal-index': index }"
           >
-            <article class="capability-card sc-glass sc-card-hover sc-card-glow" :class="`capability-card--${item.key}`">
+            <article
+              class="capability-card sc-glass sc-card-hover sc-card-glow"
+              :class="`capability-card--${item.key}`"
+              @mouseenter="onCardHover(item.key, true)"
+              @mouseleave="onCardHover(item.key, false)"
+            >
               <span class="cap-glare" aria-hidden="true" />
               <div class="capability-visual" aria-hidden="true">
-                <UseCaseScene v-if="useScene3d" :variant="item.sceneVariant" :color="item.sceneColor">
+                <UseCaseScene v-if="useScene3d" :ref="setSceneRef(item.key)" :variant="item.sceneVariant" :color="item.sceneColor">
                   <template #fallback>
                     <component :is="item.icon" />
                     <span class="visual-orbit" />
@@ -36,7 +42,7 @@
                 <div class="capability-flow" aria-label="能力流程">
                   <span v-for="step in item.flow" :key="step">{{ step }}</span>
                 </div>
-                <div class="capability-stats" aria-label="能力数据与知识库">
+                <div class="capability-stats" aria-label="能力价值与知识库">
                   <div class="cap-stat-row">
                     <span v-for="stat in item.statChips" :key="stat" class="cap-stat">{{ stat }}</span>
                   </div>
@@ -44,7 +50,9 @@
                     <span v-for="kb in item.kbChips" :key="kb" class="cap-kb">{{ kb }}</span>
                   </div>
                 </div>
-                <blockquote class="capability-example">「{{ item.example }}」</blockquote>
+                <blockquote class="capability-example" aria-label="示例问题">
+                  「{{ typed[item.key] || item.examples[0] }}」<span class="type-cursor" aria-hidden="true" />
+                </blockquote>
                 <router-link :to="item.route" class="capability-link">
                   进入 {{ item.title }}
                   <span aria-hidden="true">→</span>
@@ -59,7 +67,7 @@
 </template>
 
 <script setup>
-import { computed, h, ref } from "vue";
+import { computed, h, onMounted, onUnmounted, ref } from "vue";
 
 import UseCaseScene from "./UseCaseScene.vue";
 import ShowcaseReveal3D from "./ShowcaseReveal3D.vue";
@@ -109,12 +117,16 @@ const capabilities = [
     title: "知识问答",
     icon: iconQa,
     description: "跨 KB1–KB7 检索原料、方剂、功效、风味、替代与合规证据，回答附图谱子图与证据摘要。",
-    example: "麻黄可以用什么药食同源原料替代",
+    examples: [
+      "麻黄可以用什么药食同源原料替代？",
+      "孕妇能不能吃薏苡仁？",
+      "这个方子适合做代餐粉吗？",
+    ],
     flow: ["问题输入", "图谱召回", "证据回答"],
     route: { name: "chat" },
     sceneVariant: "graph",
     sceneColor: "#059669",
-    statChips: ["18 类节点", "86,482 节点", "207,354 关系"],
+    statChips: ["一问即答", "证据随行", "边界清晰"],
     kbChips: ["KB1", "KB2", "…", "KB7"],
   },
   {
@@ -123,12 +135,12 @@ const capabilities = [
     title: "体质辨识",
     icon: iconConstitution,
     description: "基于 KB8 体质食养规则库，完成九种体质测评、食养方向与慎用原料提醒。",
-    example: "我是什么体质",
+    examples: ["我是什么体质？", "痰湿体质平时怎么吃？", "容易过敏该怎么食养？"],
     flow: ["量表测评", "体质判定", "食养建议"],
     route: { name: "constitution" },
     sceneVariant: "constellation",
     sceneColor: "#ec4899",
-    statChips: ["9 种体质", "30 道问卷"],
+    statChips: ["三十问", "读懂身体", "食养有据"],
     kbChips: ["KB8"],
   },
   {
@@ -137,15 +149,75 @@ const capabilities = [
     title: "研发协同",
     icon: iconRnd,
     description: "串联 KB4 替代、KB3 风味、KB5 组方等图谱证据，六步 Agent 输出研发方案与合规边界。",
-    example: "把四君子汤改造成药食同源代餐粉",
+    examples: [
+      "把四君子汤改造成药食同源代餐粉",
+      "做一款助消化的草本茶饮怎么配？",
+      "低糖点心如何选料不苦？",
+    ],
     flow: ["需求拆解", "Agent 协同", "方案输出"],
     route: { name: "rnd" },
     sceneVariant: "pipeline",
     sceneColor: "#d97706",
-    statChips: ["6 步工作流", "5 专家 Agent"],
+    statChips: ["六步协同", "千年方剂", "一纸方案"],
     kbChips: ["KB3", "KB4", "KB5"],
   },
 ];
+
+// —— 示例问题打字机轮播（每卡独立节奏；hover 暂停；reduced-motion 静态展示）——
+const typed = ref({ qa: "", constitution: "", rnd: "" });
+const hoveredKey = ref(null);
+const typeTimers = [];
+
+const startTyping = (key, list) => {
+  let li = 0;
+  let pos = 0;
+  let deleting = false;
+  let holdUntil = 0;
+  const tick = () => {
+    if (hoveredKey.value !== key) {
+      const full = list[li];
+      if (!deleting) {
+        pos += 1;
+        typed.value[key] = full.slice(0, pos);
+        if (pos >= full.length) {
+          deleting = true;
+          holdUntil = Date.now() + 1700;
+        }
+      } else if (Date.now() >= holdUntil) {
+        pos -= 1;
+        typed.value[key] = full.slice(0, pos);
+        if (pos <= 0) {
+          deleting = false;
+          li = (li + 1) % list.length;
+        }
+      }
+    }
+    typeTimers.push(setTimeout(tick, deleting ? 26 : 62));
+  };
+  tick();
+};
+
+onMounted(() => {
+  capabilities.forEach((item, i) => {
+    typed.value[item.key] = item.examples[0];
+    if (preferReducedMotion.value) return; // reduced-motion：静态完整展示
+    setTimeout(() => startTyping(item.key, item.examples), 600 + i * 900);
+  });
+});
+
+onUnmounted(() => {
+  typeTimers.forEach((t) => clearTimeout(t));
+});
+
+// —— 场景 hover 增强态：卡片悬停时微场景加速（setBoost 由 UseCaseScene 暴露）——
+const sceneRefs = {};
+const setSceneRef = (key) => (el) => {
+  if (el) sceneRefs[key] = el;
+};
+const onCardHover = (key, entering) => {
+  hoveredKey.value = entering ? key : null;
+  sceneRefs[key]?.setBoost?.(entering);
+};
 
 // —— 3D 倾斜：卡片组（mousemove 事件委托 + glare 跟随；reduced-motion 自动禁用）——
 const tiltScope = ref(null);
@@ -168,14 +240,59 @@ const tilt = useTilt(tiltScope, {
   z-index: 1;
 }
 
+/* —— Bento 网格：知识问答大卡（7 列）+ 体质（5 列）+ 研发协同通栏横排（12 列）—— */
 .capability-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 1.5rem;
 }
 
 .cap-wrap {
   display: flex;
+}
+
+.cap-wrap--qa {
+  grid-column: span 7;
+}
+
+.cap-wrap--constitution {
+  grid-column: span 5;
+}
+
+.cap-wrap--rnd {
+  grid-column: span 12;
+}
+
+/* 研发协同通栏卡：场景居左、内容居右 */
+.cap-wrap--rnd .capability-card {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.cap-wrap--rnd .capability-visual {
+  width: 300px;
+  flex: 0 0 300px;
+  height: auto;
+}
+
+.cap-wrap--rnd .capability-body {
+  padding: 1.75rem 2rem 1.9rem;
+}
+
+.cap-wrap--rnd .capability-desc {
+  max-width: 560px;
+}
+
+.cap-wrap--rnd .capability-stats {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+}
+
+.cap-wrap--rnd .capability-example {
+  margin: 1.2rem 0 1.3rem;
+  max-width: 560px;
 }
 
 .capability-card {
@@ -263,6 +380,11 @@ const tilt = useTilt(tiltScope, {
   background:
     radial-gradient(circle at 50% 80%, rgba(5, 150, 105, 0.08), transparent 65%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent);
+}
+
+/* Bento 大卡：场景区加高，充分展示图谱微场景 */
+.capability-card--qa .capability-visual {
+  height: 236px;
 }
 
 .capability-card--constitution .capability-visual {
@@ -484,6 +606,23 @@ const tilt = useTilt(tiltScope, {
   border-radius: 0 var(--sc-radius-sm) var(--sc-radius-sm) 0;
 }
 
+/* 打字机光标 */
+.type-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  opacity: 0.55;
+  animation: typeCursorBlink 1.05s steps(1) infinite;
+}
+
+@keyframes typeCursorBlink {
+  0%, 55% { opacity: 0.55; }
+  56%, 100% { opacity: 0; }
+}
+
 .capability-card--rnd .capability-example {
   border-left-color: var(--sc-highlight);
   background: rgba(217, 119, 6, 0.04);
@@ -509,15 +648,44 @@ const tilt = useTilt(tiltScope, {
   gap: 0.55rem;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1080px) {
   .capability-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .cap-wrap--qa {
+    grid-column: span 2;
+  }
+
+  .cap-wrap--constitution,
+  .cap-wrap--rnd {
+    grid-column: span 1;
+  }
+
+  .cap-wrap--rnd .capability-card {
+    flex-direction: column;
+  }
+
+  .cap-wrap--rnd .capability-visual {
+    width: 100%;
+    flex: none;
+    height: 150px;
+  }
+
+  .capability-card--qa .capability-visual {
+    height: 180px;
+  }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 680px) {
   .capability-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cap-wrap--qa,
+  .cap-wrap--constitution,
+  .cap-wrap--rnd {
+    grid-column: span 1;
   }
 
   .capability-flow {

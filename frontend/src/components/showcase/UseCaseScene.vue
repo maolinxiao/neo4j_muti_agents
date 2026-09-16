@@ -13,16 +13,16 @@
  *   - color:   主色调（默认 '#0d9488' 青绿），变体会围绕该色做明暗派生
  *
  * 行为：
- *   - graph:        7 颗半透明 additive 小球（r 0.35/0.45/0.55）+ 连线，整体 y 轴 0.25rad/s
- *                   缓慢自转，随容器鼠标移动产生 ±0.12rad 视差（window mousemove + 容器 rect 换算，
- *                   容器 pointer-events:none 也可生效）
- *   - constellation: 中心球 0.5 + 9 颗小球沿黄金角环带（纵向 0.5 压扁）分布，
- *                   缓慢自转 + 各球 0.92–1.08 相位错开呼吸
+ *   - graph:        7 颗半透明 additive 小球（r 0.35/0.45/0.55）+ 连线，整体 y 轴缓慢自转
+ *   - constellation: 中心球 0.5 + 9 颗小球沿黄金角环带（纵向 0.5 压扁）分布，线框反向慢转
  *   - pipeline:     6 颗小球沿二次贝塞尔拱形等距排布，能量点（亮球 + RingGeometry 光晕）
  *                   沿曲线 t 0→1→0 往复循环
- *   三个变体共同遵守：prefers-reduced-motion → 单帧静态；WebGL 失败 → 渲染空（插槽 fallback 由外部放原 SVG）
+ *   - 三个变体统一：容器级鼠标视差（window mousemove + 容器 rect 换算，±0.12rad，
+ *     指数插值跟随；容器 pointer-events:none 也可生效）与 hover 增强态
+ *     （setBoost(true) → 自转/能量循环加速，平滑过渡）
+ *   - 共同遵守：prefers-reduced-motion → 单帧静态；WebGL 失败 → 渲染空（插槽 fallback）
  *
- * expose: mount / dispose / webglOk（ok）/ staticFrame
+ * expose: mount / dispose / setBoost / webglOk（ok）/ staticFrame
  */
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import * as THREE from "three";
@@ -52,7 +52,31 @@ const REQ_HALF = {
   pipeline: { w: 2.95, h: 1.6 },
 };
 
+// 组件级共享：鼠标视差目标值 + hover 增强态（0→1 平滑过渡）
+const parallax = { tx: 0, ty: 0 };
+const boost = { target: 0, value: 0 };
+
 let currentApi = null; // 当前场景 API（onResize 时重新 fit）
+
+/** 容器相对位置的鼠标视差（挂在 window，容器 pointer-events 无关） */
+const onPointerMove = (event) => {
+  const container = containerRef.value;
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return;
+  const nx = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
+  const ny = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
+  parallax.tx = Math.max(-1, Math.min(1, nx)) * 0.12;
+  parallax.ty = Math.max(-1, Math.min(1, ny)) * 0.12;
+};
+
+/** 每帧推进增强态（指数趋近目标）并应用视差到 pivot */
+const stepShared = (pivot, delta, k = 3.5) => {
+  boost.value += (boost.target - boost.value) * Math.min(1, delta * 4);
+  const ik = 1 - Math.exp(-k * delta);
+  pivot.rotation.x += (parallax.ty - pivot.rotation.x) * ik;
+  pivot.rotation.z += (-parallax.tx - pivot.rotation.z) * ik;
+};
 
 const buildGraph = ({ camera }) => {
   const accent = new THREE.Color(props.color);
@@ -110,48 +134,30 @@ const buildGraph = ({ camera }) => {
     spin.add(new THREE.Line(geometry, material));
   }
 
-  // 容器 mousemove → ±0.12 rad 视差（挂在 window，容器 pointer-events 无关）
-  const parallax = { tx: 0, ty: 0 };
-  const onPointerMove = (event) => {
-    const container = containerRef.value;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-    const nx = ((event.clientX - rect.left) / rect.width - 0.5) * 2;
-    const ny = ((event.clientY - rect.top) / rect.height - 0.5) * 2;
-    parallax.tx = Math.max(-1, Math.min(1, nx)) * 0.12;
-    parallax.ty = Math.max(-1, Math.min(1, ny)) * 0.12;
-  };
-  window.addEventListener("mousemove", onPointerMove);
-
   camera.position.set(0, CAMERA_LIFT_Y, CAMERA_DISTANCE_Z);
   camera.lookAt(0, 0, 0);
 
   const update = (delta, t) => {
-    spin.rotation.y += 0.25 * delta;
-    const k = 1 - Math.exp(-3.5 * delta);
-    pivot.rotation.x += (parallax.ty - pivot.rotation.x) * k;
-    pivot.rotation.z += (-parallax.tx - pivot.rotation.z) * k;
+    stepShared(pivot, delta);
+    spin.rotation.y += 0.25 * (1 + boost.value * 1.3) * delta;
     spheres.forEach((mesh) => {
-      const breathe = 1 + Math.sin(t * 1.15 + mesh.userData.breathePhase) * 0.06;
+      const breathe = 1 + Math.sin(t * (1.15 + boost.value * 0.8) + mesh.userData.breathePhase) * 0.06;
       mesh.scale.setScalar(breathe);
       mesh.material.opacity = mesh.userData.baseOpacity * breathe;
     });
   };
 
-  const dispose = () => {
-    window.removeEventListener("mousemove", onPointerMove);
-  };
-
-  return { group, update, dispose, half: REQ_HALF.graph };
+  return { group, update, half: REQ_HALF.graph };
 };
 
-const buildConstellation = () => {
+const buildConstellation = ({ camera }) => {
   const accent = new THREE.Color(props.color);
 
   const group = new THREE.Group();
+  const pivot = new THREE.Group(); // 鼠标视差层
   const spin = new THREE.Group();
-  group.add(spin);
+  pivot.add(spin);
+  group.add(pivot);
 
   const center = new THREE.Mesh(
     new THREE.SphereGeometry(0.5, 32, 32),
@@ -200,25 +206,29 @@ const buildConstellation = () => {
     spin.add(mesh);
   }
 
+  camera.position.set(0, CAMERA_LIFT_Y, CAMERA_DISTANCE_Z);
+  camera.lookAt(0, 0, 0);
+
   const update = (delta, t) => {
-    spin.rotation.y += 0.3 * delta;
-    centerWire.rotation.x -= 0.12 * delta;
-    centerWire.rotation.z += 0.08 * delta;
+    stepShared(pivot, delta);
+    spin.rotation.y += 0.3 * (1 + boost.value * 1.3) * delta;
+    centerWire.rotation.x -= (0.12 + boost.value * 0.25) * delta;
+    centerWire.rotation.z += (0.08 + boost.value * 0.16) * delta;
     satellites.forEach((mesh) => {
-      const s = 0.92 + 0.08 * (1 + Math.sin(t * 1.6 + mesh.userData.breathePhase)); // 0.92–1.08
+      const s = 0.92 + 0.08 * (1 + Math.sin(t * (1.6 + boost.value * 0.9) + mesh.userData.breathePhase));
       mesh.scale.setScalar(s);
     });
   };
 
-  const dispose = () => {};
-
-  return { group, update, dispose, half: REQ_HALF.constellation };
+  return { group, update, half: REQ_HALF.constellation };
 };
 
 const buildPipeline = ({ camera }) => {
   const accent = new THREE.Color(props.color);
 
   const group = new THREE.Group();
+  const pivot = new THREE.Group(); // 鼠标视差层
+  pivot.add(group);
   const curve = new THREE.QuadraticBezierCurve3(
     new THREE.Vector3(-2.6, -0.55, 0),
     new THREE.Vector3(0, 1.2, 0),
@@ -285,12 +295,14 @@ const buildPipeline = ({ camera }) => {
   camera.lookAt(0, 0, 0);
 
   const update = (delta, t) => {
-    const cycle = (t * 0.32) % 2; // 单程约 3.1s
+    stepShared(pivot, delta);
+    const speed = 0.32 * (1 + boost.value * 1.4);
+    const cycle = (t * speed) % 2; // 单程约 3.1s
     const tt = cycle <= 1 ? cycle : 2 - cycle;
     curve.getPoint(tt, _pos);
     energy.position.copy(_pos);
     halo.position.copy(_pos);
-    const pulse = 0.5 + 0.5 * Math.sin(t * 5);
+    const pulse = 0.5 + 0.5 * Math.sin(t * (5 + boost.value * 3));
     halo.material.opacity = 0.24 + pulse * 0.2;
     halo.scale.setScalar(0.9 + pulse * 0.2);
     stations.forEach((mesh) => {
@@ -298,16 +310,14 @@ const buildPipeline = ({ camera }) => {
     });
   };
 
-  const dispose = () => {};
-
-  return { group, update, dispose, half: REQ_HALF.pipeline };
+  return { group, update, half: REQ_HALF.pipeline };
 };
 
 const buildScene = ({ scene, camera }) => {
   const api = props.variant === "graph"
     ? buildGraph({ camera })
     : props.variant === "constellation"
-      ? buildConstellation()
+      ? buildConstellation({ camera })
       : buildPipeline({ camera });
   currentApi = api;
   scene.add(api.group);
@@ -325,10 +335,12 @@ const sceneThree = useSectionThree(containerRef, {
 const { ok } = sceneThree;
 
 onMounted(() => {
+  window.addEventListener("mousemove", onPointerMove);
   sceneThree.mount();
 });
 
 onUnmounted(() => {
+  window.removeEventListener("mousemove", onPointerMove);
   sceneThree.dispose();
 });
 
@@ -342,9 +354,15 @@ watch(
   },
 );
 
+/** hover 增强态：自转/能量循环加速（平滑过渡） */
+const setBoost = (on) => {
+  boost.target = on ? 1 : 0;
+};
+
 defineExpose({
   mount: sceneThree.mount,
   dispose: sceneThree.dispose,
+  setBoost,
   webglOk: ok,
   staticFrame: sceneThree.staticFrame,
 });

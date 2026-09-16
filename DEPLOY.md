@@ -449,3 +449,25 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - `deploy_t15_favicon_upload.py` 12 文件 sha256 抽检 MATCH（index-D4_yKH04.js/index-BBazs1he.css 未变）；旧资源无清理项。
 - 公网验证：/favicon.ico 200 image/x-icon、/favicon.svg 200 image/svg+xml、/apple-touch-icon.png 200；index.html 三条 icon link 生效。
 - 提示：浏览器标签图标有本地缓存，用户首次可能需 Ctrl+F5 或重开标签页。
+
+## 2026-09 首页展示区五版块交互升级（P13 上线记录，2026-09-08）
+
+### 调研参照
+- [globe.gl](https://github.com/vasturiano/globe.gl)（KB 全息球参照）、[Awwwards 3D](https://www.awwwards.com/websites/3d/)、[Saaspo bento 合集](https://saaspo.com/style/bento)、[Vev 3D 案例解析](https://www.vev.design/blog/3d-website-examples/)。零新增 npm 依赖（gsap/lenis/three 已有）。
+
+### 五版块改动
+1. **Hero 价值区**：删除 4 张数据小卡（capability-rail）与 KB chips 行（legend），替换为升华金句「一株本草的答案，藏在两千年方剂智慧与八库证据之间」（逐词浮现 + 渐变强调词）+ 价值副叙事 + 极简信任线（八类知识库 · Neo4j 证据图谱 · 多 Agent 协同）。
+2. **三大核心能力**：Bento 网格（知识问答 7 列大卡 / 体质 5 列 / 研发协同 12 列通栏横排：场景左内容右）；示例问题改打字机轮播（每卡独立节奏，hover 暂停，reduced-motion 静态）；statChips 数据语言升华为用户价值语言（「一问即答/证据随行/边界清晰」「三十问/读懂身体/食养有据」「六步协同/千年方剂/一纸方案」）；UseCaseScene 三变体统一 pointer 视差 + setBoost hover 加速态。
+3. **八类知识库**：新组件 `KnowledgeHoloScene.vue` 全息投影球——每 KB 确定性点云星座（Fibonacci+实体簇聚焦，点数屏幕恒定）+ 双倾斜旋转环 + 线框 + 全息舞台（椭圆光圈双环/光盘/渐隐光锥/绕球扫描环）+ 呼吸浮动；拖拽旋转（惯性）+ 横滑切换 + 圆点导航 + 卡片 hover 防抖联动 + 6.8s 自动巡游；切换时点云 morph（0.65s ease）+ 主题色过渡 + 实体标签 DOM 投影跟随（背面减淡）。knowledgeBases 数据扩展 entities/weight。≤767px/reduced-motion/WebGL 失败回退既有 SVG 轨道图（抽离为 `KbRadarSvg.vue`）。
+4. **企业端与个人端分流**：意图路由剧场——面板底部示例问题 chips，点击后问题胶囊（GSAP MotionPath）飞向分类器（核心收缩脉冲 + 粒子增亮）再飞入对应面板，匹配能力条目逐个点亮（lit 态）；面板条目升级为「标题+升华小注」能力卡；hover 侧面板 flex 弹性展开（1.24x）、另一侧退后。AudienceFlowScene 新增 `pulse()`/`boostSide()` API（侧向进度累加器保证变速无跳变）。
+5. **研发协同流程**：浅弧轨道布局（≥1081px 节点沿上弧定位，canvas 能量环弧经 setNodes 自适应）替代水平直线；新增「演示一轮研发任务」按钮——彗星 1.5s/站依次停靠六站（详情联动+交付物徽章弹出），可中断，结束后恢复巡游；详情面板双栏化（阶段信息 + Stage Output 交付物卡，deliverPop 逐条弹出）。
+
+### 硬约束更新
+- canvas 预算 6→**7**（+KB 全息球 1 枚，IO 门控/仅桌面/非 reduced-motion）；P7 规则行被本记录取代。
+- `accept_t3_showcase.py` 断言 34→**46**：新增 KB 球（canvas=1/圆点 8/卡片 8/点击切换联动/帧差）、路由剧场（chips=6/飞行胶囊/lit 点亮/hit 面板）、任务演示（按钮/首站/推进）与 deliverables 断言；tilt_state 增加视口钳制（QA 卡加高后 25% 相对点可能越出视口顶部导致 mousemove 不派发——脚本坐标修复，非产品缺陷）；pipeline 帧差阈值 0.001→0.0005（弧形布局轨道更多被卡片遮挡）。
+
+### 上线（2026-09-08）
+- 本地：`accept_t3_showcase.py --url 127.0.0.1:5173`（dev 代理→生产 API）**46/46 PASS**。
+- 回滚点：`frontend-dist.bak-20260916220040`（ls -dt 首位）。
+- `deploy_t16_showcase_p13_upload.py` 12 文件 sha256 抽检 MATCH；清理旧资源 4 件；新 hash `index-DhJ_4_ZW.js` / `index-BS3eFzVx.css` / `HeroKnowledgeScene-C1C_hIBp.js` / `showcase-3d-BYDf-21S.js`。
+- 公网回归：**46/46 PASS**（canvas=7、kb_holo 帧差、路由点亮、任务推进、FPS、reduced-motion 0 canvas、390px 无横滚、console/pageerror 0）；生产截图 `.tmp-p13/`。

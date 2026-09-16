@@ -150,7 +150,7 @@ const buildScene = ({ scene, camera }) => {
         }),
       );
       group.add(mesh);
-      particles.push({ mesh, branch, phase: i / 9 + side * 0.05 });
+      particles.push({ mesh, branch, phase: i / 9 + side * 0.05, side });
     }
   });
 
@@ -158,21 +158,27 @@ const buildScene = ({ scene, camera }) => {
   camera.lookAt(0, 0, 0);
 
   const update = (delta, t) => {
+    currentApi.elapsed = t;
     // 核心自转
     coreGroup.rotation.y += 0.18 * delta;
     coreWire.rotation.y += 0.26 * delta;
     coreWire.rotation.x -= 0.1 * delta;
-    nucleus.scale.setScalar(1 + Math.sin(t * 2.2) * 0.12);
+    // 路由命中脉冲（pulseMark 之后指数衰减）
+    const pulseK = Math.exp(-Math.max(0, t - currentApi.pulseMark) * 4.5);
+    nucleus.scale.setScalar((1 + Math.sin(t * 2.2) * 0.12) * (1 + 0.42 * pulseK));
+    nucleus.material.opacity = Math.min(1, 0.95 + pulseK * 0.3);
     // 双环绕各自法向自转（同一时间基准下与核心同节奏）
     ring1.rotation.z += 0.35 * delta;
     ring2.rotation.z -= 0.22 * delta;
     ring2Pivot.rotation.y += 0.05 * delta;
-    // 粒子沿曲线流动，端点淡出
-    particles.forEach(({ mesh, branch, phase }) => {
-      const tt = (t * 0.16 + phase) % 1;
+    // 粒子沿曲线流动，端点淡出；hover 侧加速增亮（进度累加器保证变速无跳变）
+    particles.forEach(({ mesh, branch, phase, side }) => {
+      const mult = currentApi.boostSideName === (side === 0 ? "enterprise" : "personal") ? 1.9 : 1;
+      currentApi.sideProgress[side] += delta * 0.16 * mult;
+      const tt = (currentApi.sideProgress[side] + phase) % 1;
       branch.curve.getPoint(tt, _pos);
       mesh.position.copy(_pos);
-      mesh.material.opacity = 0.85 * Math.sin(tt * Math.PI) + 0.05;
+      mesh.material.opacity = Math.min(1, (0.85 * Math.sin(tt * Math.PI) + 0.05) * (mult > 1 ? 1.3 : 1));
       const s = 0.85 + Math.sin(tt * Math.PI) * 0.4;
       mesh.scale.setScalar(s);
     });
@@ -180,7 +186,16 @@ const buildScene = ({ scene, camera }) => {
 
   const dispose = () => {};
 
-  currentApi = { group, update, dispose, half: REQ_HALF };
+  currentApi = {
+    group,
+    update,
+    dispose,
+    half: REQ_HALF,
+    elapsed: 0,
+    pulseMark: -10,
+    boostSideName: null,
+    sideProgress: [0, 0],
+  };
   scene.add(group);
   return currentApi;
 };
@@ -203,9 +218,21 @@ onUnmounted(() => {
   sceneThree.dispose();
 });
 
+/** 路由命中：核心脉冲一次 */
+const pulse = () => {
+  if (currentApi) currentApi.pulseMark = currentApi.elapsed;
+};
+
+/** hover 侧粒子加速增亮（side: 'enterprise' | 'personal' | null） */
+const boostSide = (side) => {
+  if (currentApi) currentApi.boostSideName = side;
+};
+
 defineExpose({
   mount: sceneThree.mount,
   dispose: sceneThree.dispose,
+  pulse,
+  boostSide,
   webglOk: ok,
   staticFrame: sceneThree.staticFrame,
 });

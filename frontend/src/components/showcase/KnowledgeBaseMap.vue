@@ -8,66 +8,27 @@
           title="八类知识库 · 证据底座"
           lead="每张知识库表回答一类核心问题——原料能不能用、功效如何关联、风味是否可接受、如何替代、方剂怎样组成、产品处于什么市场、宣传是否合规、体质如何食养。"
         />
-        <div class="kb-layout">
-          <div class="kb-graph-panel sc-glass" aria-hidden="true">
-            <svg viewBox="0 0 420 420" class="kb-svg">
-              <defs>
-                <radialGradient id="kbCoreGlow" cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stop-color="#6bc4a6" stop-opacity="0.35" />
-                  <stop offset="100%" stop-color="#6bc4a6" stop-opacity="0" />
-                </radialGradient>
-                <filter id="svgGlow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                  <feMerge>
-                    <feMergeNode in="coloredBlur"/>
-                    <feMergeNode in="SourceGraphic"/>
-                  </feMerge>
-                </filter>
-              </defs>
-              <circle cx="210" cy="210" r="160" fill="url(#kbCoreGlow)" />
-              <circle cx="210" cy="210" r="155" fill="none" stroke="rgba(106,158,196,0.15)" stroke-width="1" stroke-dasharray="5 9" class="kb-orbit" />
-              <circle cx="210" cy="210" r="115" fill="none" stroke="rgba(107,196,166,0.12)" stroke-width="1" />
-              <circle cx="210" cy="210" r="26" fill="none" stroke="rgba(107,196,166,0.35)" stroke-width="1.4" class="kb-core-halo" />
-              <circle cx="210" cy="210" r="16" fill="#6bc4a6" class="kb-core" filter="url(#svgGlow)" />
-              <g v-for="(kb, i) in knowledgeBases" :key="kb.id">
-                <path
-                  :d="arcPath(i)"
-                  fill="none"
-                  :stroke="activeId === kb.id ? kb.color : 'rgba(106,158,196,0.26)'"
-                  :stroke-width="activeId === kb.id ? 2.2 : 1.2"
-                  class="kb-line"
-                  :class="{ 'kb-line--active': activeId === kb.id }"
-                />
-                <circle
-                  :cx="nodePos(i).x"
-                  :cy="nodePos(i).y"
-                  :r="activeId === kb.id ? 11 : 8"
-                  :fill="activeId === kb.id ? kb.color : 'rgba(148,163,184,0.45)'"
-                  class="kb-node"
-                  :filter="activeId === kb.id ? 'url(#svgGlow)' : 'none'"
-                />
-                <circle
-                  v-if="activeId === kb.id"
-                  :cx="nodePos(i).x"
-                  :cy="nodePos(i).y"
-                  :r="15"
-                  fill="none"
-                  :stroke="kb.color"
-                  stroke-width="1"
-                  class="kb-node-halo"
-                />
-                <text
-                  :x="nodePos(i).x"
-                  :y="nodePos(i).y + 24"
-                  text-anchor="middle"
-                  class="kb-label"
-                  :fill="activeId === kb.id ? kb.color : 'rgba(139,157,148,0.8)'"
-                >
-                  {{ kb.id }}
-                </text>
-              </g>
-            </svg>
-            <p class="kb-panel-caption">悬停右侧卡片，查看知识库关联</p>
+        <div class="kb-layout" @mouseenter="hoveringLayout = true" @mouseleave="hoveringLayout = false">
+          <div class="kb-graph-panel sc-glass">
+            <KnowledgeHoloScene v-if="useHolo3d" :kb="activeKb" class="kb-holo" @swipe="step">
+              <template #fallback>
+                <KbRadarSvg :active-id="activeId" :items="knowledgeBases" />
+              </template>
+            </KnowledgeHoloScene>
+            <KbRadarSvg v-else :active-id="activeId" :items="knowledgeBases" />
+            <div class="kb-dots" role="tablist" aria-label="切换知识库">
+              <button
+                v-for="kb in knowledgeBases"
+                :key="kb.id"
+                type="button"
+                class="kb-dot"
+                :class="{ active: activeId === kb.id }"
+                :style="activeId === kb.id ? { background: kb.color, boxShadow: `0 0 10px ${kb.color}` } : {}"
+                :aria-label="kb.name"
+                @click="setActive(kb.id)"
+              />
+            </div>
+            <p class="kb-panel-caption">拖拽旋转 · 点击卡片或左右滑动切换知识库</p>
             <transition name="kb-detail-fade">
               <div v-if="activeKb" class="kb-detail">
                 <span :style="{ color: activeKb.color }">{{ activeKb.id }} Evidence</span>
@@ -84,8 +45,9 @@
               class="reveal-stagger-item kb-item sc-glass-subtle sc-card-hover sc-card-glow"
               :class="{ active: activeId === kb.id }"
               :style="{ '--reveal-index': index }"
-              @mouseenter="activeId = kb.id"
-              @focus="activeId = kb.id"
+              @mouseenter="preview(kb.id)"
+              @focus="setActive(kb.id)"
+              @click="setActive(kb.id)"
             >
               <span class="kb-id" :style="{ color: kb.color }">{{ kb.id }}</span>
               <span class="kb-name">{{ kb.name }}</span>
@@ -99,13 +61,25 @@
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import KnowledgeHoloScene from "./KnowledgeHoloScene.vue";
+import KbRadarSvg from "./KbRadarSvg.vue";
 import ShowcaseReveal3D from "./ShowcaseReveal3D.vue";
 import ShowcaseSectionDecor from "./ShowcaseSectionDecor.vue";
 import ShowcaseSectionHeader from "./ShowcaseSectionHeader.vue";
+import { useMediaQuery } from "../../composables/useTilt";
+import { useShowcaseMotionPreference } from "../../composables/useShowcaseMotionPreference";
+
+const { preferReducedMotion } = useShowcaseMotionPreference();
+const isNarrow = useMediaQuery("(max-width: 767px)");
+// 全息球仅在桌面 + 非 reduced-motion 挂载（canvas 预算内的一枚，IO 离屏自动暂停）
+const useHolo3d = computed(() => !preferReducedMotion.value && !isNarrow.value);
 
 const activeId = ref("KB1");
+const hoveringLayout = ref(false);
+let previewTimer = null;
+let tourTimer = null;
 
 const palette = ["#6bc4a6", "#6a9ec4", "#c9a962", "#ec4899"];
 
@@ -115,6 +89,8 @@ const knowledgeBases = [
     name: "药食同源原料合法性库",
     purpose: "哪些原料能用",
     color: palette[0],
+    weight: 1.0,
+    entities: ["药食同源目录", "毒性风险", "配伍禁忌", "孕妇慎用", "新食品原料"],
     detail: "定义原料是否进入药食同源目录、合法使用边界、毒性风险与配伍禁忌，是合规审查与风险提示的入口表。",
   },
   {
@@ -122,6 +98,8 @@ const knowledgeBases = [
     name: "功效-病症-性味归经库",
     purpose: "功效如何关联病症",
     color: palette[1],
+    weight: 1.6,
+    entities: ["功效分类", "病症主治", "四气五味", "归经", "禁忌规则"],
     detail: "组织功效分类、病症主治、中医性味归经与禁忌规则，支撑功效预测、方剂分析与证据召回。",
   },
   {
@@ -129,6 +107,8 @@ const knowledgeBases = [
     name: "风味评价库",
     purpose: "风味是否可接受",
     color: palette[2],
+    weight: 0.8,
+    entities: ["苦味", "涩感", "香气层次", "药味风险", "接受度"],
     detail: "记录苦味、涩感、药味风险、香气层次与综合接受度，支撑产品风味评估与优化决策。",
   },
   {
@@ -136,6 +116,8 @@ const knowledgeBases = [
     name: "单味药替代评分库",
     purpose: "非同源原料如何替",
     color: palette[0],
+    weight: 0.7,
+    entities: ["CAN_REPLACE", "替代评分", "非同源原料", "禁忌排除"],
     detail: "维护 CAN_REPLACE 替代评分与多维映射关系，支撑方剂药食同源化改造时的取舍说明。",
   },
   {
@@ -143,6 +125,8 @@ const knowledgeBases = [
     name: "名方/方剂知识库",
     purpose: "经典方如何组成",
     color: palette[1],
+    weight: 1.1,
+    entities: ["君臣佐使", "方剂组成", "名方出处", "功效主治"],
     detail: "收录名方来源、方剂组成、君臣佐使结构与功效主治，是组方设计与改造的结构化依据。",
   },
   {
@@ -150,6 +134,8 @@ const knowledgeBases = [
     name: "产品与市场库",
     purpose: "产品处于什么市场",
     color: palette[2],
+    weight: 0.9,
+    entities: ["品牌剂型", "消费场景", "卖点标签", "竞品对照"],
     detail: "覆盖产品档案、品牌剂型、消费场景、卖点标签与竞品对照，支撑市场分析与定位判断。",
   },
   {
@@ -157,6 +143,8 @@ const knowledgeBases = [
     name: "食品标准合规库",
     purpose: "宣传与标签是否合规",
     color: palette[3],
+    weight: 0.9,
+    entities: ["药食同源目录", "GB2760", "GB7718", "宣传边界", "禁用表述"],
     detail: "汇聚药食同源目录、GB2760/GB7718 与宣传边界规则，定义禁用、慎用表述与审查依据。",
   },
   {
@@ -164,33 +152,44 @@ const knowledgeBases = [
     name: "体质辨识与食养规则库",
     purpose: "不同体质如何食养",
     color: palette[1],
+    weight: 1.0,
+    entities: ["九种体质", "评分规则", "食养方向", "慎用原料"],
     detail: "包含九种体质问卷、评分规则、食养方向与慎用原料清单，支撑个体化辨识与推荐。",
   },
 ];
 
 const activeKb = computed(() => knowledgeBases.find((kb) => kb.id === activeId.value));
 
-const nodePos = (index) => {
-  const angle = (index / knowledgeBases.length) * Math.PI * 2 - Math.PI / 2;
-  const radius = 138;
-  return {
-    x: 210 + Math.cos(angle) * radius,
-    y: 210 + Math.sin(angle) * radius,
-  };
+/** 卡片 hover 预览：短暂停留才切换（避免扫过卡片连续 morph） */
+const preview = (id) => {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(() => {
+    activeId.value = id;
+  }, 260);
 };
 
-/** 中心到节点的二次贝塞尔弧线，控制点沿切向偏移形成柔和弧度 */
-const arcPath = (index) => {
-  const { x, y } = nodePos(index);
-  const midX = (210 + x) / 2;
-  const midY = (210 + y) / 2;
-  const dx = x - 210;
-  const dy = y - 210;
-  const len = Math.sqrt(dx * dx + dy * dy) || 1;
-  const ctrlX = midX - (dy / len) * 18;
-  const ctrlY = midY + (dx / len) * 18;
-  return `M 210 210 Q ${ctrlX.toFixed(1)} ${ctrlY.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)}`;
+const setActive = (id) => {
+  clearTimeout(previewTimer);
+  activeId.value = id;
 };
+
+const step = (dir) => {
+  const i = knowledgeBases.findIndex((kb) => kb.id === activeId.value);
+  const n = (i + (dir === "next" ? 1 : -1) + knowledgeBases.length) % knowledgeBases.length;
+  setActive(knowledgeBases[n].id);
+};
+
+// 自动巡游：无交互时每 6.8s 切下一库（仅全息球模式；hover 布局区/后台标签暂停）
+onMounted(() => {
+  tourTimer = setInterval(() => {
+    if (useHolo3d.value && !hoveringLayout.value && !document.hidden) step("next");
+  }, 6800);
+});
+
+onUnmounted(() => {
+  clearTimeout(previewTimer);
+  clearInterval(tourTimer);
+});
 </script>
 
 <style scoped>
@@ -205,7 +204,7 @@ const arcPath = (index) => {
 
 .kb-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 420px) 1fr;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
   gap: 1.75rem;
   align-items: start;
 }
@@ -213,7 +212,7 @@ const arcPath = (index) => {
 .kb-graph-panel {
   position: sticky;
   top: 6rem;
-  padding: 1.5rem;
+  padding: 1.25rem 1.25rem 1.4rem;
   border-radius: var(--sc-radius-lg);
   text-align: center;
   color: #e5f8f1;
@@ -237,70 +236,38 @@ const arcPath = (index) => {
   pointer-events: none;
 }
 
-.kb-svg {
-  width: 100%;
-  max-width: 340px;
-  margin-inline: auto;
-  display: block;
+.kb-holo {
+  height: 430px;
 }
 
-.kb-orbit {
-  transform-origin: 210px 210px;
-  animation: kbOrbitSpin 48s linear infinite;
+.kb-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.55rem;
+  margin-top: 0.4rem;
 }
 
-.kb-core {
-  animation: kbCorePulse 3s ease-in-out infinite;
+.kb-dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.38);
+  cursor: pointer;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s ease;
 }
 
-/* 中心核呼吸光晕 */
-.kb-core-halo {
-  transform-origin: 210px 210px;
-  animation: kbCoreHalo 3s ease-in-out infinite;
+.kb-dot:hover {
+  transform: scale(1.3);
 }
 
-@keyframes kbCoreHalo {
-  0%, 100% { transform: scale(0.92); opacity: 0.5; }
-  50% { transform: scale(1.12); opacity: 1; }
-}
-
-.kb-line {
-  transition: stroke 0.3s ease, stroke-width 0.3s ease;
-}
-
-/* active 弧线：dashoffset 流动 */
-.kb-line--active {
-  stroke-dasharray: 6 10;
-  animation: kbLineFlow 1.4s linear infinite;
-}
-
-@keyframes kbLineFlow {
-  to { stroke-dashoffset: -32; }
-}
-
-.kb-node {
-  transition: r 0.3s ease, fill 0.3s ease;
-}
-
-.kb-node-halo {
-  opacity: 0.7;
-  transform-origin: center;
-  animation: kbHaloPulse 2s ease-out infinite;
-}
-
-@keyframes kbHaloPulse {
-  0% { opacity: 0.7; r: 13; }
-  100% { opacity: 0; r: 22; }
-}
-
-.kb-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+.kb-dot.active {
+  transform: scale(1.28);
 }
 
 .kb-panel-caption {
-  margin: 0.75rem 0 0;
+  margin: 0.7rem 0 0;
   font-size: 0.75rem;
   color: rgba(229, 248, 241, 0.58);
 }
@@ -376,7 +343,7 @@ const arcPath = (index) => {
 }
 
 .kb-detail {
-  margin-top: 1.25rem;
+  margin-top: 1.1rem;
   padding: 1rem 1.1rem;
   border-radius: 14px;
   text-align: left;
@@ -418,13 +385,10 @@ const arcPath = (index) => {
   transform: translateY(6px);
 }
 
-@keyframes kbOrbitSpin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes kbCorePulse {
-  0%, 100% { opacity: 0.85; }
-  50% { opacity: 1; }
+@media (max-width: 1080px) {
+  .kb-holo {
+    height: 380px;
+  }
 }
 
 @media (max-width: 900px) {

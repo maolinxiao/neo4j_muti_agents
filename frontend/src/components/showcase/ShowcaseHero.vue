@@ -60,30 +60,39 @@
             查看能力演示
           </a>
         </div>
-        <div
-          class="hero-capability-rail"
+        <!-- 升华金句：逐词浮现 -->
+        <p class="hero-quote" aria-label="一株本草的答案，藏在两千年方剂智慧与八库证据之间。">
+          <span
+            v-for="(word, i) in quoteWords"
+            :key="i"
+            class="hero-quote-word"
+            :class="{ 'hero-quote-word--grad': word.grad }"
+            v-motion
+            :initial="{ opacity: 0, y: 14, filter: 'blur(5px)' }"
+            :enter="{ opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 560, delay: 470 + i * 95 } }"
+          >{{ word.t }}</span>
+        </p>
+        <p
+          class="hero-quote-sub"
           v-motion
-          :initial="{ opacity: 0, y: 16 }"
-          :enter="{ opacity: 1, y: 0, transition: { duration: 520, delay: 480 } }"
+          :initial="{ opacity: 0, y: 14 }"
+          :enter="{ opacity: 1, y: 0, transition: { duration: 520, delay: 1330 } }"
         >
-          <span v-for="item in capabilityRail" :key="item.title" class="hero-capability-pill">
-            <i :style="{ background: item.color }" aria-hidden="true" />
-            <span>{{ item.title }}</span>
-            <small>{{ item.desc }}</small>
-          </span>
-        </div>
+          从一句提问到一份研发方案——证据先行，智能体同行。
+        </p>
       </div>
 
       <div
-        class="hero-legend"
+        class="hero-trust"
         v-motion
-        :initial="{ opacity: 0, y: 16 }"
-        :enter="{ opacity: 1, y: 0, transition: { duration: 500, delay: 520 } }"
+        :initial="{ opacity: 0, y: 12 }"
+        :enter="{ opacity: 1, y: 0, transition: { duration: 520, delay: 1440 } }"
       >
-        <span v-for="item in graphLegend" :key="item.label" class="legend-chip">
-          <i :style="{ background: item.color }" />
-          {{ item.label }}
-        </span>
+        <span>八类知识库</span>
+        <i aria-hidden="true" />
+        <span>Neo4j 证据图谱</span>
+        <i aria-hidden="true" />
+        <span>多 Agent 协同</span>
       </div>
     </div>
 
@@ -98,7 +107,6 @@
 import { defineAsyncComponent } from "vue";
 
 import HeroGraphFallback from "./HeroGraphFallback.vue";
-import { HERO_NODE_COLORS } from "../../utils/heroGraphColors";
 import { showcaseScrollTo } from "../../composables/useSmoothScroll";
 import { useShowcaseMotionPreference } from "../../composables/useShowcaseMotionPreference";
 
@@ -108,19 +116,16 @@ const { preferStatic } = useShowcaseMotionPreference();
 
 const tags = ["八类知识库", "图谱证据", "多 Agent", "合规边界"];
 
-const capabilityRail = [
-  { title: "图谱证据", desc: "KB1-KB8 先召回", color: HERO_NODE_COLORS.Platform },
-  { title: "Agent 协同", desc: "六步研发流", color: HERO_NODE_COLORS.Formula },
-  { title: "合规边界", desc: "标签与宣传审查", color: HERO_NODE_COLORS.ComplianceRule },
-  { title: "体质食养", desc: "九种体质适配", color: HERO_NODE_COLORS.ConstitutionType },
-];
-
-const graphLegend = [
-  { label: "KB1 原料合法性", color: HERO_NODE_COLORS.Herb },
-  { label: "KB5 名方方剂", color: HERO_NODE_COLORS.Formula },
-  { label: "KB2 功效病症", color: HERO_NODE_COLORS.Effect },
-  { label: "KB7 食品合规", color: HERO_NODE_COLORS.ComplianceRule },
-  { label: "KB8 体质食养", color: HERO_NODE_COLORS.ConstitutionType },
+// 升华金句：按词切片，grad 标记渐变强调词
+const quoteWords = [
+  { t: "一株本草" },
+  { t: "的答案，" },
+  { t: "藏在" },
+  { t: "两千年", grad: true },
+  { t: "方剂智慧", grad: true },
+  { t: "与" },
+  { t: "八库证据", grad: true },
+  { t: "之间。" },
 ];
 
 const goCapabilities = () => showcaseScrollTo("#capabilities");
@@ -268,88 +273,56 @@ const goCapabilities = () => showcaseScrollTo("#capabilities");
   gap: 0.75rem;
 }
 
-.hero-capability-rail {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-  margin-top: 1.35rem;
-  max-width: 35rem;
-}
-
-.hero-capability-pill {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 0.55rem;
-  row-gap: 0.05rem;
-  align-items: center;
-  min-height: 58px;
-  padding: 0.72rem 0.85rem;
-  border-radius: 14px;
-  border: 1px solid rgba(5, 150, 105, 0.14);
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.06);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.hero-capability-pill:hover {
-  transform: translateY(-2px);
-  border-color: rgba(5, 150, 105, 0.3);
-  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.1);
-}
-
-.hero-capability-pill i {
-  grid-row: span 2;
-  width: 9px;
-  height: 9px;
-  border-radius: 999px;
-  box-shadow: 0 0 16px currentColor;
-}
-
-.hero-capability-pill span {
-  font-size: 0.82rem;
-  font-weight: 700;
+/* —— 升华金句 —— */
+.hero-quote {
+  margin: 1.4rem 0 0;
+  font-family: var(--sc-font-display);
+  font-size: clamp(1.28rem, 2.1vw, 1.66rem);
+  font-weight: 680;
+  line-height: 1.5;
+  letter-spacing: 0.005em;
   color: var(--sc-text);
-  line-height: 1.1;
 }
 
-.hero-capability-pill small {
-  font-size: 0.72rem;
+.hero-quote-word {
+  display: inline-block;
+  margin-right: 0.08em;
+  will-change: transform, opacity, filter;
+}
+
+.hero-quote-word--grad {
+  background: linear-gradient(118deg, #047857 8%, #10b981 55%, #d97706 105%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.hero-quote-sub {
+  margin: 0.7rem 0 0;
+  font-size: 0.98rem;
+  line-height: 1.75;
   color: var(--sc-text-secondary);
-  line-height: 1.25;
 }
 
-.hero-legend {
+/* —— 极简信任线 —— */
+.hero-trust {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--sc-radius-md);
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid var(--sc-border-subtle);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
-  width: fit-content;
-  max-width: 100%;
-  margin-top: 0.75rem;
-}
-
-.legend-chip {
-  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
+  gap: 0.7rem;
+  margin-top: 2.1rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--sc-text-secondary);
-  font-weight: 500;
+  width: fit-content;
 }
 
-.legend-chip i {
-  width: 8px;
-  height: 8px;
+.hero-trust i {
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  box-shadow: 0 0 8px currentColor;
+  background: rgba(5, 150, 105, 0.55);
 }
 
 .scroll-hint {
@@ -436,11 +409,7 @@ const goCapabilities = () => showcaseScrollTo("#capabilities");
     font-size: clamp(2.2rem, 12vw, 3.25rem);
   }
 
-  .hero-capability-rail {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-legend {
+  .hero-trust {
     display: none;
   }
 

@@ -471,3 +471,20 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - 回滚点：`frontend-dist.bak-20260916220040`（ls -dt 首位）。
 - `deploy_t16_showcase_p13_upload.py` 12 文件 sha256 抽检 MATCH；清理旧资源 4 件；新 hash `index-DhJ_4_ZW.js` / `index-BS3eFzVx.css` / `HeroKnowledgeScene-C1C_hIBp.js` / `showcase-3d-BYDf-21S.js`。
 - 公网回归：**46/46 PASS**（canvas=7、kb_holo 帧差、路由点亮、任务推进、FPS、reduced-motion 0 canvas、390px 无横滚、console/pageerror 0）；生产截图 `.tmp-p13/`。
+
+## 2026-09 首页展示区二轮打磨（P14 上线记录，2026-09-16）
+
+### 按用户反馈的五版块修改
+1. **Hero 金句**：逐词浮现改**打字机 + 3 句升华文案轮换**（打字 85ms/字、句尾停 2.4s、删除 24ms/字，闪烁光标；reduced-motion 静态首句）。
+2. **三大核心能力**：删除 useTilt（卡片倾斜/glare 全移除）；Bento 卡改**全宽交错横排**（每能力一行：文案 1.05fr + 场景 0.95fr，奇偶行场景左右交替，行间细分隔线）；砍掉 flow/statChips/kbChips 堆叠（KB 关联并为描述尾缀小字）；打字机轮播保留。UseCaseScene 的 **window 全局鼠标视差改为 hover 门控**（setBoost 同源开关；移出后视差目标指数回正）——修复「鼠标在页面任何地方动场景都会转」。
+3. **八类知识库**：面板收紧（holo 高度 500px、padding 0.9rem）；KB detail 改**面板内悬浮玻璃条**（含操作提示行，去独立 caption）；新增**实体节点**（每实体词=亮球+脉动光环+球心连接线，词同向同簇）与**切换弹跳**（morph 时球 scale 0.92→过冲→1）与**标签从球心向外 stagger 弹出**（easeOutBack，80ms/词）；标签字号 0.72→0.8rem。修复 api.camera 未赋值导致的 pageerror。
+4. **企业端与个人端分流**：删除 useTilt 与双面板布局；改**双卡通角色点击切换**——自绘简约几何扁平 SVG（`MascotEnterprise` 白大褂研究员+放大镜金色调 / `MascotPersonal` 捧茶杯+头顶叶芽绿色调），选中态放大全彩+bounce+底部光圈，未选中灰度缩小；单内容面板 fade+slide 切换（badge/标题/描述/能力条目卡/示例 chips）；意图路由剧场胶囊动画保留（分类器核心居中在双角色之间）。
+5. **研发协同流程**：**删除 AgentFlowScene canvas**（链条与黑边闪烁根除）与 step-node tilt；改**极简进度轴**——2px 细线 + 绿→金渐变填充（宽度=焦点进度）+ 6 个圆形站点（数字，激活站放大填色+光环，已过站打勾）+ 站名下方；任务演示/自动巡游/详情双栏保留；≤767px 竖向轴。canvas 预算 7→**6**（P13 的 +1 已回收）。
+
+### 验收脚本同步（34→46→44 项）
+- 总 canvas 6；`#agents` canvas=0 + track-fill 渲染/推进断言；hero 打字轮询断言（避开 2.4s 句尾停留）；mascot 切换断言；KB holo 标签数断言；chips 断言改活动侧=3；**移除全部 tilt 断言**（capability/audience/pipeline）与 tilt_state 函数；audience panel 数 2→1。
+
+### 上线（2026-09-16）
+- 回滚点：`frontend-dist.bak-20260916220040` 之后最新一次（ls -dt 首位）。
+- `deploy_t17_showcase_p14_upload.py` 12 文件 sha256 抽检 MATCH；清理旧资源 4 件；新 hash `index-D4_yKH04.js`→（新）`index-*.js/css`、`HeroKnowledgeScene-DVgML9Jm.css` 不变。
+- 回归：本地 dev 44/44 PASS → 公网 **44/44 PASS**（canvas=6、hero 打字、mascot 切换、路由点亮、任务推进、KB 标签、FPS、reduced-motion 0 canvas、390px 无横滚、console 0）。

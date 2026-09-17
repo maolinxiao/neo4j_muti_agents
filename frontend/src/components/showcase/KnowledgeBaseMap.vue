@@ -28,12 +28,14 @@
                 @click="setActive(kb.id)"
               />
             </div>
-            <p class="kb-panel-caption">拖拽旋转 · 点击卡片或左右滑动切换知识库</p>
             <transition name="kb-detail-fade">
               <div v-if="activeKb" class="kb-detail">
-                <span :style="{ color: activeKb.color }">{{ activeKb.id }} Evidence</span>
-                <strong>{{ activeKb.name }}</strong>
+                <div class="kb-detail-head">
+                  <span :style="{ color: activeKb.color }">{{ activeKb.id }} Evidence</span>
+                  <strong>{{ activeKb.name }}</strong>
+                </div>
                 <p>{{ activeKb.detail }}</p>
+                <span class="kb-hint">拖拽旋转 · 点击卡片或左右滑动切换</span>
               </div>
             </transition>
           </div>
@@ -212,7 +214,7 @@ onUnmounted(() => {
 .kb-graph-panel {
   position: sticky;
   top: 6rem;
-  padding: 1.25rem 1.25rem 1.4rem;
+  padding: 0.9rem;
   border-radius: var(--sc-radius-lg);
   text-align: center;
   color: #e5f8f1;
@@ -237,14 +239,16 @@ onUnmounted(() => {
 }
 
 .kb-holo {
-  height: 430px;
+  height: 500px;
 }
 
 .kb-dots {
+  position: relative;
+  z-index: 3;
   display: flex;
   justify-content: center;
   gap: 0.55rem;
-  margin-top: 0.4rem;
+  margin-top: 0.55rem;
 }
 
 .kb-dot {
@@ -266,10 +270,55 @@ onUnmounted(() => {
   transform: scale(1.28);
 }
 
-.kb-panel-caption {
-  margin: 0.7rem 0 0;
-  font-size: 0.75rem;
-  color: rgba(229, 248, 241, 0.58);
+/* 说明卡悬浮在球面板内底部，减少面板堆叠留白 */
+.kb-detail {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  bottom: 3.4rem;
+  z-index: 3;
+  padding: 0.9rem 1.05rem 0.8rem;
+  border-radius: 14px;
+  text-align: left;
+  background: rgba(8, 22, 19, 0.78);
+  border: 1px solid rgba(148, 216, 198, 0.24);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 14px 38px rgba(4, 12, 10, 0.35);
+}
+
+.kb-detail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.kb-detail-head span {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.kb-detail-head strong {
+  color: #f8fafc;
+  font-size: 0.98rem;
+}
+
+.kb-detail p {
+  margin: 0;
+  color: rgba(229, 248, 241, 0.74);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.kb-hint {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.7rem;
+  color: rgba(229, 248, 241, 0.45);
 }
 
 .kb-list {

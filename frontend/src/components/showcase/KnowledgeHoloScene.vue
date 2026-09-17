@@ -130,6 +130,7 @@ const buildScene = ({ scene, camera }) => {
     fitGroup: new THREE.Group(),
     root: new THREE.Group(), // 拖拽/自转层（球体）
     stage: new THREE.Group(), // 全息舞台（不随拖拽）
+    camera,
     sizeW: 0,
     sizeH: 0,
     pxUnit: null,
@@ -137,9 +138,12 @@ const buildScene = ({ scene, camera }) => {
     drag: { active: false, lastX: 0, lastY: 0, velY: 0, startX: 0, startY: 0, startT: 0, moved: 0 },
     idleT: 0,
     morph: { t: 1, from: null, to: null, fromColor: new THREE.Color(), toColor: new THREE.Color() },
+    popT: 1, // 切换弹跳（0→1）
+    entityMeshes: [],
     dirs: [],
     radiusNow: SPHERE_BASE_RADIUS + props.kb.weight * 0.2,
     tinted: [],
+    swapElapsed: 0,
   };
   api.fitGroup.add(api.root);
   api.fitGroup.add(api.stage);
@@ -206,6 +210,45 @@ const buildScene = ({ scene, camera }) => {
   api.root.add(scan);
   api.scan = scan;
 
+  // —— 实体节点：每个实体词一颗亮球 + 光环 + 球心连接线（节点=词）——
+  api.entityGroup = new THREE.Group();
+  api.root.add(api.entityGroup);
+
+  const buildEntityNodes = (kb) => {
+    // 重建前释放旧几何/材质
+    api.entityGroup.children.slice().forEach((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+      api.entityGroup.remove(child);
+    });
+    api.entityMeshes = [];
+    const dirs = (kb.entities || []).map((name) => entityDir(name));
+    const radius = SPHERE_BASE_RADIUS + kb.weight * 0.2;
+    const lineMat = tint(new THREE.LineBasicMaterial({ transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }));
+    dirs.forEach((dir) => {
+      const anchor = dir.clone().multiplyScalar(radius);
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), anchor.multiplyScalar(0.92)]);
+      api.entityGroup.add(new THREE.Line(lineGeo, lineMat));
+      const node = new THREE.Mesh(
+        new THREE.SphereGeometry(1, 12, 12),
+        tint(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })),
+      );
+      node.position.copy(dir).multiplyScalar(radius);
+      node.userData.baseR = 4.6;
+      node.userData.dir = dir;
+      api.entityGroup.add(node);
+      const halo = new THREE.Mesh(
+        new THREE.RingGeometry(0.7, 1, 32),
+        tint(new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.4, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false })),
+      );
+      halo.position.copy(node.position);
+      halo.userData.baseR = 9;
+      halo.userData.dir = dir;
+      api.entityGroup.add(halo);
+      api.entityMeshes.push({ node, halo });
+    });
+  };
+
   // —— 全息舞台：光圈 / 光盘 / 光锥 ——
   const stageY = -2.2;
   const mkRing = (inner, outer, opacity) => {
@@ -249,16 +292,20 @@ const buildScene = ({ scene, camera }) => {
   refreshPxUnit(containerRef.value?.clientWidth || 0, containerRef.value?.clientHeight || 0);
   api.refreshPxUnit = refreshPxUnit;
 
-  // —— 标签投影（DOM 覆盖层每帧跟随）——
+  // —— 标签投影（DOM 覆盖层每帧跟随；切换时从球心弹出 stagger）——
   const setActiveLabels = (kb) => {
     activeEntities.value = kb.entities || [];
     api.dirs = (kb.entities || []).map((name) => entityDir(name));
     activeId.value = kb.id;
+    api.swapElapsed = api.elapsed;
+    buildEntityNodes(kb);
   };
   setActiveLabels(props.kb);
   api.setActiveLabels = setActiveLabels;
 
   const _anchor = new THREE.Vector3();
+  const _center = new THREE.Vector3();
+  const easeOutBack = (x) => 1 + 2.70158 * Math.pow(x - 1, 3) + 1.70158 * Math.pow(x - 1, 2);
   const updateLabels = () => {
     const container = containerRef.value;
     if (!container) return;
@@ -266,22 +313,30 @@ const buildScene = ({ scene, camera }) => {
     const h = container.clientHeight;
     if (!w || !h) return;
     api.root.updateWorldMatrix(true, false);
+    _center.set(0, 0, 0).applyMatrix4(api.root.matrixWorld).project(camera);
+    const cx = (_center.x * 0.5 + 0.5) * w;
+    const cy = (-_center.y * 0.5 + 0.5) * h;
     for (let i = 0; i < api.dirs.length; i += 1) {
       const el = labelEls.value[i];
       if (!el) continue;
       _anchor.copy(api.dirs[i]).multiplyScalar(api.radiusNow + 0.16).applyMatrix4(api.root.matrixWorld);
       const frontness = _anchor.z / Math.max(0.4, api.radiusNow);
       _anchor.project(camera);
-      const x = (_anchor.x * 0.5 + 0.5) * w;
-      const y = (-_anchor.y * 0.5 + 0.5) * h;
-      const opacity = 0.14 + 0.86 * Math.min(1, Math.max(0, (frontness + 0.15) / 0.55));
+      const ax = (_anchor.x * 0.5 + 0.5) * w;
+      const ay = (-_anchor.y * 0.5 + 0.5) * h;
+      // 切换弹出：标签从球心向外弹到锚点（每词 stagger 80ms，easeOutBack 过冲）
+      const p = Math.min(1, Math.max(0, (api.elapsed - api.swapElapsed - i * 0.08) / 0.42));
+      const ep = easeOutBack(p);
+      const x = cx + (ax - cx) * ep;
+      const y = cy + (ay - cy) * ep;
+      const frontOpacity = 0.14 + 0.86 * Math.min(1, Math.max(0, (frontness + 0.15) / 0.55));
       el.style.transform = `translate(-50%, -50%) translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-      el.style.opacity = opacity.toFixed(2);
+      el.style.opacity = (frontOpacity * (0.35 + 0.65 * p)).toFixed(2);
     }
   };
   api.updateLabels = updateLabels;
 
-  // —— morph：切换 KB 时点云插值 + 主题色过渡 ——
+  // —— morph：切换 KB 时点云插值 + 主题色过渡 + 球体弹跳 ——
   api.beginMorph = (kb) => {
     const attr = api.cloud.geo.getAttribute("position");
     api.morph.from = attr.array.slice();
@@ -289,6 +344,7 @@ const buildScene = ({ scene, camera }) => {
     api.morph.fromColor.copy(api.cloud.mat.color);
     api.morph.toColor = new THREE.Color(kb.color).lerp(WHITE, 0.25);
     api.morph.t = 0;
+    api.popT = 0; // 球放大弹跳
     api.radiusNow = SPHERE_BASE_RADIUS + kb.weight * 0.2;
     api.pendingLabels = kb;
   };
@@ -317,6 +373,16 @@ const buildScene = ({ scene, camera }) => {
     api.elapsed = t;
     applyMorph(delta);
 
+    // 切换弹跳：0.92 → 过冲 ~1.06 → 回落 1
+    if (api.popT < 1) {
+      api.popT = Math.min(1, api.popT + delta / 0.55);
+      const pp = api.popT;
+      const rise = 1 - Math.pow(1 - Math.min(1, pp * 1.7), 3);
+      api.root.scale.setScalar(0.92 + 0.08 * rise + 0.06 * Math.sin(Math.min(1, Math.max(0, (pp - 0.25) / 0.75)) * Math.PI));
+    } else {
+      api.root.scale.setScalar(1);
+    }
+
     // 自转 / 惯性 / 拖拽
     if (!api.drag.active) {
       api.drag.velY *= Math.pow(0.06, delta); // 惯性衰减
@@ -332,6 +398,16 @@ const buildScene = ({ scene, camera }) => {
     api.scan.position.y = Math.sin(t * 0.55) * (SPHERE_BASE_RADIUS * 0.72);
     api.scan.material.opacity = 0.2 + 0.16 * (0.5 + 0.5 * Math.sin(t * 0.55 + 1.2));
     api.disc.material.opacity = 0.08 + 0.05 * (0.5 + 0.5 * Math.sin(t * 1.4));
+
+    // 实体节点呼吸 + 光环 billboard/脉动（节点=词）
+    if (api.entityMeshes) {
+      api.entityMeshes.forEach(({ node, halo }, i) => {
+        node.scale.setScalar((node.userData.baseR * (api.pxUnit || 0.03)) * (1 + Math.sin(t * 1.8 + i * 0.9) * 0.14));
+        halo.quaternion.copy(api.camera.quaternion);
+        halo.scale.setScalar((halo.userData.baseR * (api.pxUnit || 0.03)) * (1 + Math.sin(t * 2.1 + i * 1.1) * 0.22));
+        halo.material.opacity = 0.22 + 0.2 * (0.5 + 0.5 * Math.sin(t * 2.1 + i * 1.1));
+      });
+    }
 
     updateLabels();
   };
@@ -454,17 +530,17 @@ defineExpose({
   position: absolute;
   top: 0;
   left: 0;
-  padding: 0.14rem 0.6rem;
+  padding: 0.16rem 0.62rem;
   border-radius: 999px;
   border: 1px solid;
-  background: rgba(6, 20, 17, 0.6);
-  color: #e9fbf4;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  background: rgba(4, 16, 13, 0.45);
+  color: #f0fdf9;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   white-space: nowrap;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
   will-change: transform, opacity;
   opacity: 0;
 }

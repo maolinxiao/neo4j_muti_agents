@@ -60,23 +60,18 @@
             查看能力演示
           </a>
         </div>
-        <!-- 升华金句：逐词浮现 -->
-        <p class="hero-quote" aria-label="一株本草的答案，藏在两千年方剂智慧与八库证据之间。">
-          <span
-            v-for="(word, i) in quoteWords"
-            :key="i"
-            class="hero-quote-word"
-            :class="{ 'hero-quote-word--grad': word.grad }"
-            v-motion
-            :initial="{ opacity: 0, y: 14, filter: 'blur(5px)' }"
-            :enter="{ opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 560, delay: 470 + i * 95 } }"
-          >{{ word.t }}</span>
+        <!-- 升华金句：打字机 + 句子轮换 -->
+        <p class="hero-quote" :aria-label="currentQuoteText">
+          <template v-for="(seg, si) in visibleSegments" :key="quoteIndex + '-' + si">
+            <span :class="{ 'hero-quote-grad': seg.grad }">{{ seg.text }}</span>
+          </template>
+          <span class="hero-cursor" aria-hidden="true" />
         </p>
         <p
           class="hero-quote-sub"
           v-motion
           :initial="{ opacity: 0, y: 14 }"
-          :enter="{ opacity: 1, y: 0, transition: { duration: 520, delay: 1330 } }"
+          :enter="{ opacity: 1, y: 0, transition: { duration: 520, delay: 900 } }"
         >
           从一句提问到一份研发方案——证据先行，智能体同行。
         </p>
@@ -104,7 +99,7 @@
 </template>
 
 <script setup>
-import { defineAsyncComponent } from "vue";
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from "vue";
 
 import HeroGraphFallback from "./HeroGraphFallback.vue";
 import { showcaseScrollTo } from "../../composables/useSmoothScroll";
@@ -116,17 +111,88 @@ const { preferStatic } = useShowcaseMotionPreference();
 
 const tags = ["八类知识库", "图谱证据", "多 Agent", "合规边界"];
 
-// 升华金句：按词切片，grad 标记渐变强调词
-const quoteWords = [
-  { t: "一株本草" },
-  { t: "的答案，" },
-  { t: "藏在" },
-  { t: "两千年", grad: true },
-  { t: "方剂智慧", grad: true },
-  { t: "与" },
-  { t: "八库证据", grad: true },
-  { t: "之间。" },
+// 升华金句库：打字机轮换；grad 段为渐变强调词
+const quotes = [
+  [
+    { t: "一株本草的答案，藏在" },
+    { t: "两千年方剂智慧", grad: true },
+    { t: "与" },
+    { t: "八库证据", grad: true },
+    { t: "之间。" },
+  ],
+  [
+    { t: "让每一次提问都" },
+    { t: "落在证据", grad: true },
+    { t: "上，让每一个方案都" },
+    { t: "经得起追溯", grad: true },
+    { t: "。" },
+  ],
+  [
+    { t: "从经典名方到现代产品——" },
+    { t: "本草的旅程", grad: true },
+    { t: "，由智能体与你同行。" },
+  ],
 ];
+
+const TYPE_MS = 85;
+const HOLD_MS = 2400;
+const ERASE_MS = 24;
+
+const quoteIndex = ref(0);
+const typedCount = ref(0);
+
+const quoteLength = (segs) => segs.reduce((n, s) => n + s.t.length, 0);
+const currentQuoteText = computed(() => quotes[quoteIndex.value].map((s) => s.t).join(""));
+
+/** 已打出的分段（跨段推进，渐变段保持渐变） */
+const visibleSegments = computed(() => {
+  let remain = typedCount.value;
+  const out = [];
+  for (const seg of quotes[quoteIndex.value]) {
+    if (remain <= 0) break;
+    out.push({ text: seg.t.slice(0, remain), grad: seg.grad });
+    remain -= seg.t.length;
+  }
+  return out;
+});
+
+let quoteTimer = null;
+let deleting = false;
+
+const tickQuote = () => {
+  const total = quoteLength(quotes[quoteIndex.value]);
+  if (!deleting) {
+    typedCount.value = Math.min(total, typedCount.value + 1);
+    if (typedCount.value >= total) {
+      deleting = true;
+      quoteTimer = setTimeout(tickQuote, HOLD_MS);
+      return;
+    }
+    quoteTimer = setTimeout(tickQuote, TYPE_MS);
+  } else {
+    typedCount.value = Math.max(0, typedCount.value - 1);
+    if (typedCount.value <= 0) {
+      deleting = false;
+      quoteIndex.value = (quoteIndex.value + 1) % quotes.length;
+      quoteTimer = setTimeout(tickQuote, 420);
+      return;
+    }
+    quoteTimer = setTimeout(tickQuote, ERASE_MS);
+  }
+};
+
+onMounted(() => {
+  if (preferStatic.value) {
+    // reduced-motion / 窄屏：静态完整显示第一句
+    typedCount.value = quoteLength(quotes[0]);
+    return;
+  }
+  quoteTimer = setTimeout(tickQuote, 500);
+});
+
+onUnmounted(() => {
+  clearTimeout(quoteTimer);
+});
 
 const goCapabilities = () => showcaseScrollTo("#capabilities");
 </script>
@@ -273,29 +339,41 @@ const goCapabilities = () => showcaseScrollTo("#capabilities");
   gap: 0.75rem;
 }
 
-/* —— 升华金句 —— */
+/* —— 升华金句（打字机 + 轮换）—— */
 .hero-quote {
   margin: 1.4rem 0 0;
+  min-height: 5.2rem;
   font-family: var(--sc-font-display);
   font-size: clamp(1.28rem, 2.1vw, 1.66rem);
   font-weight: 680;
-  line-height: 1.5;
+  line-height: 1.55;
   letter-spacing: 0.005em;
   color: var(--sc-text);
 }
 
-.hero-quote-word {
-  display: inline-block;
-  margin-right: 0.08em;
-  will-change: transform, opacity, filter;
-}
-
-.hero-quote-word--grad {
+.hero-quote-grad {
   background: linear-gradient(118deg, #047857 8%, #10b981 55%, #d97706 105%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+}
+
+.hero-cursor {
+  display: inline-block;
+  width: 3px;
+  height: 1.05em;
+  margin-left: 3px;
+  vertical-align: -0.16em;
+  border-radius: 2px;
+  background: var(--sc-accent);
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.55);
+  animation: heroCursorBlink 1.05s steps(1) infinite;
+}
+
+@keyframes heroCursorBlink {
+  0%, 55% { opacity: 0.85; }
+  56%, 100% { opacity: 0; }
 }
 
 .hero-quote-sub {

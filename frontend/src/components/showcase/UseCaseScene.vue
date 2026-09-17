@@ -53,13 +53,17 @@ const REQ_HALF = {
 };
 
 // 组件级共享：鼠标视差目标值 + hover 增强态（0→1 平滑过渡）
+// 视差仅在悬停所属卡片时生效（setBoost 门控），移出后目标回正——
+// 修复「鼠标在页面任何地方移动场景都会转」的全局视差问题
 const parallax = { tx: 0, ty: 0 };
 const boost = { target: 0, value: 0 };
+let hoverActive = false;
 
 let currentApi = null; // 当前场景 API（onResize 时重新 fit）
 
-/** 容器相对位置的鼠标视差（挂在 window，容器 pointer-events 无关） */
+/** 容器相对位置的鼠标视差（挂在 window；仅 hover 门控开启时记录目标值） */
 const onPointerMove = (event) => {
+  if (!hoverActive) return;
   const container = containerRef.value;
   if (!container) return;
   const rect = container.getBoundingClientRect();
@@ -70,9 +74,13 @@ const onPointerMove = (event) => {
   parallax.ty = Math.max(-1, Math.min(1, ny)) * 0.12;
 };
 
-/** 每帧推进增强态（指数趋近目标）并应用视差到 pivot */
+/** 每帧推进增强态（指数趋近目标）并应用视差到 pivot；未悬停时视差目标回正 */
 const stepShared = (pivot, delta, k = 3.5) => {
   boost.value += (boost.target - boost.value) * Math.min(1, delta * 4);
+  if (!hoverActive) {
+    parallax.tx *= Math.pow(0.02, delta);
+    parallax.ty *= Math.pow(0.02, delta);
+  }
   const ik = 1 - Math.exp(-k * delta);
   pivot.rotation.x += (parallax.ty - pivot.rotation.x) * ik;
   pivot.rotation.z += (-parallax.tx - pivot.rotation.z) * ik;
@@ -354,9 +362,10 @@ watch(
   },
 );
 
-/** hover 增强态：自转/能量循环加速（平滑过渡） */
+/** hover 增强态：自转/能量循环加速 + 视差启用（平滑过渡） */
 const setBoost = (on) => {
   boost.target = on ? 1 : 0;
+  hoverActive = on;
 };
 
 defineExpose({

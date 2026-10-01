@@ -52,6 +52,32 @@ class Settings:
     # --- 个人中心/上传 ---
     upload_dir: str = os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parents[2] / "uploads"))
     max_avatar_bytes: int = int(os.getenv("MAX_AVATAR_BYTES", str(2 * 1024 * 1024)))
+    # --- 并发与连接池（负载优化，参数与默认行为保持一致，可通过 .env 调整） ---
+    pg_pool_size: int = int(os.getenv("PG_POOL_SIZE", "20"))
+    pg_max_overflow: int = int(os.getenv("PG_MAX_OVERFLOW", "20"))
+    pg_pool_recycle_seconds: int = int(os.getenv("PG_POOL_RECYCLE_SECONDS", "1800"))
+    neo4j_max_connection_pool_size: int = int(os.getenv("NEO4J_MAX_CONNECTION_POOL_SIZE", "50"))
+    neo4j_connection_acquisition_timeout: int = int(os.getenv("NEO4J_CONNECTION_ACQUISITION_TIMEOUT", "15"))
+    neo4j_max_connection_lifetime: int = int(os.getenv("NEO4J_MAX_CONNECTION_LIFETIME", "1800"))
+    llm_connect_timeout: float = float(os.getenv("LLM_CONNECT_TIMEOUT", "5.0"))
+    llm_read_timeout: float = float(os.getenv("LLM_READ_TIMEOUT", "120.0"))
+    llm_write_timeout: float = float(os.getenv("LLM_WRITE_TIMEOUT", "10.0"))
+    llm_pool_timeout: float = float(os.getenv("LLM_POOL_TIMEOUT", "10.0"))
+    llm_max_connections: int = int(os.getenv("LLM_MAX_CONNECTIONS", "30"))
+    llm_max_keepalive_connections: int = int(os.getenv("LLM_MAX_KEEPALIVE_CONNECTIONS", "10"))
+    llm_retry_attempts: int = int(os.getenv("LLM_RETRY_ATTEMPTS", "2"))
+    llm_retry_backoff_seconds: float = float(os.getenv("LLM_RETRY_BACKOFF_SECONDS", "0.6"))
+    # --- uvicorn 单 worker 负载参数（run_server.py 消费） ---
+    app_backlog: int = int(os.getenv("APP_BACKLOG", "2048"))
+    app_limit_concurrency: int = int(os.getenv("APP_LIMIT_CONCURRENCY", "300"))
+    app_keepalive_timeout: int = int(os.getenv("APP_KEEPALIVE_TIMEOUT", "65"))
+    # --- 应用层限流与慢请求观测 ---
+    rate_limit_enabled: bool = _as_bool(os.getenv("RATE_LIMIT_ENABLED"), True)
+    rate_limit_requests: int = int(os.getenv("RATE_LIMIT_REQUESTS", "120"))
+    rate_limit_window_seconds: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+    rate_limit_auth_requests: int = int(os.getenv("RATE_LIMIT_AUTH_REQUESTS", "10"))
+    rate_limit_auth_window_seconds: int = int(os.getenv("RATE_LIMIT_AUTH_WINDOW_SECONDS", "60"))
+    slow_request_ms: int = int(os.getenv("SLOW_REQUEST_MS", "1000"))
 
     @property
     def minimax_api_base(self) -> str:

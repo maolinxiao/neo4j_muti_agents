@@ -1,0 +1,152 @@
+# =============================================================================
+# 药食同源多智能体平台 - nginx 站点配置存档（2026-10-02 负载优化版）
+# 服务器实际路径: /www/server/panel/vhost/nginx/118.24.185.45.conf
+# 本存档以服务器当前生效 conf 为基底，仅叠加两处优化（标记 [OPT]）：
+#   1) /api 反代由 proxy_pass 直连改为 upstream + keepalive 32 长连接
+#   2) Vite hash 静态资源与常规静态资源补长缓存头（当前线上无缓存头）
+# 主配置(/www/server/nginx/conf/nginx.conf)已达标，无需改动：
+#   worker_processes auto / worker_connections 51200 / multi_accept on
+#   gzip on（已含 application/json、svg、字体）/ client_max_body_size 50m
+#   keepalive_timeout 60
+# 部署约定: 改动前先 cp 备份本目录; 生效仅允许 nginx -t && nginx -s reload
+# =============================================================================
+
+proxy_cache_path /www/wwwroot/118.24.185.45/proxy_cache_dir levels=1:2 keys_zone=118_24_185_45_cache:20m inactive=1d max_size=5g;
+
+# [OPT] 上游长连接池：/api 反代复用 32 条连接，消除每请求 TCP 建连
+upstream neo4j_agents_backend {
+    server 127.0.0.1:8000;
+    keepalive 32;
+}
+
+# ===== HTTPS: mmfh.com.cn / www.mmfh.com.cn =====
+server {
+    listen 443 ssl;
+    server_name mmfh.com.cn www.mmfh.com.cn;
+
+    ssl_certificate /etc/nginx/ssl/mmfh.com.cn.fullchain.cer;
+    ssl_certificate_key /etc/nginx/ssl/mmfh.com.cn.key;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    index index.html;
+    root /www/wwwroot/neo4j-agents/frontend-dist;
+    include /www/server/panel/vhost/nginx/extension/118.24.185.45/*.conf;
+    client_max_body_size 50m;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # [OPT] Vite hash 文件名，内容寻址，可安全长缓存
+    location ~* ^/assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # [OPT] 常规静态资源（favicon、登录背景、字体等）
+    location ~* \.(png|jpg|jpeg|gif|ico|webp|woff|woff2|mp4|webm|svg)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
+    location ^~ /api {
+        proxy_pass http://neo4j_agents_backend;   # [OPT] 直连 127.0.0.1:8000 改走 upstream
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    # 防护：禁止访问敏感文件
+    location ~* (\.user\.ini|\.htaccess|\.htpasswd|\.env.*|\.project|\.bashrc|\.bash_profile|\.bash_logout|\.DS_Store|\.gitignore|\.gitattributes|LICENSE|README\.md|CLAUDE\.md|CHANGELOG\.md|CHANGELOG|CONTRIBUTING\.md|TODO\.md|FAQ\.md|composer\.json|composer\.lock|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|\.\w+~|\.swp|\.swo|\.bak(up)?|\.old|\.tmp|\.temp|\.log|\.sql(\.gz)?|docker-compose\.yml|docker\.env|Dockerfile|\.csproj|\.sln|Cargo\.toml|Cargo\.lock|go\.mod|go\.sum|phpunit\.xml|phpunit\.xml|pom\.xml|build\.gradl|pyproject\.toml|requirements\.txt|application(-\w+)?\.(ya?ml|properties))$
+    {
+        return 404;
+    }
+
+    # 防护：禁止访问敏感目录
+    location ~* /(\.git|\.svn|\.bzr|\.vscode|\.claude|\.idea|\.ssh|\.github|\.npm|\.yarn|\.pnpm|\.cache|\.husky|\.turbo|\.next|\.nuxt|node_modules|runtime)/ {
+        return 404;
+    }
+
+    location /.well-known{
+        allow all;
+    }
+
+    access_log  /www/wwwlogs/118.24.185.45.log;
+    error_log  /www/wwwlogs/118.24.185.45.error.log;
+}
+
+# ===== HTTP: 域名 301 跳转 HTTPS（保留 ACME 验证路径） =====
+server {
+    listen 80;
+    server_name mmfh.com.cn www.mmfh.com.cn;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root /www/wwwroot/neo4j-agents/frontend-dist;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+
+    access_log  /www/wwwlogs/118.24.185.45.log;
+    error_log  /www/wwwlogs/118.24.185.45.error.log;
+}
+
+# ===== HTTP: IP 访问（保持原行为，不跳转） =====
+server {
+    listen 80;
+    server_name 118.24.185.45;
+
+    index index.html;
+    root /www/wwwroot/neo4j-agents/frontend-dist;
+    include /www/server/panel/vhost/nginx/extension/118.24.185.45/*.conf;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # [OPT] 与 443 站点一致的静态长缓存
+    location ~* ^/assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    location ~* \.(png|jpg|jpeg|gif|ico|webp|woff|woff2|mp4|webm|svg)$ {
+        expires 30d;
+        add_header Cache-Control "public";
+        try_files $uri =404;
+    }
+
+    location ^~ /api {
+        proxy_pass http://neo4j_agents_backend;   # [OPT] 同上，走 upstream 长连接
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+
+    location /.well-known{
+        allow all;
+    }
+
+    access_log  /www/wwwlogs/118.24.185.45.log;
+    error_log  /www/wwwlogs/118.24.185.45.error.log;
+}

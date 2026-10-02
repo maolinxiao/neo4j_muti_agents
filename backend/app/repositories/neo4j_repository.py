@@ -186,6 +186,9 @@ class Neo4jRepository:
             cls._shared_driver = GraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=(settings.neo4j_username, settings.neo4j_password),
+                max_connection_pool_size=settings.neo4j_max_connection_pool_size,
+                connection_acquisition_timeout=settings.neo4j_connection_acquisition_timeout,
+                max_connection_lifetime=settings.neo4j_max_connection_lifetime,
             )
         return cls._shared_driver
 

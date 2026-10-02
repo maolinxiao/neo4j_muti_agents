@@ -14,6 +14,7 @@ from app.api.deps import (
     get_qa_orchestrator,
     get_rnd_workflow_orchestrator,
 )
+from app.api.middleware import concurrency_metrics
 from app.core.config import settings
 from app.db.models import AppUser, CypherTemplate, EntityProfile, PromptTemplate, WorkflowRun, WorkflowSession
 from app.db.sqlalchemy import SessionLocal, get_db_session
@@ -420,6 +421,7 @@ def health_check(db: Session = Depends(get_db_session), neo4j: Neo4jRepository =
         "postgres": True,
         "neo4j": neo4j.health_check(),
         "llm_configured": bool(settings.llm_api_key),
+        "concurrency": concurrency_metrics.snapshot(),
     }
 
 

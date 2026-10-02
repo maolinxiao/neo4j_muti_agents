@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from time import perf_counter
+from time import perf_counter, sleep
 from typing import Any, Generator
 
 import httpx
@@ -13,15 +13,61 @@ from app.services.qa_routing import get_qa_route_resolver
 
 logger = logging.getLogger(__name__)
 
+# 可安全重试的状态码：限流与上游瞬时故障
+_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
 
 class DeepSeekClient:
     def __init__(self) -> None:
         self.client = httpx.Client(
             base_url=settings.llm_api_base,
-            timeout=60.0,
+            timeout=httpx.Timeout(
+                connect=settings.llm_connect_timeout,
+                read=settings.llm_read_timeout,
+                write=settings.llm_write_timeout,
+                pool=settings.llm_pool_timeout,
+            ),
+            limits=httpx.Limits(
+                max_connections=settings.llm_max_connections,
+                max_keepalive_connections=settings.llm_max_keepalive_connections,
+            ),
             trust_env=False,
             follow_redirects=True,
         )
+
+    def _post_json_with_retry(self, payload: dict[str, Any]):
+        """非流式 JSON 调用：连接错误/可重试状态码按配置退避重试。
+
+        只重试连接建立阶段与 5xx/429，读/写超时不重试（长回答重试只会成倍拖慢，
+        交给上层 fallback）；流式接口不经过此方法，输出一旦开始不可安全重放。
+        """
+        attempts = max(1, settings.llm_retry_attempts)
+        last_exc: Exception | None = None
+        for attempt in range(1, attempts + 1):
+            if attempt > 1:
+                sleep(settings.llm_retry_backoff_seconds * (attempt - 1))
+            try:
+                response = self.client.post(
+                    "/chat/completions",
+                    headers=self._json_headers(),
+                    json=payload,
+                )
+                if response.status_code in _RETRYABLE_STATUS_CODES and attempt < attempts:
+                    logger.warning(
+                        "LLM 返回可重试状态码 %s（第 %s/%s 次），退避后重试",
+                        response.status_code, attempt, attempts,
+                    )
+                    continue
+                return response
+            except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+                last_exc = exc
+                if attempt < attempts:
+                    logger.warning("LLM 连接失败（第 %s/%s 次）：%s，退避后重试", attempt, attempts, exc)
+                    continue
+                raise
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("LLM 请求未产生响应")
 
     @staticmethod
     def _thinking_payload(enabled: bool, reasoning_effort: str = "high") -> dict[str, Any]:
@@ -89,11 +135,7 @@ class DeepSeekClient:
         }
         started = perf_counter()
         try:
-            response = self.client.post(
-                "/chat/completions",
-                headers=self._json_headers(),
-                json=payload,
-            )
+            response = self._post_json_with_retry(payload)
             elapsed_ms = int((perf_counter() - started) * 1000)
             response.raise_for_status()
             data = response.json()
@@ -126,11 +168,7 @@ class DeepSeekClient:
         }
         started = perf_counter()
         try:
-            response = self.client.post(
-                "/chat/completions",
-                headers=self._json_headers(),
-                json=payload,
-            )
+            response = self._post_json_with_retry(payload)
             elapsed_ms = int((perf_counter() - started) * 1000)
             response.raise_for_status()
             data = response.json()
@@ -292,11 +330,7 @@ class DeepSeekClient:
         }
         started = perf_counter()
         try:
-            response = self.client.post(
-                "/chat/completions",
-                headers=self._json_headers(),
-                json=payload,
-            )
+            response = self._post_json_with_retry(payload)
             elapsed_ms = int((perf_counter() - started) * 1000)
             response.raise_for_status()
             data = response.json()
@@ -342,11 +376,7 @@ class DeepSeekClient:
         }
         started = perf_counter()
         try:
-            response = self.client.post(
-                "/chat/completions",
-                headers=self._json_headers(),
-                json=request_payload,
-            )
+            response = self._post_json_with_retry(request_payload)
             elapsed_ms = int((perf_counter() - started) * 1000)
             response.raise_for_status()
             data = response.json()

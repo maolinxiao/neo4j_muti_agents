@@ -7,9 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.api.deps import get_current_admin, get_current_user
+from app.api.middleware import ConcurrencyMetricsMiddleware
+from app.api.ratelimit import RateLimitMiddleware
 from app.api.routes import admin_router, auth_router, chat_router, constitution_router, entity_router, health_router, rnd_router
 from app.core.config import settings
 from app.db.init_db import initialize_database
+from app.db.sqlalchemy import engine
 from app.repositories.neo4j_repository import Neo4jRepository
 
 
@@ -25,6 +28,10 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # 请求并发指标：在途/峰值并发与状态码分布 + 慢请求日志，经 /api/health 的 concurrency 字段暴露
+    app.add_middleware(ConcurrencyMetricsMiddleware)
+    # 应用层每 IP 滑动窗口限流（认证入口更严；RATE_LIMIT_ENABLED 可关）
+    app.add_middleware(RateLimitMiddleware)
 
     protected = [Depends(get_current_user)]
     app.include_router(health_router, prefix="/api")
@@ -44,6 +51,20 @@ def create_app() -> FastAPI:
     @app.on_event("startup")
     def on_startup() -> None:
         initialize_database()
+        # PG 连接池预热：启动即建满 pool_size 条连接，避免首个并发峰值的批量建连抖动
+        try:
+            from sqlalchemy import text
+
+            connections = []
+            for _ in range(settings.pg_pool_size):
+                conn = engine.connect()
+                conn.execute(text("SELECT 1"))
+                connections.append(conn)
+            for conn in connections:
+                conn.close()
+            logger.info("PG 连接池预热完成（%s 条）", settings.pg_pool_size)
+        except Exception:
+            logger.exception("PG 连接池预热失败（将在首个请求时按需建连）")
         try:
             Neo4jRepository().health_check()
         except Exception:

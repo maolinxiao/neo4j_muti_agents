@@ -65,6 +65,11 @@ const SECTION_ALIASES = {
   知识依据: "知识依据",
   合规依据: "合规边界",
   图谱依据: "知识依据",
+  Cautions: "注意事项",
+  食用注意: "注意事项",
+  使用注意: "注意事项",
+  禁忌与风险: "风险与禁忌",
+  "风险边界": "风险与禁忌",
   核心结论: "核心结论",
 };
 
@@ -178,7 +183,7 @@ export const sectionMeta = (title) => {
     normalized === "合规与风险边界" ||
     normalized === "不能完全替代点"
   ) {
-    return { tone: "warning", icon: "caution" };
+    return { tone: "warning", icon: "boundary" };
   }
   if (normalized === "总结建议" || normalized === "研发验证" || normalized === "追问建议") {
     return { tone: "muted", icon: "summary" };

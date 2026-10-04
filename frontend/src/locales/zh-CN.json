@@ -96,7 +96,9 @@
     "graphSnapshot": "证据图谱",
     "cautions": "注意事项",
     "answerLoadFailed": "回答加载失败，请稍后重试。",
-    "sessionCreateFailed": "会话创建失败，请稍后重试。"
+    "sessionCreateFailed": "会话创建失败，请稍后重试。",
+    "generating": "正在生成回答...",
+    "focusPaths": "主路径"
   },
   "history": {
     "title": "历史记录",
@@ -104,6 +106,8 @@
     "time": "时间",
     "view": "查看",
     "empty": "暂无历史记录",
+    "emptyAction": "去提问",
+    "sessionsUnit": "个会话",
     "sessionTitle": "标题",
     "status": "状态",
     "updatedAt": "更新时间",

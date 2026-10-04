@@ -172,12 +172,12 @@
                   <span
                     v-if="store.streamingMessageId === msg.id"
                     class="streaming-cursor"
-                  >|</span>
+                  ></span>
                   <!-- Loading placeholder -->
                   <span
                     v-if="!msg.content && store.streamingMessageId === msg.id"
                     class="thinking-text"
-                  >正在生成回答...</span>
+                  >{{ t("chat.generating") }}</span>
                 </div>
 
                 <div
@@ -246,7 +246,7 @@
                           <span class="metrics-sep">|</span>
                           <span>{{ msg.graph.metrics?.edgeCount || msg.graph.edges.length }} 边</span>
                           <span class="metrics-sep">|</span>
-                          <span>{{ msg.graph.focus_paths?.length || 0 }} 主路径</span>
+                          <span>{{ msg.graph.focus_paths?.length || 0 }} {{ t("chat.focusPaths") }}</span>
                         </div>
                       </div>
                     </el-collapse-item>
@@ -881,7 +881,7 @@ onMounted(async () => {
   overflow: visible;
 }
 .answer-section {
-  padding: 14px 2px 16px;
+  padding: 16px 2px 18px;
   border-bottom: 1px solid #ebeef5;
   background: transparent;
 }
@@ -915,8 +915,8 @@ onMounted(async () => {
 .answer-section-title::before {
   content: "";
   width: 3px;
-  height: 16px;
-  border-radius: 1px;
+  height: 18px;
+  border-radius: 2px;
   background: #909399;
   flex: 0 0 auto;
 }
@@ -1067,10 +1067,17 @@ onMounted(async () => {
   }
 }
 .streaming-cursor {
-  display: inline;
-  animation: blink 1s infinite;
-  color: #409eff;
-  font-weight: bold;
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  border-radius: 1.5px;
+  background: #409eff;
+  animation: blink 0.9s steps(1) infinite;
+}
+html.dark .streaming-cursor {
+  background: #79bbff;
 }
 @keyframes blink {
   0%, 50% { opacity: 1; }
@@ -1100,10 +1107,13 @@ onMounted(async () => {
   margin-left: 4px;
   animation: think-pulse 1.5s ease-in-out infinite;
 }
+html.dark .think-streaming-badge {
+  color: #79bbff;
+}
 
 @keyframes think-pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.65; }
 }
 
 .think-inner {
@@ -1208,6 +1218,26 @@ onMounted(async () => {
   border-radius: 6px;
   white-space: pre-wrap;
 }
+html.dark .cautions-inner {
+  color: #f3d19e;
+  background: rgba(230, 162, 60, 0.12);
+}
+html.dark .session-item.pinned {
+  border-left-color: #79bbff;
+  background: rgba(64, 158, 255, 0.16);
+}
+html.dark .session-item.pinned:hover {
+  background: rgba(64, 158, 255, 0.22);
+}
+html.dark .answer-section,
+html.dark .answer-definition,
+html.dark .answer-ingredient {
+  border-bottom-color: var(--app-border);
+}
+html.dark .think-inner,
+html.dark .evidence-inner {
+  border-color: var(--app-border);
+}
 
 /* Follow-ups */
 .follow-up-row {
@@ -1276,6 +1306,7 @@ onMounted(async () => {
 .input-area :deep(.el-textarea__inner:focus) {
   background: var(--app-panel);
   border-color: #409eff;
+  box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.12);
 }
 .send-btn {
   height: 40px;

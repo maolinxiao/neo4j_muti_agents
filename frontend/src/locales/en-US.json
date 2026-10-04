@@ -96,7 +96,9 @@
     "graphSnapshot": "Evidence graph",
     "cautions": "Cautions",
     "answerLoadFailed": "Failed to load the answer, please retry.",
-    "sessionCreateFailed": "Failed to create the session, please retry."
+    "sessionCreateFailed": "Failed to create the session, please retry.",
+    "generating": "Generating answer...",
+    "focusPaths": "focus paths"
   },
   "history": {
     "title": "History",
@@ -104,6 +106,8 @@
     "time": "Time",
     "view": "View",
     "empty": "No history yet",
+    "emptyAction": "Start asking",
+    "sessionsUnit": "sessions",
     "sessionTitle": "Title",
     "status": "Status",
     "updatedAt": "Updated",

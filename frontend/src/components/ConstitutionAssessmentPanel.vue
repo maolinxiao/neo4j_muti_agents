@@ -259,7 +259,8 @@
               </aside>
 
               <!-- 题干卡片 -->
-              <div v-if="currentQuestion" class="question-card">
+              <transition name="qslide" mode="out-in">
+                <div v-if="currentQuestion" :key="currentQuestion.question_code" class="question-card">
                 <div class="question-head">
                   <span
                     class="question-badge"
@@ -339,7 +340,8 @@
                     </span>
                   </template>
                 </div>
-              </div>
+                </div>
+              </transition>
             </div>
           </template>
           <div v-else class="filter-empty">
@@ -909,6 +911,29 @@ onMounted(async () => {
   min-width: 2px;
   border-radius: 5px;
   transition: width 0.4s ease;
+  transform-origin: left center;
+  animation: score-bar-grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes score-bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* 题目切换过渡：上一题淡出、下一题自右轻移入场 */
+.qslide-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.qslide-leave-active {
+  transition: opacity 0.18s ease;
+}
+.qslide-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+.qslide-leave-to {
+  opacity: 0;
 }
 
 .score-bar-value {

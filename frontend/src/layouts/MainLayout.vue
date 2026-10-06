@@ -191,6 +191,7 @@ const handleLogout = async () => {
 :deep(.el-menu-item), :deep(.el-sub-menu__title) {
   height: 50px !important;
   line-height: 50px !important;
+  transition: background-color 0.2s ease-out, color 0.2s ease-out;
 }
 
 :deep(.el-menu-item:hover), :deep(.el-sub-menu__title:hover) {
@@ -199,6 +200,17 @@ const handleLogout = async () => {
 
 :deep(.el-menu-item.is-active) {
   background-color: #1f2d3d !important;
+}
+
+:deep(.el-menu-item.is-active)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--app-active-border, #409eff);
 }
 
 .shell-main {

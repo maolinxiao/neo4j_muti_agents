@@ -72,4 +72,22 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #c0c4cc;
 }
+html.dark ::-webkit-scrollbar-thumb {
+  background: #3a4250;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4a5568;
+}
+
+/* Reduce decorative motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 </style>

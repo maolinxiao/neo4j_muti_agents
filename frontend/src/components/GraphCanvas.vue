@@ -613,4 +613,53 @@ const handleNodeClick = (node) => {
   font-size: 12px;
   cursor: pointer;
 }
+
+/* 暗色模式适配：画布底、边线、节点标签与控制按钮随全局色板 */
+html.dark .canvas-wrap {
+  background: var(--app-panel);
+  border-color: var(--app-border);
+}
+html.dark .graph-box {
+  background:
+    radial-gradient(circle at center, rgba(59, 130, 246, 0.1), transparent 50%),
+    linear-gradient(180deg, #141a21 0%, #0f1419 100%);
+}
+html.dark .sector-label {
+  fill: #73767a;
+}
+html.dark .edge-line {
+  stroke: #3a4250;
+}
+html.dark .edge-line.highlighted {
+  stroke: #a3a6ad;
+}
+html.dark .edge-label {
+  fill: #a3a6ad;
+}
+html.dark .node-label {
+  fill: #e5eaf3;
+}
+html.dark .zoom-controls {
+  background: var(--app-panel);
+  border-color: var(--app-border);
+}
+html.dark .zoom-btn {
+  color: #a3a6ad;
+}
+html.dark .zoom-btn:hover {
+  background: #232b35;
+  color: #e5eaf3;
+}
+html.dark .path-panel {
+  background: var(--app-panel-2);
+  border-color: var(--app-border);
+}
+html.dark .path-title {
+  color: #73767a;
+}
+html.dark .path-chip {
+  background: var(--app-panel);
+  border-color: var(--app-border);
+  color: #a3a6ad;
+}
 </style>

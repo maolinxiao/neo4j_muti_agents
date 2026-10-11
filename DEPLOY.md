@@ -543,3 +543,30 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - 本地 `backend/.env` 仍是旧 key（若旧 key 将停用，本地开发需同步）。
 - 线上后端代码与本地有 9 个文件差异（10-02 性能优化批次未部署）：`app/api/middleware.py`、`app/api/ratelimit.py` 仅本地有；`app/api/routes.py`、`app/core/config.py`、`app/db/sqlalchemy.py`、`app/main.py`、`app/repositories/neo4j_repository.py`、`app/services/deepseek_client.py`、`scripts/run_server.py` 内容不同（另有 20 个文件仅行尾符 CRLF/LF 差异）。
 
+## 2026-10-12 平台图标更换（P17 上线记录）
+
+### 素材
+- 用户提供新图标：`frontend/public/药食同源平台图标设计-2.ico`（多尺寸 ICO：16/24/32/48/64/128/256，106,649 字节）。
+- 该素材右下角含极淡的「豆包AI生成」水印（像素值 238–255，相当于 93% 白）；favicon 与 32px 侧边栏尺寸下不可见，180/256px 下也仅勉强可辨。若需彻底去除，需重新导出无水印版本。
+
+### 改动（本地）
+- `frontend/public/favicon.ico` ← 上述素材（替换原 16/32/48 三帧旧图标）。
+- `frontend/public/apple-touch-icon.png` ← 由素材 256 帧降采样为 180×180。
+- `frontend/public/brand-logo.png` ← 新增，素材 256 帧原样。
+- `frontend/index.html`：改为 `<link rel="icon" href="/favicon.ico" sizes="any">` + `apple-touch-icon`，**移除 `<link rel="icon" type="image/svg+xml" href="/favicon.svg">`**——浏览器在同时声明 SVG 与 ICO 时会优先 SVG，不移除则该换 ico 不生效。`favicon.svg` 文件保留但不再被引用。
+- `frontend/src/layouts/MainLayout.vue`：侧边栏品牌 logo 原为 **Element Plus CDN 图片**（`cube.elemecdn.com/...`，模板残留），改为 `/brand-logo.png`，并加 `border-radius: 6px` 与 `flex-shrink: 0`（素材是不透明圆角白底，深色侧边栏 `#2b3643` 上加圆角更自然；已用同色背景等比模拟图确认观感）。
+
+### 上线
+- 发版脚本：`deploy_t18_platform_icon_upload.py`（由 t17 派生，未跟踪）：回滚点 + 上传 14 文件 + 清理 3 个旧 hash 资源（`index-DMTVDxbR.js`、`index-B5sMB2nb.css`、`HeroKnowledgeScene-3TpkYwVV.js`）；保留清单含主包动态 import 的新 chunk（`HeroKnowledgeScene-DeehpStm.js`、`HeroKnowledgeScene-DVgML9Jm.css`）。
+- 新 hash：`index-CJC5pLKt.js`、`index-B66NmmEo.css`（`showcase-3d-BD83Au9R.js` 未变）。
+- **回滚点**：`frontend-dist.bak-20261012021809`。注意脚本自报的 `bak_dir` 有 bug——它取 `ls -d frontend-dist.bak-* | tail -1`，而 `bak-home-*`/`bak-account-*` 这类带后缀的目录按字典序排在数字时间戳之后，会误报成旧目录；以后以 `ls -dt` 的结果为准。
+
+### 公网验收（2026-10-12 02:20）
+- `https://mmfh.com.cn/favicon.ico` → 200，106,649 字节，sha256 与本地 MATCH，ICO 帧数 7。
+- `/brand-logo.png`（70,616B）、`/apple-touch-icon.png`（40,418B）→ 200，sha256 均 MATCH。
+- `https://mmfh.com.cn/` 的 index.html 已只含新 icon 引用与 `index-CJC5pLKt.js` / `index-B66NmmEo.css`。
+
+### 回滚
+- 覆盖回滚点目录：`rm -rf frontend-dist && cp -r frontend-dist.bak-20261012021809 frontend-dist`；旧 favicon/apple-touch-icon 的原始文件可用 git 恢复（`git checkout <旧提交> -- frontend/public/`）。
+
+

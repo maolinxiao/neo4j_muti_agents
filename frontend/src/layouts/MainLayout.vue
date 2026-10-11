@@ -2,7 +2,7 @@
   <el-container class="app-shell">
     <el-aside width="200px" class="sidebar">
       <div class="brand-block">
-        <img src="https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png" class="brand-logo" alt="logo" />
+        <img src="/brand-logo.png" class="brand-logo" alt="药食同源平台" />
         <span class="brand-title">药食同源平台</span>
       </div>
       <el-scrollbar>
@@ -175,6 +175,8 @@ const handleLogout = async () => {
   width: 32px;
   height: 32px;
   margin-right: 12px;
+  border-radius: 6px;
+  flex-shrink: 0;
 }
 
 .brand-title {

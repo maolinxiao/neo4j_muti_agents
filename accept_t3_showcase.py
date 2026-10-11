@@ -97,18 +97,6 @@ def section_shot(page, sel, name, wait_ms=1400, full_section=True):
     return path
 
 
-def tilt_state(page, card_selector, mouse_x, mouse_y):
-    """在卡片内移动鼠标，等待 rAF 插值，返回 (transform, tilt_hover, glare_opacity)。"""
-    box = page.locator(card_selector).first.bounding_box()
-    page.mouse.move(box["x"] + box["width"] * mouse_x, box["y"] + box["height"] * mouse_y, steps=8)
-    page.wait_for_timeout(650)
-    card = page.locator(card_selector).first
-    transform = card.evaluate("el => el.style.transform || ''")
-    has_cls = card.evaluate("el => el.classList.contains('tilt-hover')")
-    glare = card.evaluate("el => { const g = el.querySelector('.cap-glare,.panel-glare,.sc-card-glow'); return g ? getComputedStyle(g).opacity : ''; }")
-    return transform, has_cls, glare
-
-
 def main():
     global args
     ap = argparse.ArgumentParser()
@@ -135,39 +123,60 @@ def main():
 
         # —— 基础检查 ——
         total_canvas = page.evaluate("() => document.querySelectorAll('canvas').length")
-        result("page total canvas count", True, "count=%d (设计=hero1+cap3+aud1+pipe1=6)" % total_canvas)
+        result("page total canvas count", True, "count=%d (设计=hero1+cap3+kb1+aud1=6)" % total_canvas)
         result("page main content load", page.locator("#app").is_visible(), "id=app visible")
         result("card count", page.locator("#capabilities .capability-card").count() == 3,
                "capability cards=%d" % page.locator("#capabilities .capability-card").count())
-        result("audience panels", page.locator("#audience .audience-panel").count() == 2,
+        result("audience panels", page.locator("#audience .audience-panel").count() == 1,
                "panels=%d" % page.locator("#audience .audience-panel").count())
         result("pipeline steps", page.locator("#agents .step-node").count() == 6,
                "steps=%d" % page.locator("#agents .step-node").count())
+
+        # Hero 金句打字机：文本随时间变化（轮询采样，避开句尾 2.4s 停留期）
+        q0 = page.locator(".hero-quote").inner_text()
+        typing_changed = False
+        for _ in range(8):
+            page.wait_for_timeout(500)
+            q1 = page.locator(".hero-quote").inner_text()
+            if q1 != q0:
+                typing_changed = True
+                break
+            q0 = q1
+        result("hero quote typing animates", typing_changed, "len=%d stable_4s=%s" % (len(q1), not typing_changed))
 
         # ============ Section 1: Capability ============
         print("[step] capability section")
         canvas_ok(page, "#capabilities ", lambda i: i, 3, "capability")
         section_shot(page, "#capabilities", "01_capability_default")
 
-        # hover（中间卡片，鼠标在左上角 → rotate 非零）
-        t0 = page.locator("#capabilities .capability-card").nth(0).evaluate("el => el.style.transform || '(none)'")
-        transform, has_cls, glare = tilt_state(page, "#capabilities .capability-card", 0.3, 0.25)
-        result("capability tilt hover transform", "rotateX" in transform and "rotateY" in transform,
-               "before=%s after=%s" % (t0, transform[:110]))
-        result("capability tilt-hover class", has_cls, "class=%s" % has_cls)
-        result("capability glare opacity>0", glare not in ("", "0"), "opacity=%s" % glare)
-        page.locator("#capabilities").screenshot(path=os.path.join(args.outdir, "shots", "02_capability_hover.png"))
-
-        # 交互态：鼠标移到另一张卡片的右下角，tilt 反向；再滚轮路过
-        t1 = tilt_state(page, "#capabilities .capability-card", 0.72, 0.8)
-        result("capability tilt direction change", "rotateX" in t1[0] and "rotateY" in t1[0],
-               "transform=%s" % t1[0][:110])
-        page.locator("#capabilities").screenshot(path=os.path.join(args.outdir, "shots", "03_capability_interact.png"))
-        # 离开复位
-        page.mouse.move(700, 60, steps=4)
+        # hover 增强态：悬停能力行 → 微场景加速（setBoost）+ 视差启用
+        page.locator("#capabilities .capability-row").nth(0).hover()
         page.wait_for_timeout(900)
-        t_after = page.locator("#capabilities .capability-card").nth(0).evaluate("el => el.style.transform || ''")
-        result("capability tilt reset on leave", t_after == "", "after=%r" % t_after[:60])
+        section_shot(page, "#capabilities", "02_capability_hover")
+
+        # ============ Section 1.5: Knowledge Holo ============
+        print("[step] knowledge holo section")
+        canvas_ok(page, "#knowledge-bases ", lambda i: i, 1, "kb_holo")
+        section_shot(page, "#knowledge-bases", "03b_kb_holo_default")
+        result("kb dot navigation == 8", page.locator("#knowledge-bases .kb-dot").count() == 8,
+               "dots=%d" % page.locator("#knowledge-bases .kb-dot").count())
+        result("kb cards == 8", page.locator("#knowledge-bases .kb-item").count() == 8,
+               "cards=%d" % page.locator("#knowledge-bases .kb-item").count())
+        # 固定起点后点击第 4 张卡 → active 联动 + detail 文案切换
+        page.locator("#knowledge-bases .kb-item").nth(0).click()
+        page.wait_for_timeout(900)
+        name_k0 = page.locator("#knowledge-bases .kb-detail strong").inner_text()
+        page.locator("#knowledge-bases .kb-item").nth(3).click()
+        page.wait_for_timeout(1100)
+        name_k1 = page.locator("#knowledge-bases .kb-detail strong").inner_text()
+        kb_active = page.evaluate(
+            "() => [...document.querySelectorAll('#knowledge-bases .kb-item')].findIndex(n => n.classList.contains('active'))"
+        )
+        result("kb switch on card click", kb_active == 3 and name_k0 != name_k1,
+               "active=%d name %s->%s" % (kb_active, name_k0, name_k1))
+        labels = page.locator("#knowledge-bases .holo-label").count()
+        result("kb holo entity labels >= 4", labels >= 4, "labels=%d" % labels)
+        section_shot(page, "#knowledge-bases", "03c_kb_holo_switched")
 
         # ============ Section 2: Audience ============
         print("[step] audience section")
@@ -181,47 +190,49 @@ def main():
           return cs ? { animation: cs.animationName, backdrop: cs.backdropFilter || cs.webkitBackdropFilter } : null;
         }""")
         result("audience core breathe animation", bool(res and res.get("animation")), "anim=%s" % (res or {}))
-        # 企业面板 hover
-        at, ah, ag = tilt_state(page, "#audience .audience-panel", 0.3, 0.3)
-        result("audience panel tilt hover", "rotateX" in at and "rotateY" in at, "transform=%s" % at[:110])
-        page.locator("#audience").screenshot(path=os.path.join(args.outdir, "shots", "05_audience_hover_interact.png"))
-        page.mouse.move(700, 60, steps=4)
-        page.wait_for_timeout(900)
+        # —— 双卡通角色切换：点击养生人 → 面板标题切换 ——
+        result("audience mascots == 2", page.locator("#audience .mascot").count() == 2,
+               "mascots=%d" % page.locator("#audience .mascot").count())
+        page.locator("#audience .mascot--personal").click()
+        page.wait_for_timeout(750)
+        m_title = page.locator("#audience .audience-panel h3").inner_text()
+        result("audience mascot switches panel", "个人端" in m_title, "title=%s" % m_title)
+        # —— 意图路由剧场：示例 chips + 胶囊飞行 + 条目点亮 ——
+        chips = page.locator("#audience .aud-chip").count()
+        result("audience sample chips == 3 (active side)", chips == 3, "chips=%d" % chips)
+        page.locator("#audience .aud-chip").nth(0).click()
+        page.wait_for_timeout(1300)
+        capsule_mid = page.locator("#audience .route-capsule").count()
+        page.wait_for_timeout(1100)
+        lit = page.locator("#audience .audience-panel li.lit").count()
+        hit = page.evaluate("() => [...document.querySelectorAll('#audience .audience-panel')].filter(n => n.classList.contains('route-hit')).length")
+        result("audience routing lights matched items", lit >= 1 and hit == 1,
+               "lit=%d hit_panels=%d capsule_mid=%d" % (lit, hit, capsule_mid))
+        page.wait_for_timeout(1500)  # 等待清理
+        section_shot(page, "#audience", "05_audience_route")
+        # 切回企业端收尾
+        page.locator("#audience .mascot--enterprise").click()
+        page.wait_for_timeout(600)
 
         # ============ Section 3: Pipeline ============
         print("[step] agent pipeline")
-        canvas_ok(page, "#agents ", lambda i: i, 1, "pipeline")
+        canvas_ok(page, "#agents ", lambda i: i, 0, "pipeline")
         section_shot(page, "#agents", "06_pipeline_default")
-        # 能量脉冲随时间移动：canvas 区域两帧差异
-        pipe = page.locator("#agents .pipeline")
-        f1 = os.path.join(args.outdir, "shots", "07_pipeline_t0.png")
-        pipe.screenshot(path=f1)
-        page.wait_for_timeout(2600)
-        f2 = os.path.join(args.outdir, "shots", "08_pipeline_t2.6.png")
-        pipe.screenshot(path=f2)
-        a = open(f1, "rb").read()
-        b = open(f2, "rb").read()
-        if a != b:
-            from PIL import Image, ImageChops
-            import numpy as np
-            ia = Image.open(io.BytesIO(a)).convert("RGB")
-            ib = Image.open(io.BytesIO(b)).convert("RGB")
-            d = np.asarray(ImageChops.difference(ia, ib), dtype=np.float32)
-            diff_ratio = float((d.mean(axis=2) > 10).mean())
-            result("pipeline energy pulse moves over time", diff_ratio > 0.001,
-                   "diff_ratio=%.4f" % diff_ratio)
-        else:
-            result("pipeline energy pulse moves over time", False, "pixel-identical frames")
-
+        # 极简进度轴：轨道与填充存在，随焦点推进
+        result("pipeline track fill rendered",
+               page.evaluate("() => { const f = document.querySelector('#agents .track-fill'); return f ? f.getBoundingClientRect().width : 0; }") > 0,
+               "fill_width=%.1f" % page.evaluate("() => { const f = document.querySelector('#agents .track-fill'); return f ? f.getBoundingClientRect().width : 0; }"))
+        fill0 = page.evaluate("() => document.querySelector('#agents .track-fill').style.width")
         # 自动轮播焦点变化
         idx0 = page.evaluate("() => [...document.querySelectorAll('#agents .step-node')].findIndex(n => n.classList.contains('active'))")
         name0 = page.locator("#agents .pipeline-detail h3").inner_text()
         page.wait_for_timeout(4300)
         idx1 = page.evaluate("() => [...document.querySelectorAll('#agents .step-node')].findIndex(n => n.classList.contains('active'))")
         name1 = page.locator("#agents .pipeline-detail h3").inner_text()
-        result("pipeline auto-carousel advances", idx0 != idx1 and name0 != name1,
-               "idx %d->%d name %s->%s" % (idx0, idx1, name0, name1))
-        pipe.screenshot(path=os.path.join(args.outdir, "shots", "09_pipeline_carousel2.png"))
+        fill1 = page.evaluate("() => document.querySelector('#agents .track-fill').style.width")
+        result("pipeline auto-carousel advances", idx0 != idx1 and name0 != name1 and fill0 != fill1,
+               "idx %d->%d name %s->%s fill %s->%s" % (idx0, idx1, name0, name1, fill0, fill1))
+        page.locator("#agents").screenshot(path=os.path.join(args.outdir, "shots", "09_pipeline_carousel2.png"))
 
         # 交互态：点击某 step
         page.locator("#agents .step-node").nth(2).click()
@@ -230,6 +241,20 @@ def main():
         idx2 = page.evaluate("() => [...document.querySelectorAll('#agents .step-node')].findIndex(n => n.classList.contains('active'))")
         result("pipeline click interaction", idx2 == 2 and "功效" in name2, "idx=%d name=%s" % (idx2, name2))
         page.locator("#agents").screenshot(path=os.path.join(args.outdir, "shots", "10_pipeline_interact.png"))
+
+        # 任务演示：点击后回到第 1 站，1.5s/站推进；交付物渲染
+        result("pipeline deliverables rendered", page.locator("#agents .detail-deliver .deliver-item").count() >= 1,
+               "deliverables=%d" % page.locator("#agents .detail-deliver .deliver-item").count())
+        result("pipeline mission button present", page.locator("#agents .mission-btn").count() == 1, "")
+        page.locator("#agents .mission-btn").click()
+        page.wait_for_timeout(500)
+        m0 = page.evaluate("() => [...document.querySelectorAll('#agents .step-node')].findIndex(n => n.classList.contains('active'))")
+        result("pipeline mission starts at station 1", m0 == 0, "idx=%d" % m0)
+        page.wait_for_timeout(1700)
+        m1 = page.evaluate("() => [...document.querySelectorAll('#agents .step-node')].findIndex(n => n.classList.contains('active'))")
+        result("pipeline mission advances to station 2", m1 == 1, "idx=%d" % m1)
+        page.locator("#agents .mission-btn").click()
+        page.wait_for_timeout(500)
 
         # FPS 抽样（pipeline 可视区）
         fps = page.evaluate("""() => new Promise(resolve => {
@@ -269,7 +294,11 @@ def main():
         icons = p2.locator("#capabilities .cap-icon").count()
         result("reduced-motion: capability svg fallback icons", icons == 3, "icons=%d" % icons)
         result("reduced-motion: audience core present", p2.locator("#audience .classifier-core").is_visible(), "")
-        for sel, name in [("#capabilities", "11_capability_reduced"), ("#audience", "12_audience_reduced"), ("#agents", "13_pipeline_reduced")]:
+        result("reduced-motion: kb radar svg fallback", p2.locator("#knowledge-bases .kb-svg").count() == 1,
+               "svg=%d" % p2.locator("#knowledge-bases .kb-svg").count())
+        qh = p2.locator(".hero-quote").inner_text()
+        result("reduced-motion: hero quote static full", "之间。" in qh, "len=%d" % len(qh.strip()))
+        for sel, name in [("#capabilities", "11_capability_reduced"), ("#knowledge-bases", "kb_reduced"), ("#audience", "12_audience_reduced"), ("#agents", "13_pipeline_reduced")]:
             section_shot(p2, sel, name)
         # 轮播在 reduced 下不推进
         idxr0 = p2.evaluate("() => [...document.querySelectorAll('#agents .step-node')].findIndex(n => n.classList.contains('active'))")
@@ -289,7 +318,7 @@ def main():
         overflow = p3.evaluate("() => ({sw: document.documentElement.scrollWidth, iw: window.innerWidth})")
         result("mobile: no horizontal scroll", overflow["sw"] <= overflow["iw"] + 1,
                "scrollWidth=%d innerWidth=%d" % (overflow["sw"], overflow["iw"]))
-        for sel, name in [("#capabilities", "14_capability_mobile"), ("#audience", "15_audience_mobile"), ("#agents", "16_pipeline_mobile")]:
+        for sel, name in [("#capabilities", "14_capability_mobile"), ("#knowledge-bases", "kb_mobile"), ("#audience", "15_audience_mobile"), ("#agents", "16_pipeline_mobile")]:
             section_shot(p3, sel, name)
         p3.evaluate("() => window.scrollTo(0, 0)")
         p3.wait_for_timeout(800)

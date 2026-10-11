@@ -28,6 +28,7 @@ def initialize_database() -> None:
         ensure_auth_migration(session)
         ensure_chat_session_migration(session)
         ensure_profile_migration(session)
+        ensure_import_batch_migration(session)
         for item in DEFAULT_PROMPTS:
             exists = session.scalar(select(PromptTemplate).where(PromptTemplate.key == item["key"]))
             if not exists:
@@ -160,6 +161,40 @@ def ensure_profile_migration(session) -> None:
     session.execute(text("ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255)"))
     session.execute(text("ALTER TABLE auth_session ADD COLUMN IF NOT EXISTS user_agent VARCHAR(256)"))
     session.execute(text("ALTER TABLE auth_session ADD COLUMN IF NOT EXISTS ip VARCHAR(64)"))
+
+
+def ensure_import_batch_migration(session) -> None:
+    """幂等迁移：管理端数据导入批次表（新库由 create_all 建好，存量库走 CREATE TABLE IF NOT EXISTS）。"""
+    session.execute(
+        text(
+            """
+            CREATE TABLE IF NOT EXISTS import_batch (
+                id VARCHAR(36) PRIMARY KEY,
+                source_filename VARCHAR(255) NOT NULL,
+                data_type VARCHAR(64) NOT NULL,
+                merge_mode VARCHAR(16) NOT NULL DEFAULT 'fill_empty',
+                status VARCHAR(24) NOT NULL DEFAULT 'pending',
+                created_by VARCHAR(36),
+                created_by_name VARCHAR(64),
+                file_path VARCHAR(512),
+                file_sha256 VARCHAR(64),
+                progress JSONB,
+                summary JSONB,
+                validation JSONB,
+                snapshot JSONB,
+                error_detail TEXT,
+                committed_at TIMESTAMP WITHOUT TIME ZONE,
+                rolled_back_at TIMESTAMP WITHOUT TIME ZONE,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL
+            )
+            """
+        )
+    )
+    session.execute(text("CREATE INDEX IF NOT EXISTS ix_import_batch_status ON import_batch (status)"))
+    session.execute(
+        text("CREATE INDEX IF NOT EXISTS ix_import_batch_created_by ON import_batch (created_by)")
+    )
 
 
 def _seed_default_admin(session) -> None:

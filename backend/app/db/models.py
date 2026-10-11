@@ -261,3 +261,31 @@ class WorkflowStepRun(Base, TimestampMixin):
     prompt_version: Mapped[str | None] = mapped_column(String(128))
 
     run: Mapped[WorkflowRun] = relationship(back_populates="steps")
+
+
+class ImportBatch(Base, TimestampMixin):
+    """管理端「数据导入」的批次记录（2026-10-12 新增）。
+
+    一次上传 = 一条记录：解析校验 → 预览 →（管理员确认）写入 → 可撤销。
+    撤销只处理写图谱时打了 import_batch 标记的数据；snapshot 存覆盖/补充前的属性原值。
+    """
+
+    __tablename__ = "import_batch"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    source_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    data_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    merge_mode: Mapped[str] = mapped_column(String(16), default="fill_empty", nullable=False)
+    status: Mapped[str] = mapped_column(String(24), default="pending", nullable=False, index=True)
+    created_by: Mapped[str | None] = mapped_column(ForeignKey("app_user.id"), index=True)
+    created_by_name: Mapped[str | None] = mapped_column(String(64))
+    file_path: Mapped[str | None] = mapped_column(String(512))
+    file_sha256: Mapped[str | None] = mapped_column(String(64))
+    progress: Mapped[dict | None] = mapped_column(JSONB)
+    summary: Mapped[dict | None] = mapped_column(JSONB)
+    validation: Mapped[dict | None] = mapped_column(JSONB)
+    snapshot: Mapped[dict | None] = mapped_column(JSONB)
+    error_detail: Mapped[str | None] = mapped_column(Text)
+    committed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    rolled_back_at: Mapped[datetime | None] = mapped_column(DateTime)
+

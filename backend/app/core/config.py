@@ -52,6 +52,11 @@ class Settings:
     # --- 个人中心/上传 ---
     upload_dir: str = os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parents[2] / "uploads"))
     max_avatar_bytes: int = int(os.getenv("MAX_AVATAR_BYTES", str(2 * 1024 * 1024)))
+    # --- 管理端表格导入 / 知识图谱写入 ---
+    max_import_bytes: int = int(os.getenv("MAX_IMPORT_BYTES", str(20 * 1024 * 1024)))
+    import_max_rows: int = int(os.getenv("IMPORT_MAX_ROWS", "50000"))
+    import_batch_size: int = int(os.getenv("IMPORT_BATCH_SIZE", "500"))
+    import_snapshot_max: int = int(os.getenv("IMPORT_SNAPSHOT_MAX", "50000"))
     # --- 并发与连接池（负载优化，参数与默认行为保持一致，可通过 .env 调整） ---
     pg_pool_size: int = int(os.getenv("PG_POOL_SIZE", "20"))
     pg_max_overflow: int = int(os.getenv("PG_MAX_OVERFLOW", "20"))

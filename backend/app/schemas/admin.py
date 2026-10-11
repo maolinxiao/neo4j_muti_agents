@@ -124,3 +124,45 @@ class WorkflowLogRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     summary_metrics: dict[str, Any] | None = None
+
+
+# ---- 管理端「数据导入」 ----
+class ImportTemplateRead(BaseModel):
+    key: str
+    name: str
+    category: str
+    sheet: str
+    columns: list[str]
+    required: list[str]
+    note: str = ""
+    template_available: bool
+    template_size: int
+
+
+class ImportBatchRead(BaseModel):
+    id: str
+    source_filename: str
+    data_type: str
+    data_type_name: str | None = None
+    merge_mode: str
+    status: str
+    created_by_name: str | None = None
+    progress: dict[str, Any] | None = None
+    summary: dict[str, Any] | None = None
+    validation: dict[str, Any] | None = None
+    error_detail: str | None = None
+    created_at: datetime
+    committed_at: datetime | None = None
+    rolled_back_at: datetime | None = None
+
+
+class ImportBatchPage(BaseModel):
+    items: list[ImportBatchRead]
+    total: int
+    page: int
+    page_size: int
+
+
+class ImportCommitRequest(BaseModel):
+    # 提交时允许把写入模式改成与预览时不同（会重算冲突快照）
+    merge_mode: str | None = Field(default=None, pattern="^(fill_empty|overwrite)$")

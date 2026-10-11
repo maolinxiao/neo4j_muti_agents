@@ -1,6 +1,7 @@
 import json
 import re
-from collections import Counter
+from collections import Counter, defaultdict
+from datetime import datetime, timezone
 from typing import Any
 
 from neo4j import GraphDatabase
@@ -2337,3 +2338,314 @@ LIMIT 260
 """
         allow_fallback = any(token in (question or "") for token in ["体质", "量表", "问卷", "测试", "测评"])
         return self.retrieve_graph(query, {"terms": terms, "allow_fallback": allow_fallback, "entity_id": None})
+
+    # ==================== 管理端数据导入：图谱写路径（2026-10-12 新增） ====================
+    # 本仓储此前只读；以下方法服务于管理端「数据导入」功能。
+    # 约定：写入的节点/边一律打批次标记（import_batch / imported_at），撤销只处理带标记的数据
+    # —— 0604 全量导入的数据没有任何标记，永远不会被撤销触碰。
+
+    _IDENT_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
+    _REL_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+
+    @classmethod
+    def _safe_ident(cls, value: str, field: str = "标识符") -> str:
+        if not isinstance(value, str) or not cls._IDENT_RE.match(value):
+            raise ValueError(f"非法{field}: {value!r}")
+        return value
+
+    @classmethod
+    def _safe_rel_type(cls, value: str) -> str:
+        if not isinstance(value, str) or not cls._REL_RE.match(value):
+            raise ValueError(f"非法关系类型: {value!r}")
+        return value
+
+    @staticmethod
+    def _chunks(items: list, size: int):
+        size = max(1, int(size or 1))
+        for start in range(0, len(items), size):
+            yield items[start : start + size]
+
+    @staticmethod
+    def _now_iso() -> str:
+        return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+    def ensure_constraints(self, label_keys: dict[str, str]) -> list[str]:
+        """按 {标签: 唯一键} 建唯一约束（幂等）。写图谱前必须先建，避免并发 MERGE 插入重复节点。"""
+        names: list[str] = []
+        with self.driver.session() as session:
+            for label, key in label_keys.items():
+                label = self._safe_ident(label, "节点标签")
+                key = self._safe_ident(key, "属性名")
+                name = f"{label.lower()}_{key}_unique"
+                session.run(
+                    f"CREATE CONSTRAINT {name} IF NOT EXISTS FOR (n:{label}) REQUIRE n.{key} IS UNIQUE"
+                )
+                names.append(name)
+        return names
+
+    def probe_nodes(
+        self, label: str, key_field: str, keys: list[str], *, batch_size: int = 1000
+    ) -> dict[str, dict]:
+        """查询这些唯一键是否已存在，返回 {唯一键: 现有属性}。
+
+        用途：导入预览（新增/更新拆分）与覆盖模式的冲突快照（供撤销还原）。
+        """
+        label = self._safe_ident(label, "节点标签")
+        key_field = self._safe_ident(key_field, "属性名")
+        found: dict[str, dict] = {}
+        unique_keys = list(dict.fromkeys(str(k) for k in keys if str(k).strip()))
+        with self.driver.session() as session:
+            for chunk in self._chunks(unique_keys, batch_size):
+                result = session.run(
+                    f"UNWIND $keys AS k MATCH (n:{label} {{{key_field}: k}}) "
+                    "RETURN k AS k, properties(n) AS props",
+                    {"keys": chunk},
+                )
+                for record in result:
+                    found[record["k"]] = dict(record["props"] or {})
+        return found
+
+    def probe_edges(self, rows: list[dict], *, batch_size: int = 1000) -> set[tuple[str, str, str]]:
+        """查询这些关系是否已存在，返回 {(rel_type, 起点键, 终点键)}（用于预览）。"""
+        grouped: dict[tuple[str, str, str, str, str], list[dict]] = defaultdict(list)
+        for row in rows:
+            grouped[
+                (row["start_label"], row["start_key"], row["rel_type"], row["end_label"], row["end_key"])
+            ].append({"start": row["start"], "end": row["end"]})
+        existing: set[tuple[str, str, str]] = set()
+        with self.driver.session() as session:
+            for (s_label, s_key, rel_type, e_label, e_key), items in grouped.items():
+                s_label = self._safe_ident(s_label, "节点标签")
+                e_label = self._safe_ident(e_label, "节点标签")
+                s_key = self._safe_ident(s_key, "属性名")
+                e_key = self._safe_ident(e_key, "属性名")
+                rel_type = self._safe_rel_type(rel_type)
+                query = (
+                    f"UNWIND $rows AS row "
+                    f"MATCH (a:{s_label} {{{s_key}: row.start}})-[r:{rel_type}]->(b:{e_label} {{{e_key}: row.end}}) "
+                    "RETURN row.start AS s, row.end AS e"
+                )
+                for chunk in self._chunks(items, batch_size):
+                    for record in session.run(query, {"rows": chunk}):
+                        existing.add((rel_type, record["s"], record["e"]))
+        return existing
+
+    def merge_nodes(
+        self,
+        label: str,
+        key_field: str,
+        rows: list[dict],
+        *,
+        batch_id: str,
+        mode: str = "fill_empty",
+        batch_size: int = 500,
+    ) -> dict:
+        """批量写节点（MERGE）。
+
+        fill_empty：已存在的字段保持不动，只写入当前为空的字段（默认，最安全）
+        overwrite ：以本次上传的值覆盖同名字段
+        两者都打批次标记：新建节点带 import_batch，被更新的节点带 import_batch_updated。
+        """
+        label = self._safe_ident(label, "节点标签")
+        key_field = self._safe_ident(key_field, "属性名")
+        if mode not in ("fill_empty", "overwrite"):
+            raise ValueError(f"非法写入模式: {mode!r}")
+        ts = self._now_iso()
+        if mode == "overwrite":
+            query = f"""
+UNWIND $rows AS row
+MERGE (n:{label} {{{key_field}: row.key}})
+ON CREATE SET n.import_batch = $batch
+ON MATCH SET n.import_batch_updated = $batch
+SET n += row.props, n.imported_at = $ts
+WITH n, row, size(keys(row.props)) AS field_count
+RETURN count(*) AS rows,
+       sum(CASE WHEN n.import_batch_updated = $batch THEN 1 ELSE 0 END) AS matched,
+       sum(CASE WHEN n.import_batch_updated = $batch THEN field_count ELSE 0 END) AS filled
+"""
+        else:
+            query = f"""
+UNWIND $rows AS row
+MERGE (n:{label} {{{key_field}: row.key}})
+ON CREATE SET n.import_batch = $batch, n.imported_at = $ts
+ON MATCH SET n.import_batch_updated = $batch, n.imported_at = $ts
+WITH n, row, [k IN keys(row.props) WHERE n[k] IS NULL] AS empties
+FOREACH (k IN empties | SET n[k] = row.props[k])
+RETURN count(*) AS rows,
+       sum(CASE WHEN n.import_batch_updated = $batch THEN 1 ELSE 0 END) AS matched,
+       sum(CASE WHEN n.import_batch_updated = $batch THEN size(empties) ELSE 0 END) AS filled
+"""
+        stats = {"rows": 0, "created": 0, "matched": 0, "filled_fields": 0}
+        with self.driver.session() as session:
+            for chunk in self._chunks(rows, batch_size):
+                record = session.run(query, {"rows": chunk, "batch": batch_id, "ts": ts}).single()
+                if record is None:
+                    continue
+                total = int(record["rows"] or 0)
+                matched = int(record["matched"] or 0)
+                stats["rows"] += total
+                stats["matched"] += matched
+                stats["created"] += total - matched
+                stats["filled_fields"] += int(record["filled"] or 0)
+        return stats
+
+    def merge_edges(
+        self, rows: list[dict], *, batch_id: str, mode: str = "fill_empty", batch_size: int = 500
+    ) -> dict:
+        """批量写关系（MERGE），语义与 merge_nodes 一致。
+
+        rows 每项形如 {start_label, start_key, start, rel_type, end_label, end_key, end, props}。
+        """
+        if mode not in ("fill_empty", "overwrite"):
+            raise ValueError(f"非法写入模式: {mode!r}")
+        grouped: dict[tuple[str, str, str, str, str], list[dict]] = defaultdict(list)
+        for row in rows:
+            grouped[
+                (row["start_label"], row["start_key"], row["rel_type"], row["end_label"], row["end_key"])
+            ].append({"start": row["start"], "end": row["end"], "props": row.get("props") or {}})
+        ts = self._now_iso()
+        stats = {"rows": 0, "created": 0, "matched": 0, "filled_fields": 0, "missing_endpoints": 0}
+        with self.driver.session() as session:
+            for (s_label, s_key, rel_type, e_label, e_key), items in grouped.items():
+                s_label = self._safe_ident(s_label, "节点标签")
+                e_label = self._safe_ident(e_label, "节点标签")
+                s_key = self._safe_ident(s_key, "属性名")
+                e_key = self._safe_ident(e_key, "属性名")
+                rel_type = self._safe_rel_type(rel_type)
+                head = (
+                    "UNWIND $rows AS row "
+                    f"MATCH (a:{s_label} {{{s_key}: row.start}}) "
+                    f"MATCH (b:{e_label} {{{e_key}: row.end}}) "
+                    f"MERGE (a)-[r:{rel_type}]->(b) "
+                )
+                if mode == "overwrite":
+                    tail = (
+                        "ON CREATE SET r.import_batch = $batch "
+                        "ON MATCH SET r.import_batch_updated = $batch "
+                        "SET r += row.props, r.imported_at = $ts "
+                        "WITH r, row, size(keys(row.props)) AS field_count "
+                        "RETURN count(*) AS rows, "
+                        "sum(CASE WHEN r.import_batch_updated = $batch THEN 1 ELSE 0 END) AS matched, "
+                        "sum(CASE WHEN r.import_batch_updated = $batch THEN field_count ELSE 0 END) AS filled"
+                    )
+                else:
+                    tail = (
+                        "ON CREATE SET r.import_batch = $batch, r.imported_at = $ts "
+                        "ON MATCH SET r.import_batch_updated = $batch, r.imported_at = $ts "
+                        "WITH r, row, [k IN keys(row.props) WHERE r[k] IS NULL] AS empties "
+                        "FOREACH (k IN empties | SET r[k] = row.props[k]) "
+                        "RETURN count(*) AS rows, "
+                        "sum(CASE WHEN r.import_batch_updated = $batch THEN 1 ELSE 0 END) AS matched, "
+                        "sum(CASE WHEN r.import_batch_updated = $batch THEN size(empties) ELSE 0 END) AS filled"
+                    )
+                query = head + tail
+                for chunk in self._chunks(items, batch_size):
+                    record = session.run(query, {"rows": chunk, "batch": batch_id, "ts": ts}).single()
+                    if record is None:
+                        continue
+                    total = int(record["rows"] or 0)
+                    matched = int(record["matched"] or 0)
+                    stats["rows"] += total
+                    stats["matched"] += matched
+                    stats["created"] += total - matched
+                    stats["filled_fields"] += int(record["filled"] or 0)
+                    stats["missing_endpoints"] += len(chunk) - total
+        return stats
+
+    def restore_snapshot(self, entries: list[dict]) -> int:
+        """按快照还原被补充/被覆盖的属性（value 为 None 表示该属性原本不存在，需移除）。"""
+        restored = 0
+        with self.driver.session() as session:
+            for entry in entries or []:
+                label = self._safe_ident(entry.get("label"), "节点标签")
+                key_field = self._safe_ident(entry.get("key_field"), "属性名")
+                key_value = entry.get("key")
+                restore_map: dict[str, Any] = {}
+                remove_fields: list[str] = []
+                for field, value in (entry.get("fields") or {}).items():
+                    field = self._safe_ident(field, "属性名")
+                    if value is None:
+                        remove_fields.append(field)
+                    else:
+                        restore_map[field] = value
+                if restore_map:
+                    session.run(
+                        f"MATCH (n:{label} {{{key_field}: $key}}) SET n += $props",
+                        {"key": key_value, "props": restore_map},
+                    )
+                    restored += len(restore_map)
+                if remove_fields:
+                    clauses = ", ".join(f"n.`{field}`" for field in remove_fields)
+                    session.run(
+                        f"MATCH (n:{label} {{{key_field}: $key}}) REMOVE {clauses}", {"key": key_value}
+                    )
+                    restored += len(remove_fields)
+        return restored
+
+    def delete_batch_edges(self, batch_id: str) -> int:
+        """删除本批次新增的关系（只认批次标记，绝不触碰其他数据）。"""
+        with self.driver.session() as session:
+            record = session.run(
+                "MATCH ()-[r]->() WHERE r.import_batch = $batch "
+                "WITH r LIMIT $limit DELETE r RETURN count(*) AS deleted",
+                {"batch": batch_id, "limit": 1000000},
+            ).single()
+            return int((record or {}).get("deleted", 0) or 0)
+
+    def delete_unreferenced_batch_nodes(self, batch_id: str) -> dict:
+        """删除本批次新增、且已不再被任何关系引用的节点；仍被引用的保留并计数。"""
+        with self.driver.session() as session:
+            deleted = session.run(
+                "MATCH (n) WHERE n.import_batch = $batch AND NOT (n)--() "
+                "WITH n LIMIT $limit DELETE n RETURN count(*) AS deleted",
+                {"batch": batch_id, "limit": 1000000},
+            ).single()
+            kept = session.run(
+                "MATCH (n) WHERE n.import_batch = $batch AND (n)--() RETURN count(*) AS kept",
+                {"batch": batch_id},
+            ).single()
+            return {
+                "deleted": int((deleted or {}).get("deleted", 0) or 0),
+                "kept_referenced": int((kept or {}).get("kept", 0) or 0),
+            }
+
+    def clear_batch_marks(self, batch_id: str) -> dict:
+        """清除批次标记（撤销完成后调用，避免残留属性影响后续统计）。"""
+        with self.driver.session() as session:
+            nodes = session.run(
+                "MATCH (n) WHERE n.import_batch = $batch OR n.import_batch_updated = $batch "
+                "REMOVE n.import_batch, n.import_batch_updated RETURN count(*) AS c",
+                {"batch": batch_id},
+            ).single()
+            edges = session.run(
+                "MATCH ()-[r]->() WHERE r.import_batch = $batch OR r.import_batch_updated = $batch "
+                "REMOVE r.import_batch, r.import_batch_updated RETURN count(*) AS c",
+                {"batch": batch_id},
+            ).single()
+            return {
+                "nodes_cleared": int((nodes or {}).get("c", 0) or 0),
+                "edges_cleared": int((edges or {}).get("c", 0) or 0),
+            }
+
+    def count_batch(self, batch_id: str) -> dict:
+        """统计当前仍带批次标记的节点/关系（撤销与验收时用）。"""
+        with self.driver.session() as session:
+            touched = session.run(
+                "MATCH (n) WHERE n.import_batch = $batch OR n.import_batch_updated = $batch "
+                "RETURN count(*) AS c",
+                {"batch": batch_id},
+            ).single()
+            created = session.run(
+                "MATCH (n) WHERE n.import_batch = $batch RETURN count(*) AS c", {"batch": batch_id}
+            ).single()
+            edges = session.run(
+                "MATCH ()-[r]->() WHERE r.import_batch = $batch OR r.import_batch_updated = $batch "
+                "RETURN count(*) AS c",
+                {"batch": batch_id},
+            ).single()
+            return {
+                "nodes_touched": int((touched or {}).get("c", 0) or 0),
+                "nodes_created": int((created or {}).get("c", 0) or 0),
+                "edges_touched": int((edges or {}).get("c", 0) or 0),
+            }
+

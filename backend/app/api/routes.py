@@ -1,13 +1,17 @@
+import hashlib
 import secrets
 import threading
 import time
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Header, HTTPException, Request, UploadFile
-from fastapi.responses import StreamingResponse
+from pathlib import Path
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.api.deps import (
+    get_current_admin,
     get_constitution_service,
     get_current_user,
     get_neo4j_repository,
@@ -16,12 +20,24 @@ from app.api.deps import (
 )
 from app.api.middleware import concurrency_metrics
 from app.core.config import settings
-from app.db.models import AppUser, CypherTemplate, EntityProfile, PromptTemplate, WorkflowRun, WorkflowSession
+from app.db.models import (
+    AppUser,
+    CypherTemplate,
+    EntityProfile,
+    ImportBatch,
+    PromptTemplate,
+    WorkflowRun,
+    WorkflowSession,
+)
 from app.db.sqlalchemy import SessionLocal, get_db_session
 from app.repositories.neo4j_repository import Neo4jRepository
 from app.repositories.postgres_repository import PostgresRepository
 from app.schemas.admin import (
     ChatLogRead,
+    ImportBatchPage,
+    ImportBatchRead,
+    ImportCommitRequest,
+    ImportTemplateRead,
     CypherTemplateRead,
     CypherTemplateUpdate,
     OverviewResponse,
@@ -90,6 +106,7 @@ from app.services.captcha_service import (
 from app.services.constitution_service import ConstitutionService
 from app.services.qa_orchestrator import QAOrchestrator
 from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
+from app.services import kg_import_service as import_service
 from app.services.auth_service import AuthService, hash_password
 
 
@@ -989,3 +1006,340 @@ def get_workflow_step_detail(
             else None
         ),
     )
+
+
+# ==================== 管理端：数据导入（写入知识图谱） ====================
+# 设计：上传 → 后台解析校验与预览 → 管理员确认 → 后台写库（全部打批次标记，可撤销）。
+# 同一时刻只允许一个进行中的导入，避免并发写同一批唯一键。
+
+IMPORT_ACTIVE_STATUSES = ("pending", "parsing", "writing", "rolling_back")
+
+
+def _import_type_or_400(data_type: str) -> "import_service.ImportType":
+    item = import_service.IMPORT_TYPES.get(data_type)
+    if item is None:
+        raise HTTPException(status_code=400, detail=f"不支持的数据类型：{data_type}")
+    return item
+
+
+def _import_batch_read(batch: ImportBatch) -> ImportBatchRead:
+    item = import_service.IMPORT_TYPES.get(batch.data_type)
+    return ImportBatchRead(
+        id=batch.id,
+        source_filename=batch.source_filename,
+        data_type=batch.data_type,
+        data_type_name=item.name if item else None,
+        merge_mode=batch.merge_mode,
+        status=batch.status,
+        created_by_name=batch.created_by_name,
+        progress=batch.progress,
+        summary=batch.summary,
+        validation=batch.validation,
+        error_detail=batch.error_detail,
+        created_at=batch.created_at,
+        committed_at=batch.committed_at,
+        rolled_back_at=batch.rolled_back_at,
+    )
+
+
+def _import_fail(db: Session, batch: ImportBatch, message: str, **fields) -> None:
+    db.rollback()
+    fresh = db.get(ImportBatch, batch.id) or batch
+    fresh.status = "failed"
+    fresh.error_detail = message[:1000]
+    for key, value in fields.items():
+        setattr(fresh, key, value)
+    db.commit()
+
+
+def _run_import_parse(batch_id: str) -> None:
+    """后台：解析 + 校验 + 构图预览，把结果写回批次（不写图谱）。"""
+    db = SessionLocal()
+    neo4j = None
+    try:
+        repository = PostgresRepository(db)
+        batch = repository.get_import_batch(batch_id)
+        if batch is None:
+            return
+        repository.update_import_batch(batch, status="parsing", progress={"stage": "解析并校验表格"})
+        db.commit()
+
+        import_type = _import_type_or_400(batch.data_type)
+        source = Path(batch.file_path or "")
+        if not source.exists():
+            _import_fail(db, batch, "上传文件已丢失，请重新上传")
+            return
+
+        rows = import_service.read_uploaded_rows(source, import_type)
+        validation = import_service.validate_rows(import_type, rows)
+        if validation.get("errors"):
+            _import_fail(db, batch, "校验未通过，请按提示修正后重新上传", validation=validation)
+            return
+        if len(rows) > settings.import_max_rows:
+            _import_fail(db, batch, f"数据行数 {len(rows)} 超过上限 {settings.import_max_rows}")
+            return
+
+        kb_root = import_service.stage_upload(batch_id, import_type, source)
+        neo4j = Neo4jRepository()
+        graph = import_service.build_plan(import_type, kb_root, repo=neo4j)
+        summary = import_service.graph_summary(graph)
+        preview = import_service.preview(import_type, graph, neo4j, batch_id, batch.merge_mode)
+        snapshot_value = preview.pop("snapshot_value", [])
+        if preview.get("snapshot_capped"):
+            _import_fail(
+                db, batch,
+                f"本次需要记录 {preview['snapshot_fields']} 处冲突快照，超过上限 {settings.import_snapshot_max}；"
+                "请拆分文件，或改用「只补空缺」模式",
+                validation=validation,
+            )
+            return
+
+        repository.update_import_batch(
+            batch,
+            status="awaiting_confirm",
+            summary=summary,
+            validation=validation,
+            snapshot=snapshot_value,
+            progress={"stage": "待确认", "preview": preview},
+        )
+        db.commit()
+    except ValueError as exc:
+        _import_fail(db, SessionLocal().get(ImportBatch, batch_id) or ImportBatch(id=batch_id, source_filename="", data_type="", merge_mode="fill_empty"), str(exc))
+    except Exception as exc:  # noqa: BLE001 - 后台任务必须吞掉异常并落库状态
+        _import_fail(
+            db,
+            SessionLocal().get(ImportBatch, batch_id) or ImportBatch(id=batch_id, source_filename="", data_type="", merge_mode="fill_empty"),
+            f"解析失败：{exc.__class__.__name__}: {exc}",
+        )
+    finally:
+        if neo4j is not None:
+            neo4j.close()
+        db.close()
+
+
+def _run_import_commit(batch_id: str) -> None:
+    """后台：按确认后的模式写库（先建约束，再写节点与关系，全部打批次标记）。"""
+    db = SessionLocal()
+    neo4j = None
+    try:
+        repository = PostgresRepository(db)
+        batch = repository.get_import_batch(batch_id)
+        if batch is None:
+            return
+        repository.update_import_batch(batch, status="writing", progress={"stage": "写入图谱"})
+        db.commit()
+
+        import_type = _import_type_or_400(batch.data_type)
+        source = Path(batch.file_path or "")
+        kb_root = import_service.import_root(batch_id) / "kb_root"
+        if not (kb_root / import_type.rel_path).exists():
+            kb_root = import_service.stage_upload(batch_id, import_type, source)
+
+        neo4j = Neo4jRepository()
+        graph = import_service.build_plan(import_type, kb_root, repo=neo4j)
+        stats = import_service.commit_batch(import_type, graph, neo4j, batch_id, batch.merge_mode)
+        repository.update_import_batch(
+            batch,
+            status="completed",
+            summary=stats,
+            committed_at=datetime.utcnow(),
+            progress={"stage": "已完成"},
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        _import_fail(
+            db,
+            SessionLocal().get(ImportBatch, batch_id) or ImportBatch(id=batch_id, source_filename="", data_type="", merge_mode="fill_empty"),
+            f"写入失败：{exc.__class__.__name__}: {exc}（已写入的部分可点「撤销本次导入」清理）",
+        )
+    finally:
+        if neo4j is not None:
+            neo4j.close()
+        db.close()
+
+
+def _run_import_rollback(batch_id: str) -> None:
+    """后台：撤销本次导入（按快照还原，再删本批次新增的边与孤立节点）。"""
+    db = SessionLocal()
+    neo4j = None
+    try:
+        repository = PostgresRepository(db)
+        batch = repository.get_import_batch(batch_id)
+        if batch is None:
+            return
+        repository.update_import_batch(batch, status="rolling_back", progress={"stage": "撤销中"})
+        db.commit()
+
+        neo4j = Neo4jRepository()
+        result = import_service.rollback_batch(neo4j, batch_id, batch.snapshot)
+        repository.update_import_batch(
+            batch,
+            status="rolled_back",
+            summary={**(batch.summary or {}), "rollback": result},
+            rolled_back_at=datetime.utcnow(),
+            progress={"stage": "已撤销"},
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        _import_fail(
+            db,
+            SessionLocal().get(ImportBatch, batch_id) or ImportBatch(id=batch_id, source_filename="", data_type="", merge_mode="fill_empty"),
+            f"撤销失败：{exc.__class__.__name__}: {exc}",
+        )
+    finally:
+        if neo4j is not None:
+            neo4j.close()
+        db.close()
+
+
+@admin_router.get("/imports/templates", response_model=list[ImportTemplateRead])
+def list_import_templates() -> list[ImportTemplateRead]:
+    return [ImportTemplateRead(**item) for item in import_service.list_templates()]
+
+
+@admin_router.get("/imports/templates/{data_type}")
+def download_import_template(data_type: str) -> FileResponse:
+    import_type = _import_type_or_400(data_type)
+    path = import_service.template_path(import_type)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="模板文件不存在，请联系管理员重新生成")
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        filename=f"{import_type.name}-导入模板.xlsx",
+    )
+
+
+@admin_router.get("/imports", response_model=ImportBatchPage)
+def list_import_batches(
+    status: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db_session),
+) -> ImportBatchPage:
+    repository = PostgresRepository(db)
+    page = max(1, page)
+    page_size = min(max(1, page_size), 100)
+    rows, total = repository.list_import_batches(page=page, page_size=page_size, status=status)
+    return ImportBatchPage(
+        items=[_import_batch_read(batch) for batch in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@admin_router.get("/imports/{batch_id}", response_model=ImportBatchRead)
+def get_import_batch_detail(batch_id: str, db: Session = Depends(get_db_session)) -> ImportBatchRead:
+    repository = PostgresRepository(db)
+    batch = repository.get_import_batch(batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="导入批次不存在")
+    return _import_batch_read(batch)
+
+
+@admin_router.post("/imports", response_model=ImportBatchRead, status_code=202)
+def create_import_batch(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    data_type: str = Form(...),
+    merge_mode: str = Form("fill_empty"),
+    admin: AppUser = Depends(get_current_admin),
+    db: Session = Depends(get_db_session),
+) -> ImportBatchRead:
+    import_type = _import_type_or_400(data_type)
+    if merge_mode not in ("fill_empty", "overwrite"):
+        raise HTTPException(status_code=400, detail="写入模式只支持 fill_empty（只补空缺）或 overwrite（覆盖）")
+    repository = PostgresRepository(db)
+    if repository.has_active_import_batch():
+        raise HTTPException(status_code=409, detail="已有导入任务正在进行，请等待其完成后再上传")
+
+    filename = (file.filename or "").strip() or "未命名.xlsx"
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(status_code=400, detail="只支持 .xlsx 格式（不支持 .xls/.csv），请用本站模板另存为 .xlsx")
+
+    batch = repository.create_import_batch(
+        source_filename=filename[:255],
+        data_type=import_type.key,
+        merge_mode=merge_mode,
+        status="pending",
+        created_by=admin.id,
+        created_by_name=admin.display_name or admin.username,
+        progress={"stage": "已上传，等待解析"},
+    )
+    db.commit()
+
+    target_dir = import_service.import_root(batch.id)
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / "source.xlsx"
+    size = 0
+    try:
+        with open(target, "wb") as handle:
+            while True:
+                chunk = file.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > settings.max_import_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"文件超过上限 {settings.max_import_bytes // (1024 * 1024)}MB，请拆分后再上传",
+                    )
+                handle.write(chunk)
+    except HTTPException:
+        target.unlink(missing_ok=True)
+        repository.update_import_batch(batch, status="failed", error_detail="文件超限，已中止")
+        db.commit()
+        raise
+
+    digest = hashlib.sha256(target.read_bytes()).hexdigest()
+    repository.update_import_batch(batch, file_path=str(target), file_sha256=digest)
+    db.commit()
+    background_tasks.add_task(_run_import_parse, batch.id)
+    return _import_batch_read(batch)
+
+
+@admin_router.post("/imports/{batch_id}/commit", response_model=ImportBatchRead, status_code=202)
+def commit_import_batch(
+    batch_id: str,
+    background_tasks: BackgroundTasks,
+    payload: ImportCommitRequest | None = None,
+    db: Session = Depends(get_db_session),
+) -> ImportBatchRead:
+    repository = PostgresRepository(db)
+    batch = repository.get_import_batch(batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="导入批次不存在")
+    if batch.status != "awaiting_confirm":
+        raise HTTPException(status_code=409, detail=f"当前状态（{batch.status}）不可确认，请刷新后重试")
+    new_mode = (payload.merge_mode if payload else None) or batch.merge_mode
+    if new_mode != batch.merge_mode:
+        # 写入模式变了：冲突快照口径不同，必须回到解析阶段重算，否则撤销会用错快照
+        repository.update_import_batch(
+            batch, merge_mode=new_mode, status="pending", progress={"stage": "写入模式已更改，重新解析"}
+        )
+        db.commit()
+        background_tasks.add_task(_run_import_parse, batch.id)
+        return _import_batch_read(batch)
+    repository.update_import_batch(batch, status="writing", progress={"stage": "开始写入图谱"})
+    db.commit()
+    background_tasks.add_task(_run_import_commit, batch.id)
+    return _import_batch_read(batch)
+
+
+@admin_router.post("/imports/{batch_id}/rollback", response_model=ImportBatchRead, status_code=202)
+def rollback_import_batch(
+    batch_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db_session),
+) -> ImportBatchRead:
+    repository = PostgresRepository(db)
+    batch = repository.get_import_batch(batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="导入批次不存在")
+    if batch.status not in ("completed", "failed"):
+        raise HTTPException(status_code=409, detail=f"当前状态（{batch.status}）不可撤销")
+    repository.update_import_batch(batch, status="rolling_back", progress={"stage": "开始撤销"})
+    db.commit()
+    background_tasks.add_task(_run_import_rollback, batch.id)
+    return _import_batch_read(batch)

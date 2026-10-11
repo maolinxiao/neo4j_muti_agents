@@ -13,6 +13,7 @@ from app.db.models import (
     CypherTemplate,
     EntityProfile,
     GraphSnapshot,
+    ImportBatch,
     PromptTemplate,
     QATrace,
     UserFeedback,
@@ -417,3 +418,39 @@ class PostgresRepository:
         # 11) 用户本体
         self.session.execute(delete(AppUser).where(AppUser.id == user_id))
         self.session.flush()
+
+    # ---- 管理端数据导入批次 ----
+    def create_import_batch(self, **fields) -> ImportBatch:
+        batch = ImportBatch(**fields)
+        self.session.add(batch)
+        self.session.flush()
+        return batch
+
+    def get_import_batch(self, batch_id: str) -> ImportBatch | None:
+        return self.session.get(ImportBatch, batch_id)
+
+    def list_import_batches(self, *, page: int = 1, page_size: int = 20, status: str | None = None):
+        query = select(ImportBatch)
+        count_query = select(func.count(ImportBatch.id))
+        if status:
+            query = query.where(ImportBatch.status == status)
+            count_query = count_query.where(ImportBatch.status == status)
+        total = int(self.session.scalar(count_query) or 0)
+        rows = list(
+            self.session.scalars(
+                query.order_by(desc(ImportBatch.created_at)).offset((page - 1) * page_size).limit(page_size)
+            )
+        )
+        return rows, total
+
+    def update_import_batch(self, batch: ImportBatch, **fields) -> ImportBatch:
+        for key, value in fields.items():
+            setattr(batch, key, value)
+        self.session.flush()
+        return batch
+
+    def has_active_import_batch(self) -> bool:
+        """是否存在进行中的导入（同一时刻只允许一个，避免并发写同一批键）。"""
+        active = ("pending", "parsing", "writing", "rolling_back")
+        total = self.session.scalar(select(func.count(ImportBatch.id)).where(ImportBatch.status.in_(active)))
+        return bool(total)

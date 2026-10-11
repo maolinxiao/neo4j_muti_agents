@@ -488,3 +488,29 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - 回滚点：`frontend-dist.bak-20260916220040` 之后最新一次（ls -dt 首位）。
 - `deploy_t17_showcase_p14_upload.py` 12 文件 sha256 抽检 MATCH；清理旧资源 4 件；新 hash `index-D4_yKH04.js`→（新）`index-*.js/css`、`HeroKnowledgeScene-DVgML9Jm.css` 不变。
 - 回归：本地 dev 44/44 PASS → 公网 **44/44 PASS**（canvas=6、hero 打字、mascot 切换、路由点亮、任务推进、KB 标签、FPS、reduced-motion 0 canvas、390px 无横滚、console 0）。
+
+## 2026-10 站点 HTTPS 上线：mmfh.com.cn 全站 SSL（P15 上线记录，2026-10-12）
+
+### 背景
+- 备案已通过，`http://mmfh.com.cn/` 直连 200 不再被拦截；http:// 浏览器标"不安全"，需上 HTTPS。
+- 证书：Let's Encrypt（acme.sh v3.1.5，DNS 验证，ecc），CN=mmfh.com.cn，SAN `mmfh.com.cn, www.mmfh.com.cn`，notAfter 2026-12-07（90 天）。
+- 证书文件：`/etc/nginx/ssl/mmfh.com.cn.fullchain.cer`、`/etc/nginx/ssl/mmfh.com.cn.key`；客户端 `curl -w %{ssl_verify_result}`=0，整链可信。
+
+### nginx 变更
+- vhost `118.24.185.45.conf` 新增 443 server：`listen 443 ssl; server_name mmfh.com.cn www.mmfh.com.cn;`，`ssl_certificate` 指向上述路径，其余与 80 站点同构（SPA try_files + `/api` 反代 127.0.0.1:8000，SSE 参数保留）。
+- 80 端口：`mmfh.com.cn` / `www.mmfh.com.cn` 301 → https；IP 直连（118.24.185.45）保持 HTTP 200 不变。
+- 仅 `nginx -t && nginx -s reload`，未动面板核心。
+
+### 自动续期
+- acme.sh cron：`10 0,6,12,18 * * *`（每 6 小时一检；90 天证书到期前自动续）。
+- `~/.acme.sh/mmfh.com.cn_ecc/mmfh.com.cn.conf` 的 `Le_ReloadCmd` = `nginx -t && nginx -s reload`（`/www/server/nginx/sbin/nginx` 存在），续期后自动部署证书并 reload。
+- 异常时手动：`/root/.acme.sh/acme.sh --renew -d mmfh.com.cn -d www.mmfh.com.cn --ecc --force && nginx -s reload`。
+
+### 云端防火墙（重要教训）
+- 443 此前公网不通的根因：腾讯云轻量应用服务器**安全组未放行 TCP 443**（服务器侧 firewalld 已放行、nginx 已监听 0.0.0.0:443 且本机 200）。在腾讯云控制台放行 443 后全链路恢复。以后新开端口先查云安全组，再查服务器防火墙。
+
+### 公网验收（2026-10-12）
+- `https://mmfh.com.cn/` → 200，ssl_verify=0（浏览器无告警）；`https://www.mmfh.com.cn/` → 200。
+- `http://mmfh.com.cn/` → 301 `https://mmfh.com.cn/`；`http://www.mmfh.com.cn/` → 301 `https://www.mmfh.com.cn/`。
+- `https://mmfh.com.cn/api/health` → 200 `{"status":"ok","postgres":true,"neo4j":true,"llm_configured":true}`。
+- `http://118.24.185.45/` → 200（IP 直连保留）。

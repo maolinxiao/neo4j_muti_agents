@@ -514,3 +514,32 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - `http://mmfh.com.cn/` → 301 `https://mmfh.com.cn/`；`http://www.mmfh.com.cn/` → 301 `https://www.mmfh.com.cn/`。
 - `https://mmfh.com.cn/api/health` → 200 `{"status":"ok","postgres":true,"neo4j":true,"llm_configured":true}`。
 - `http://118.24.185.45/` → 200（IP 直连保留）。
+
+## 2026-10-12 DeepSeek API Key 轮换（P16 运维记录）
+
+### 变更范围
+- 仅改 `/www/wwwroot/neo4j-agents/backend/.env` 第 13 行 `DEEPSEEK_API_KEY`（新 key 只存服务器该文件，权限保持 0600；其余 16 行未动）。key 原文不入库、不入文档。
+- 未改代码、nginx、PostgreSQL、Neo4j；未部署任何新版本。
+
+### 重启方式（与面板一致）
+- 后端仍用宝塔面板脚本启动：`/www/server/python_project/vhost/scripts/neo4j-agents-backend_cmd.sh`（内含 `BT_PYTHON_SERVICE_SID=md5(pjname)`、`source .../vhost/env/<pjname>.env`、`cd` 项目目录、nohup 启动、写 pid）。
+- 本次新进程 pid 2219963（2026-10-12 01:54:12），pid 文件 `/www/server/python_project/vhost/pids/neo4j-agents-backend.pid` 一致。
+
+### 验收（2026-10-12）
+- 新 key 直连 `api.deepseek.com`：`GET /models` → 200；`POST /chat/completions`（`deepseek-v4-pro`，max_tokens=1）→ 200。
+- 应用自身客户端（venv + 线上 `.env`）调 `/chat/completions` → 200；`settings.llm_api_key` 前缀为新 key。
+- `http://127.0.0.1:8000/api/health` 与 `https://mmfh.com.cn/api/health` → 200，`llm_configured=true`；重启后观察 2.5 分钟无 bind 冲突。
+
+### 备份与回滚
+- 变更前备份：`backups/pre-deepseek-key-20261012-014747/.env`（另有每日 03:00 自动备份 `backups/env/.env.<日期>`，含旧 key）。
+- 回滚：`cp backups/pre-deepseek-key-20261012-014747/.env backend/.env`，再执行上面的 cmd.sh 重启。
+
+### 三条教训（以后重启后端必看）
+1. **不要用 `pgrep -f 'backend/scripts/run_server.py'` 定位后端进程**：该模式会匹配到执行命令的 SSH shell 自身（命令行里含同样字符串），曾导致误杀 shell、重启链中断。改用 `ss -lntp | grep 127.0.0.1:8000` 反查 pid，再校验 `/proc/<pid>/cmdline` 身份后再 kill。
+2. **手工 nohup 启动必须带 `BT_PYTHON_SERVICE_SID=<md5(项目名)>` 并写面板 pid 文件**，否则面板按该环境变量认不到进程，判定"未运行"并周期性抢 8000 端口（本次出现 3 次 `address already in use`）。
+3. **经 SSH 后台启动时别把重定向写在 `A && B &` 的整条列表上**：后台子 shell 会持有 SSH 通道句柄，导致客户端读 stdout 挂住；把启动逻辑放进脚本文件、用 `setsid bash <script>` 执行最稳。
+
+### 遗留（本次未处理）
+- 本地 `backend/.env` 仍是旧 key（若旧 key 将停用，本地开发需同步）。
+- 线上后端代码与本地有 9 个文件差异（10-02 性能优化批次未部署）：`app/api/middleware.py`、`app/api/ratelimit.py` 仅本地有；`app/api/routes.py`、`app/core/config.py`、`app/db/sqlalchemy.py`、`app/main.py`、`app/repositories/neo4j_repository.py`、`app/services/deepseek_client.py`、`scripts/run_server.py` 内容不同（另有 20 个文件仅行尾符 CRLF/LF 差异）。
+

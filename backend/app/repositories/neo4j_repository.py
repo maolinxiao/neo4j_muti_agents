@@ -2610,22 +2610,24 @@ RETURN count(*) AS rows,
             }
 
     def clear_batch_marks(self, batch_id: str) -> dict:
-        """清除批次标记（撤销完成后调用，避免残留属性影响后续统计）。"""
+        """只清除「本批次自己写入的」标记。
+
+        注意：创建标记 import_batch 与更新标记 import_batch_updated 必须分开按值匹配清除。
+        若把两者一并 REMOVE，后一批次的撤销会抹掉前一批次的创建标记，导致前一批次再也无法
+        删除它创建的数据（2026-10-12 真机自检发现）。
+        """
+        cleaned = {"nodes_cleared": 0, "edges_cleared": 0}
+        statements = [
+            ("nodes_cleared", "MATCH (n) WHERE n.import_batch = $batch REMOVE n.import_batch RETURN count(*) AS c"),
+            ("nodes_cleared", "MATCH (n) WHERE n.import_batch_updated = $batch REMOVE n.import_batch_updated RETURN count(*) AS c"),
+            ("edges_cleared", "MATCH ()-[r]->() WHERE r.import_batch = $batch REMOVE r.import_batch RETURN count(*) AS c"),
+            ("edges_cleared", "MATCH ()-[r]->() WHERE r.import_batch_updated = $batch REMOVE r.import_batch_updated RETURN count(*) AS c"),
+        ]
         with self.driver.session() as session:
-            nodes = session.run(
-                "MATCH (n) WHERE n.import_batch = $batch OR n.import_batch_updated = $batch "
-                "REMOVE n.import_batch, n.import_batch_updated RETURN count(*) AS c",
-                {"batch": batch_id},
-            ).single()
-            edges = session.run(
-                "MATCH ()-[r]->() WHERE r.import_batch = $batch OR r.import_batch_updated = $batch "
-                "REMOVE r.import_batch, r.import_batch_updated RETURN count(*) AS c",
-                {"batch": batch_id},
-            ).single()
-            return {
-                "nodes_cleared": int((nodes or {}).get("c", 0) or 0),
-                "edges_cleared": int((edges or {}).get("c", 0) or 0),
-            }
+            for key, query in statements:
+                record = session.run(query, {"batch": batch_id}).single()
+                cleaned[key] += int((record or {}).get("c", 0) or 0)
+        return cleaned
 
     def count_batch(self, batch_id: str) -> dict:
         """统计当前仍带批次标记的节点/关系（撤销与验收时用）。"""

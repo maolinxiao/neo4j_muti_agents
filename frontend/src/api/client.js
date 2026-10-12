@@ -155,6 +155,20 @@ export const api = {
   updatePrompt: (id, payload) => client.put(`/admin/prompts/${id}`, payload),
   getTemplates: () => client.get("/admin/cypher-templates"),
   updateTemplate: (id, payload) => client.put(`/admin/cypher-templates/${id}`, payload),
+  // ---- 管理端：数据导入（知识图谱）----
+  listImportTemplates: () => client.get("/admin/imports/templates"),
+  downloadImportTemplate: (key) =>
+    client.get(`/admin/imports/templates/${key}`, { responseType: "blob", timeout: 0 }),
+  uploadImport: (formData, onProgress) =>
+    client.post("/admin/imports", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 0,
+      onUploadProgress: onProgress,
+    }),
+  listImportBatches: (params) => client.get("/admin/imports", { params }),
+  getImportBatch: (id) => client.get(`/admin/imports/${id}`),
+  commitImport: (id, payload) => client.post(`/admin/imports/${id}/commit`, payload || {}),
+  rollbackImport: (id) => client.post(`/admin/imports/${id}/rollback`),
   createWorkflowSession: () => client.post("/rnd/sessions"),
   listWorkflowSessions: () => client.get("/rnd/sessions"),
   createWorkflowRun: (sessionId, payload) => client.post(`/rnd/sessions/${sessionId}/runs`, payload),

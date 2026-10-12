@@ -46,6 +46,7 @@
             <el-menu-item index="/app/admin/logs">{{ t("menu.adminLogs") }}</el-menu-item>
             <el-menu-item index="/app/admin/prompts">{{ t("menu.adminPrompts") }}</el-menu-item>
             <el-menu-item index="/app/admin/templates">{{ t("menu.adminTemplates") }}</el-menu-item>
+            <el-menu-item index="/app/admin/import">{{ t("menu.adminImport") }}</el-menu-item>
           </el-sub-menu>
         </el-menu>
       </el-scrollbar>
@@ -118,6 +119,7 @@ const routeNameMap = {
   "/app/admin/logs": "menu.adminLogs",
   "/app/admin/prompts": "menu.adminPrompts",
   "/app/admin/templates": "menu.adminTemplates",
+  "/app/admin/import": "menu.adminImport",
 };
 
 const currentRouteName = computed(() => {

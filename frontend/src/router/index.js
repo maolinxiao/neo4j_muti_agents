@@ -16,6 +16,7 @@ import UsersView from "../views/admin/UsersView.vue";
 import PromptView from "../views/admin/PromptView.vue";
 import TemplateView from "../views/admin/TemplateView.vue";
 import LogsView from "../views/admin/LogsView.vue";
+import ImportDataView from "../views/admin/ImportDataView.vue";
 import { useAuthStore } from "../stores/auth";
 
 const routes = [
@@ -37,6 +38,7 @@ const routes = [
       { path: "admin/prompts", name: "admin-prompts", component: PromptView, meta: { requiresAdmin: true } },
       { path: "admin/templates", name: "admin-templates", component: TemplateView, meta: { requiresAdmin: true } },
       { path: "admin/logs", name: "admin-logs", component: LogsView, meta: { requiresAdmin: true } },
+      { path: "admin/import", name: "admin-import", component: ImportDataView, meta: { requiresAdmin: true } },
     ],
   },
 ];

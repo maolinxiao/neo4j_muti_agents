@@ -569,4 +569,37 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 ### 回滚
 - 覆盖回滚点目录：`rm -rf frontend-dist && cp -r frontend-dist.bak-20261012021809 frontend-dist`；旧 favicon/apple-touch-icon 的原始文件可用 git 恢复（`git checkout <旧提交> -- frontend/public/`）。
 
+## 2026-10-12 管理端「数据导入」上线（P18，含 10-02 性能优化批次）
 
+### 本次上线的范围（重要）
+线上后端自 2026-09-02 起未更新，本地积累了 10-02 性能优化批次（`api/middleware.py`、`api/ratelimit.py` 为新增文件，另有 7 个文件内容不同）。本次为支持「数据导入」必须改 `routes.py`/`config.py`/`models.py`/`init_db.py`/`main.py`，因此**两者一并上线**，后端整树同步。
+
+### 功能
+管理员在「管理后台 → 数据导入」上传 Excel：模板下载 → 上传 → 解析校验与预览（新增/更新拆分、校验错误与提示）→ 确认写入 Neo4j → 可「撤销本次导入」。17 个模板覆盖 KB1–KB8；写入模式每次可选「只补空缺」（默认，可完整撤销）或「覆盖同名」（写入前记录旧值快照，撤销按快照还原）。所有写入带 `import_batch`/`imported_at` 批次标记，撤销只处理带标记的数据。
+
+### 改动（本地）
+- 新增：`app/services/kg_import_core.py`（从 0604 脚本抽出的解析/写入内核，脚本改为复用）、`app/services/xlsx_reader.py`（纯标准库 xlsx 读取器）、`app/services/kg_import_service.py`（解析/校验/预览/写入/撤销编排）、`app/data/import_templates/*.xlsx`（17 个）、`scripts/build_import_templates.py`。
+- 修改：`api/routes.py`（6 个管理端端点 + 3 个后台任务）、`repositories/neo4j_repository.py`（首个写路径：约束/两种模式写入/快照还原/撤销/批次统计）、`repositories/postgres_repository.py`、`db/models.py`（新表 `import_batch`）、`db/init_db.py`、`core/config.py`（4 个上限）、`schemas/admin.py`、前端 `views/admin/ImportDataView.vue` + 路由/菜单/双语词条/client.js。
+- `scripts/import_agent_kg_0604.py` 与 `import_neo4j_kg.py` 改为从后端导入内核，**0604 全量重建行为逐字节不变**（重构前后 `--dry-run` 输出一致，86484/207356）。
+
+### 上线
+- 后端：`deploy_t19_import_backend_upload.py`（临时脚本，未跟踪）整树同步 64 个文件；服务器端逐文件 sha256 校验 **0 不一致 / 0 缺失**；`.env` sha256 前后一致（未被改动）；线上 venv `py_compile` 通过。
+- 回滚点：`backups/pre-import-p18-20261012-143634/`（含 `app/`、`scripts/`、`.env` 完整拷贝）。
+- 重启：面板脚本 `neo4j-agents-backend_cmd.sh`（带 `BT_PYTHON_SERVICE_SID`）；新进程 pid 2398177。
+- 前端：`deploy_t20_import_frontend_upload.py`（由 t18 派生）；新 hash `index-DIapWUdq.js` / `index-BBS5nxNx.css`；回滚点 `frontend-dist.bak-20261012143718`（脚本自报的 `bak_dir` 仍是旧的排序 bug，以 `ls -dt` 为准）。
+
+### 生产验收（2026-10-12，全部通过）
+- 静态：`https://mmfh.com.cn/` 200、`/api/health` 200（响应已含性能批次的 `concurrency` 统计）、新主包/样式 200、`/favicon.ico` 200。
+- 新表：`import_batch` 在启动时由 `initialize_database()` 自动建好。
+- 端到端（用一次性受控会话，验收后删除）：模板清单 17 个；上传 → `awaiting_confirm`，预览「新增 1 节点 / 0 关系」；确认 → `completed`，写入 `created_nodes=1`，图谱 86484 → 86485 且测试节点带批次标记；撤销 → `rolled_back`，`deleted_nodes=1`；**复核图谱精确回到 86,484 / 207,356 / 865，残留批次标记 0（节点与关系），测试数据 0 残留**。
+- 清理：临时会话 2 条、批次记录 2 条已删除，`backend/uploads/imports/` 已移除，服务器临时文件已删。
+
+### 本次上线期间发现并修复的缺陷（真机自检才发现）
+1. `routes.py` 漏 `import datetime` → 提交/撤销后台任务写批次记录时 `NameError`，**数据写成功但批次记为 failed**（summary/committed_at 丢失）。教训：后台任务里的 `datetime`/`hashlib` 这类导入易漏，改完必须真跑一次任务路径。
+2. `clear_batch_marks` 原先一条语句同时 `REMOVE import_batch, import_batch_updated` → 后一批次的撤销会**抹掉前一批次的创建标记**，使前批次再也删不掉自己创建的数据。已改为按值分开清理。
+
+### 使用提示
+- 类型/必填列见模板内「填写说明」工作表；**列名不可改、工作表不可重命名**（解析器按表头逐字匹配）。
+- KB5/KB6/KB8 的原料关联依赖图谱中已有原料名做子串匹配：原料名对不上时不会建立关系（页面的校验提示会列出缺失项）。
+- KB7 规则类数据以整行内容为唯一键：改任一单元格会生成新规则节点、旧节点保留（既有设计，本功能会放大该现象）。
+- 单文件上限 20MB、5 万行（`MAX_IMPORT_BYTES`/`IMPORT_MAX_ROWS` 可调；nginx `client_max_body_size` 为 50m）；同一时刻只允许一个进行中的导入。

@@ -64,6 +64,9 @@ backend/app/
 │   ├── deepseek_client.py
 │   ├── entity_resolver.py
 │   ├── graph_retriever.py
+│   ├── kg_import_core.py         # 图谱导入内核（0604 脚本共用的解析/写入）
+│   ├── kg_import_service.py      # 管理端数据导入编排（解析/校验/预览/写入/撤销）
+│   ├── xlsx_reader.py            # 纯标准库 xlsx 读取器
 │   ├── minimax_client.py      # 历史兼容，新增逻辑不要优先使用
 │   ├── qa_answer_templates.py
 │   ├── qa_orchestrator.py
@@ -684,7 +687,11 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 | `frontend/src/views/portal/ChatView.vue` | 知识问答页面 | 高 |
 | `frontend/src/views/portal/RndWorkspaceView.vue` | 研发协同页面 | 高 |
 | `frontend/src/components/GraphCanvas.vue` | 图谱可视化 | 中 |
-| `scripts/import_agent_kg_0604.py` | 0604 图谱全量重建 | 高 |
+| `scripts/import_agent_kg_0604.py` | 0604 图谱全量重建（内核已抽到 `backend/app/services/kg_import_core.py`，本脚本保留 CLI 与备份/清库） | 高 |
+| `backend/app/services/kg_import_core.py` | 图谱导入内核：GraphBuild、各 build_kb*、约束与写入（脚本与管理端导入共用） | 高 |
+| `backend/app/services/kg_import_service.py` | 管理端数据导入：模板登记、解析校验、预览、两种写入模式、批次撤销 | 高 |
+| `backend/app/data/import_templates/` | 管理端导入模板（17 个 xlsx，由 `scripts/build_import_templates.py` 生成） | 中 |
+| `frontend/src/views/admin/ImportDataView.vue` | 管理端数据导入页面 | 中 |
 | `README.md` | 项目说明 | 中 |
 | `AGENTS.md` | 开发规则 | 中 |
 

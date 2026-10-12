@@ -489,6 +489,17 @@ python .\scripts\import_agent_kg_0604.py --clear
 - `summary_metrics`
 - `related_graph_snapshots`
 
+
+### 管理端数据导入（2026-10-12 上线 P18）
+
+管理员可在管理后台「数据导入」把表格数据写入知识图谱：
+
+- 流程：下载模板 → 上传 → 系统解析校验并给出预览（新增/更新节点与关系、校验错误与提示）→ 确认写入 → 需要时「撤销本次导入」。
+- 模板：17 个，覆盖 KB1–KB8（原料类 3、方剂与替代 5、产品与市场 1、合规与体质 8），每个模板含「填写说明」工作表；列名不可改、工作表不可重命名。
+- 写入模式（每次上传可选）：「只补空缺」（默认，已存在字段不动，可完整撤销）／「覆盖同名」（覆盖前记录旧值快照，撤销按快照还原）。
+- 安全边界：所有写入带 `import_batch` 批次标记，撤销只处理带标记的数据；不提供清空图谱的能力；单文件 ≤20MB、≤5 万行；同一时刻只允许一个导入任务。
+- 相关文件：`app/services/kg_import_service.py`（编排）、`app/services/kg_import_core.py`（解析/写入内核，与 `scripts/import_agent_kg_0604.py` 共用）、`frontend/src/views/admin/ImportDataView.vue`。
+
 ## 管理后台
 
 当前后台支持：

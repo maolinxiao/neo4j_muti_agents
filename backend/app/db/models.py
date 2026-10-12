@@ -152,6 +152,14 @@ class PromptTemplate(Base, TimestampMixin):
     answer_schema: Mapped[dict | None] = mapped_column(JSONB)
     output_schema: Mapped[dict | None] = mapped_column(JSONB)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # 管理端「工作流逻辑」可编辑项（2026-10-12 新增）
+    # temperature / max_tokens 为空表示沿用全局默认（settings.default_temperature / 调用方默认）
+    temperature: Mapped[float | None] = mapped_column(Float)
+    max_tokens: Mapped[int | None] = mapped_column(Integer)
+    # 管理员是否改过：改过后启动不再用种子覆盖（见 init_db 的种子策略）
+    is_customized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    # 配置版本号：每次保存 +1，与 agent_config_revision.version 对应
+    version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
 
 class CypherTemplate(Base, TimestampMixin):
@@ -165,6 +173,8 @@ class CypherTemplate(Base, TimestampMixin):
     cypher_query: Mapped[str] = mapped_column(Text, nullable=False)
     parameter_schema: Mapped[dict | None] = mapped_column(JSONB)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # 管理员是否改过：改过后启动不再用种子覆盖（2026-10-12 新增）
+    is_customized: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
 
 class UserFeedback(Base, TimestampMixin):
@@ -259,8 +269,38 @@ class WorkflowStepRun(Base, TimestampMixin):
     latency_ms: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     graph_snapshot_id: Mapped[str | None] = mapped_column(ForeignKey("graph_snapshot.id"))
     prompt_version: Mapped[str | None] = mapped_column(String(128))
+    # 运行回放用：本次该步是否用了本地兜底结果；是否因停用而跳过模型调用（2026-10-12 新增）
+    used_fallback: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    skipped: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     run: Mapped[WorkflowRun] = relationship(back_populates="steps")
+
+
+class AgentConfigRevision(Base, TimestampMixin):
+    """Agent 配置版本历史（2026-10-12 新增）。
+
+    每次管理员保存工作流 Agent 配置（提示词/参数/启停）写一条；回滚 = 把历史快照写回配置
+    并再生成一条新版本，历史只增不改。
+    """
+
+    __tablename__ = "agent_config_revision"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    prompt_template_id: Mapped[str] = mapped_column(ForeignKey("prompt_template.id"), index=True, nullable=False)
+    agent_key: Mapped[str | None] = mapped_column(String(64), index=True)
+    scenario: Mapped[str] = mapped_column(String(64), default="rnd_workflow", nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str | None] = mapped_column(String(128))
+    description: Mapped[str | None] = mapped_column(Text)
+    system_prompt: Mapped[str | None] = mapped_column(Text)
+    temperature: Mapped[float | None] = mapped_column(Float)
+    max_tokens: Mapped[int | None] = mapped_column(Integer)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    output_schema: Mapped[dict | None] = mapped_column(JSONB)
+    changed_fields: Mapped[list | None] = mapped_column(JSONB)
+    change_note: Mapped[str | None] = mapped_column(String(255))
+    changed_by: Mapped[str | None] = mapped_column(String(36))
+    changed_by_name: Mapped[str | None] = mapped_column(String(64))
 
 
 class ImportBatch(Base, TimestampMixin):

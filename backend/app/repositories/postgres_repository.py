@@ -4,6 +4,7 @@ from sqlalchemy import desc, func, or_, select, update, delete
 from sqlalchemy.orm import Session
 
 from app.db.models import (
+    AgentConfigRevision,
     AppUser,
     AuthSession,
     ChatMessage,
@@ -137,18 +138,34 @@ class PostgresRepository:
         stmt = select(QATrace).order_by(QATrace.created_at.desc()).limit(200)
         return list(self.session.scalars(stmt))
 
-    def list_prompt_templates(self) -> list[PromptTemplate]:
-        return list(self.session.scalars(select(PromptTemplate).order_by(PromptTemplate.updated_at.desc())))
+    def list_prompt_templates(self, *, include_inactive: bool = False) -> list[PromptTemplate]:
+        stmt = select(PromptTemplate).order_by(PromptTemplate.updated_at.desc())
+        if not include_inactive:
+            stmt = stmt.where(PromptTemplate.is_active.is_(True))
+        return list(self.session.scalars(stmt))
 
-    def get_prompt_template_by_key(self, key: str) -> PromptTemplate | None:
-        return self.session.scalar(select(PromptTemplate).where(PromptTemplate.key == key))
+    def get_prompt_template_by_key(self, key: str, *, include_inactive: bool = False) -> PromptTemplate | None:
+        stmt = select(PromptTemplate).where(PromptTemplate.key == key)
+        if not include_inactive:
+            stmt = stmt.where(PromptTemplate.is_active.is_(True))
+        return self.session.scalar(stmt)
 
-    def get_prompt_template_by_scenario_agent(self, scenario: str, agent_key: str) -> PromptTemplate | None:
+    def get_prompt_template_by_scenario_agent(
+        self, scenario: str, agent_key: str, *, include_inactive: bool = False
+    ) -> PromptTemplate | None:
+        """按 (scenario, agent_key) 取模板。
+
+        默认排除已停用的模板（2026-10-12 起 is_active 真正生效）。工作流编排器会传
+        include_inactive=True —— 它需要看到「模板存在但被停用」这一状态，才能把该步标记为
+        skipped 并用本地兜底结果，而不是静默退化成空提示词。
+        """
         stmt = (
             select(PromptTemplate)
             .where(PromptTemplate.scenario == scenario, PromptTemplate.agent_key == agent_key)
             .order_by(PromptTemplate.updated_at.desc())
         )
+        if not include_inactive:
+            stmt = stmt.where(PromptTemplate.is_active.is_(True))
         return self.session.scalar(stmt)
 
     def get_prompt_template(self, template_id: str) -> PromptTemplate | None:
@@ -448,6 +465,45 @@ class PostgresRepository:
             setattr(batch, key, value)
         self.session.flush()
         return batch
+
+
+    def list_recent_step_runs(self, agent_key: str, *, limit: int = 8):
+        """某 Agent 最近若干次步骤运行（供「运行回放」展示）。"""
+        stmt = (
+            select(WorkflowStepRun, WorkflowRun.question, WorkflowRun.status)
+            .join(WorkflowRun, WorkflowRun.id == WorkflowStepRun.run_id)
+            .where(WorkflowStepRun.agent_key == agent_key)
+            .order_by(desc(WorkflowStepRun.created_at))
+            .limit(limit)
+        )
+        return list(self.session.execute(stmt))
+
+    # ---- 工作流 Agent 配置版本历史 ----
+    def create_agent_revision(self, **fields) -> AgentConfigRevision:
+        revision = AgentConfigRevision(**fields)
+        self.session.add(revision)
+        self.session.flush()
+        return revision
+
+    def list_agent_revisions(self, prompt_template_id: str, *, limit: int = 50) -> list[AgentConfigRevision]:
+        stmt = (
+            select(AgentConfigRevision)
+            .where(AgentConfigRevision.prompt_template_id == prompt_template_id)
+            .order_by(desc(AgentConfigRevision.version))
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt))
+
+    def get_agent_revision(self, revision_id: str) -> AgentConfigRevision | None:
+        return self.session.get(AgentConfigRevision, revision_id)
+
+    def latest_agent_revision_version(self, prompt_template_id: str) -> int:
+        value = self.session.scalar(
+            select(func.max(AgentConfigRevision.version)).where(
+                AgentConfigRevision.prompt_template_id == prompt_template_id
+            )
+        )
+        return int(value or 0)
 
     def has_active_import_batch(self) -> bool:
         """是否存在进行中的导入（同一时刻只允许一个，避免并发写同一批键）。"""

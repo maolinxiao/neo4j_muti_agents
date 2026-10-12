@@ -29,18 +29,21 @@ def initialize_database() -> None:
         ensure_chat_session_migration(session)
         ensure_profile_migration(session)
         ensure_import_batch_migration(session)
+        ensure_agent_config_migration(session)
+        # 种子策略（2026-10-12 变更）：仅在缺少时插入；已存在且管理员**从未改过**（is_customized=False）
+        # 才随种子升级；管理员改过的一律跳过 —— 否则后台编辑会在每次启动/部署时被种子覆盖掉。
         for item in DEFAULT_PROMPTS:
             exists = session.scalar(select(PromptTemplate).where(PromptTemplate.key == item["key"]))
-            if not exists:
+            if exists is None:
                 session.add(PromptTemplate(**item))
-            else:
+            elif not exists.is_customized:
                 for key, value in item.items():
                     setattr(exists, key, value)
         for item in DEFAULT_CYPHER_TEMPLATES:
             exists = session.scalar(select(CypherTemplate).where(CypherTemplate.key == item["key"]))
-            if not exists:
+            if exists is None:
                 session.add(CypherTemplate(**item))
-            else:
+            elif not exists.is_customized:
                 for key, value in item.items():
                     setattr(exists, key, value)
         for item in DEFAULT_SYSTEM_CONFIG:
@@ -161,6 +164,25 @@ def ensure_profile_migration(session) -> None:
     session.execute(text("ALTER TABLE app_user ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(255)"))
     session.execute(text("ALTER TABLE auth_session ADD COLUMN IF NOT EXISTS user_agent VARCHAR(256)"))
     session.execute(text("ALTER TABLE auth_session ADD COLUMN IF NOT EXISTS ip VARCHAR(64)"))
+
+
+def ensure_agent_config_migration(session) -> None:
+    """幂等迁移：工作流 Agent 配置（可编辑参数、自定义标记、版本）与步骤运行标记列。
+
+    agent_config_revision 新表由 create_all 建好，这里只补存量库缺少的列。
+    """
+    for statement in (
+        "ALTER TABLE prompt_template ADD COLUMN IF NOT EXISTS temperature DOUBLE PRECISION",
+        "ALTER TABLE prompt_template ADD COLUMN IF NOT EXISTS max_tokens INTEGER",
+        "ALTER TABLE prompt_template ADD COLUMN IF NOT EXISTS is_customized BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE prompt_template ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 0",
+        "CREATE INDEX IF NOT EXISTS ix_prompt_template_is_customized ON prompt_template (is_customized)",
+        "ALTER TABLE cypher_template ADD COLUMN IF NOT EXISTS is_customized BOOLEAN NOT NULL DEFAULT FALSE",
+        "CREATE INDEX IF NOT EXISTS ix_cypher_template_is_customized ON cypher_template (is_customized)",
+        "ALTER TABLE workflow_step_run ADD COLUMN IF NOT EXISTS used_fallback BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE workflow_step_run ADD COLUMN IF NOT EXISTS skipped BOOLEAN NOT NULL DEFAULT FALSE",
+    ):
+        session.execute(text(statement))
 
 
 def ensure_import_batch_migration(session) -> None:

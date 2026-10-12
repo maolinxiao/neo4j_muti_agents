@@ -107,6 +107,7 @@ from app.services.captcha_service import (
 from app.services.constitution_service import ConstitutionService
 from app.services.qa_orchestrator import QAOrchestrator
 from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
+from app.services import agent_config_service
 from app.services import kg_import_service as import_service
 from app.services.auth_service import AuthService, hash_password
 
@@ -1344,3 +1345,79 @@ def rollback_import_batch(
     db.commit()
     background_tasks.add_task(_run_import_rollback, batch.id)
     return _import_batch_read(batch)
+
+
+# ==================== 管理端：工作流逻辑（展示 + 编辑，2026-10-12 新增） ====================
+# 展示：六步静态定义 + 当前配置 + 输出契约 + 最近运行回放。
+# 编辑：提示词 / 生成参数 / 启停（key/scenario/agent_key/output_schema 本期只读）。
+# 版本：每次保存落一条快照，可查看历史并一键回滚；试运行不写运行记录。
+
+
+def _workflow_orchestrator(db: Session, neo4j: Neo4jRepository) -> "RnDWorkflowOrchestrator":
+    return RnDWorkflowOrchestrator(PostgresRepository(db), neo4j, DeepSeekClient())
+
+
+@admin_router.get("/workflow/agents")
+def list_workflow_agents(
+    db: Session = Depends(get_db_session),
+    neo4j: Neo4jRepository = Depends(get_neo4j_repository),
+) -> list[dict]:
+    repository = PostgresRepository(db)
+    orchestrator = _workflow_orchestrator(db, neo4j)
+    return agent_config_service.build_overview(repository, orchestrator)
+
+
+@admin_router.put("/workflow/agents/{agent_key}")
+def update_workflow_agent(
+    agent_key: str,
+    payload: dict,
+    admin: AppUser = Depends(get_current_admin),
+    db: Session = Depends(get_db_session),
+) -> dict:
+    repository = PostgresRepository(db)
+    try:
+        return agent_config_service.update_agent_config(repository, agent_key, payload or {}, admin)
+    except agent_config_service.AgentConfigError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@admin_router.get("/workflow/agents/{agent_key}/revisions")
+def list_workflow_agent_revisions(agent_key: str, db: Session = Depends(get_db_session)) -> list[dict]:
+    repository = PostgresRepository(db)
+    try:
+        return agent_config_service.list_revisions(repository, agent_key)
+    except agent_config_service.AgentConfigError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@admin_router.post("/workflow/agents/{agent_key}/revisions/{revision_id}/rollback")
+def rollback_workflow_agent(
+    agent_key: str,
+    revision_id: str,
+    admin: AppUser = Depends(get_current_admin),
+    db: Session = Depends(get_db_session),
+) -> dict:
+    repository = PostgresRepository(db)
+    try:
+        return agent_config_service.rollback_to_revision(repository, agent_key, revision_id, admin)
+    except agent_config_service.AgentConfigError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@admin_router.post("/workflow/agents/{agent_key}/dry-run")
+def dry_run_workflow_agent(
+    agent_key: str,
+    payload: dict | None = None,
+    db: Session = Depends(get_db_session),
+    neo4j: Neo4jRepository = Depends(get_neo4j_repository),
+) -> dict:
+    repository = PostgresRepository(db)
+    orchestrator = _workflow_orchestrator(db, neo4j)
+    try:
+        return agent_config_service.dry_run(
+            orchestrator, repository, agent_key, (payload or {}).get("question")
+        )
+    except agent_config_service.AgentConfigError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

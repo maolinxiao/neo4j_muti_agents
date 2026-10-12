@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
@@ -12,15 +13,86 @@ from app.services.deepseek_client import DeepSeekClient
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
+class AgentStepDef:
+    """工作流单步的静态定义（编排与「工作流逻辑」展示的唯一来源，2026-10-12 新增）。
+
+    顺序与依赖以前分散在 resume_run 的字面量（sequence 1..6）和没人引用的 AGENT_SEQUENCE 常量里，
+    这里统一为一份注册表：编排、展示页、校验都读它，避免"两处顺序不一致"。
+    """
+
+    agent_key: str
+    sequence: int
+    name: str
+    duty: str
+    upstream: tuple[str, ...]
+    downstream: tuple[str, ...]
+    produces_graph_snapshot: bool
+
+
+# 六步注册表：顺序与数据流向以 resume_run 的实际执行为准（formula_generation 是枢纽，
+# efficacy/flavor/replacement 与 final 都依赖它的 output_payload）。
+AGENT_STEP_DEFS: tuple[AgentStepDef, ...] = (
+    AgentStepDef(
+        agent_key="master_control",
+        sequence=1,
+        name="主控 Agent",
+        duty="需求拆解、模块调度与任务计划（企业端研发逻辑/KB 推进顺序）",
+        upstream=(),
+        downstream=("formula_generation",),
+        produces_graph_snapshot=False,
+    ),
+    AgentStepDef(
+        agent_key="formula_generation",
+        sequence=2,
+        name="方剂生成专家",
+        duty="组方设计、君臣佐使配伍、剂量与方解；产出后续步骤依赖的核心 payload",
+        upstream=("master_control",),
+        downstream=("efficacy_prediction", "flavor_prediction", "replacement_mapping", "master_control_final"),
+        produces_graph_snapshot=True,
+    ),
+    AgentStepDef(
+        agent_key="efficacy_prediction",
+        sequence=3,
+        name="功效预测专家",
+        duty="中医功效、现代药理、人群分层与风险评估",
+        upstream=("formula_generation",),
+        downstream=("master_control_final",),
+        produces_graph_snapshot=True,
+    ),
+    AgentStepDef(
+        agent_key="flavor_prediction",
+        sequence=4,
+        name="风味预测专家",
+        duty="风味特征、协调性、缺陷与优化建议",
+        upstream=("formula_generation",),
+        downstream=("master_control_final",),
+        produces_graph_snapshot=True,
+    ),
+    AgentStepDef(
+        agent_key="replacement_mapping",
+        sequence=5,
+        name="替代映射专家",
+        duty="功效/风味/成本/合规/工艺/供应链替代方案（依赖 brief 的目标人群）",
+        upstream=("formula_generation",),
+        downstream=("master_control_final",),
+        produces_graph_snapshot=True,
+    ),
+    AgentStepDef(
+        agent_key="master_control_final",
+        sequence=6,
+        name="最终主控汇总",
+        duty="整合各模块输出，形成最终研发方案（无独立模板时回退 master_control）",
+        upstream=("master_control", "formula_generation", "efficacy_prediction", "flavor_prediction", "replacement_mapping"),
+        downstream=(),
+        produces_graph_snapshot=False,
+    ),
+)
+
+
 class RnDWorkflowOrchestrator:
-    AGENT_SEQUENCE = [
-        "master_control",
-        "formula_generation",
-        "efficacy_prediction",
-        "flavor_prediction",
-        "replacement_mapping",
-        "master_control_final",
-    ]
+    # 由注册表派生（历史常量，保持向后兼容）
+    AGENT_SEQUENCE = [step.agent_key for step in AGENT_STEP_DEFS]
 
     ROLE_DUTY = {
         "君药": "针对目标需求与核心功效起主导作用",
@@ -391,10 +463,19 @@ class RnDWorkflowOrchestrator:
         graph_snapshot_id: str | None = None,
         max_completion_tokens: int = 1000,
     ) -> dict[str, Any]:
-        prompt = self.postgres_repository.get_prompt_template_by_scenario_agent("rnd_workflow", agent_key)
+        # include_inactive=True：需要看到「模板存在但被停用」的状态，才能标记 skipped 并用兜底，
+        # 而不是静默退化成空提示词（is_active 自 2026-10-12 起真正生效）。
+        prompt = self.postgres_repository.get_prompt_template_by_scenario_agent(
+            "rnd_workflow", agent_key, include_inactive=True
+        )
         if prompt is None and agent_key == "master_control_final":
-            prompt = self.postgres_repository.get_prompt_template_by_scenario_agent("rnd_workflow", "master_control")
-        prompt_version = prompt.updated_at.isoformat() if prompt else "seed"
+            prompt = self.postgres_repository.get_prompt_template_by_scenario_agent(
+                "rnd_workflow", "master_control", include_inactive=True
+            )
+        disabled = prompt is not None and not prompt.is_active
+        prompt_version = f"v{prompt.version}" if prompt else "seed"
+        if disabled:
+            prompt_version = f"{prompt_version}(disabled)"
         started = perf_counter()
         step = self.postgres_repository.create_workflow_step_run(
             run_id=run_id,
@@ -407,27 +488,42 @@ class RnDWorkflowOrchestrator:
         )
         self.postgres_repository.session.commit()
         self.postgres_repository.session.refresh(step)
-        system_prompt = prompt.system_prompt if prompt else ""
-        output_payload, latency_ms = self.llm_client.generate_structured_output(
-            system_prompt=system_prompt,
-            payload=input_payload,
-            fallback=fallback,
-            output_schema=prompt.output_schema if prompt else None,
-            required_keys=list(fallback.keys()),
-            agent_key=agent_key,
-            max_completion_tokens=max_completion_tokens,
-        )
-        if not output_payload:
+
+        if disabled:
+            # 停用语义：跳过该步的模型调用，直接用本地兜底结果，保证下游字段契约完整
             output_payload = fallback
+            latency_ms = 0
+            used_fallback = True
+        else:
+            system_prompt = prompt.system_prompt if prompt else ""
+            output_payload, latency_ms, used_fallback = self.llm_client.generate_structured_output(
+                system_prompt=system_prompt,
+                payload=input_payload,
+                fallback=fallback,
+                output_schema=prompt.output_schema if prompt else None,
+                required_keys=list(fallback.keys()),
+                agent_key=agent_key,
+                temperature=prompt.temperature if prompt else None,
+                max_completion_tokens=(
+                    prompt.max_tokens if prompt and prompt.max_tokens else max_completion_tokens
+                ),
+            )
+            if not output_payload:
+                output_payload = fallback
+                used_fallback = True
         step.output_payload = output_payload
         step.status = "completed"
         step.latency_ms = latency_ms or int((perf_counter() - started) * 1000)
+        step.used_fallback = used_fallback
+        step.skipped = disabled
         self.postgres_repository.session.commit()
         self.postgres_repository.session.refresh(step)
         return {
             "step_id": step.id,
             "graph_snapshot_id": graph_snapshot_id,
             "output_payload": output_payload,
+            "used_fallback": used_fallback,
+            "skipped": disabled,
         }
 
     def _build_brief(self, question: str, last_brief: dict[str, Any] | None) -> dict[str, Any]:

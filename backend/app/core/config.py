@@ -57,6 +57,12 @@ class Settings:
     import_max_rows: int = int(os.getenv("IMPORT_MAX_ROWS", "50000"))
     import_batch_size: int = int(os.getenv("IMPORT_BATCH_SIZE", "500"))
     import_snapshot_max: int = int(os.getenv("IMPORT_SNAPSHOT_MAX", "50000"))
+    # --- 工作流 Agent 配置编辑（2026-10-12 新增）---
+    agent_temperature_min: float = float(os.getenv("AGENT_TEMPERATURE_MIN", "0.0"))
+    agent_temperature_max: float = float(os.getenv("AGENT_TEMPERATURE_MAX", "1.0"))
+    agent_max_tokens_min: int = int(os.getenv("AGENT_MAX_TOKENS_MIN", "200"))
+    agent_max_tokens_max: int = int(os.getenv("AGENT_MAX_TOKENS_MAX", "4000"))
+    agent_prompt_max_chars: int = int(os.getenv("AGENT_PROMPT_MAX_CHARS", "20000"))
     # --- 并发与连接池（负载优化，参数与默认行为保持一致，可通过 .env 调整） ---
     pg_pool_size: int = int(os.getenv("PG_POOL_SIZE", "20"))
     pg_max_overflow: int = int(os.getenv("PG_MAX_OVERFLOW", "20"))

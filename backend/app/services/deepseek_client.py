@@ -352,9 +352,13 @@ class DeepSeekClient:
         agent_key: str | None = None,
         temperature: float | None = None,
         max_completion_tokens: int = 900,
-    ) -> tuple[dict[str, Any], int]:
+    ) -> tuple[dict[str, Any], int, bool]:
+        """返回 (结果, 耗时ms, 是否用了本地兜底)。
+
+        第三个返回值供管理端「运行回放」区分真实模型结果与兜底结果（2026-10-12 新增）。
+        """
         if not settings.llm_api_key:
-            return fallback, 0
+            return fallback, 0, True
 
         resolved_required_keys = self._resolve_required_keys(output_schema, fallback, required_keys)
         guarded_prompt = self._compose_structured_system_prompt(
@@ -383,11 +387,11 @@ class DeepSeekClient:
             content = data["choices"][0]["message"]["content"]
             parsed = self._parse_json_text(content)
             if isinstance(parsed, dict) and self._matches_expected_shape(parsed, resolved_required_keys):
-                return self._normalize_structured_output(parsed, fallback, resolved_required_keys), elapsed_ms
-            return fallback, elapsed_ms
+                return self._normalize_structured_output(parsed, fallback, resolved_required_keys), elapsed_ms, False
+            return fallback, elapsed_ms, True
         except Exception:
             elapsed_ms = int((perf_counter() - started) * 1000)
-            return fallback, elapsed_ms
+            return fallback, elapsed_ms, True
 
     def build_rnd_brief(self, question: str) -> dict[str, Any]:
         brief = {

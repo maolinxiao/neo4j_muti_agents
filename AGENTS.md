@@ -60,6 +60,7 @@ backend/app/
 │   ├── entity.py
 │   └── rnd.py
 ├── services/
+│   ├── agent_config_service.py    # 工作流 Agent 配置：步骤注册表、参数/启停、版本历史与回滚、单步试运行
 │   ├── auth_service.py
 │   ├── deepseek_client.py
 │   ├── entity_resolver.py
@@ -638,7 +639,11 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 版本一致性事实（未来 agent 必读）：
 
 - 服务器**没有前端源码**：`frontend/src` 只存在于本仓库，本地 `frontend/dist` 即线上静态站；误删本地源码无法从服务器找回。
-- 截至 2026-09-08：本地工作树 = 服务器 = GitHub（commit `e7e955d0`）；`backend/requirements.txt`、`gunicorn_conf.py`、`uwsgi.ini` 已从服务器同步入库。
+- 截至 2026-10-14（实测核对）：本地工作树 = GitHub `origin/codex/rnd-fix-2026-08-26`，HEAD `4aba4e24`；**服务器落后 1 个提交**（线上内容相当于 `d5936f1c` + P18 上线批次）。
+  - 未部署差异：`backend/app/services/agent_config_service.py` 服务器缺失；内容不同的有 `backend/.env.example`、`api/routes.py`、`core/config.py`、`db/init_db.py`、`db/models.py`、`repositories/postgres_repository.py`、`services/deepseek_client.py`、`services/rnd_workflow_orchestrator.py`。
+  - 前端无差异：本地 `frontend/dist/**` ↔ 线上 `frontend-dist/**` 逐文件 sha256 全 MATCH；`frontend/src` 线上不存在（设计如此）。
+  - `backend/requirements.txt`、`gunicorn_conf.py`、`uwsgi.ini` 已从服务器同步入库。
+- 宝塔的 nginx **没有 systemd 单元**（`systemctl is-active nginx` 返回 inactive，另有 dnf 版 `/usr/bin/nginx` 但未在跑）：启停只允许 `/www/server/nginx/sbin/nginx -t && /www/server/nginx/sbin/nginx -s reload`，严禁 `systemctl restart nginx`；后端重启走面板脚本 `/www/server/python_project/vhost/scripts/neo4j-agents-backend_cmd.sh`（`backups/pre-*` 回滚点只保留 7 天，见 DEPLOY.md P19）。
 - 服务器侧 `*.bak-*` 与 `backend/uploads/` 属运行时数据/部署备份，不回灌仓库；本地 `backend/_vendor/`、`backend/logs|runtime/`、`backend/scripts/*.ps1` 仅本地使用，不上传。
 - 判断本地与线上是否一致：对 `backend/**` 与 `frontend/dist/** ↔ frontend-dist/**` 做逐文件 sha256 比对（做法参考 `.tmp-inner-check/sync_compare_t12.py`，临时脚本不入库）。
 
@@ -681,6 +686,7 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 | `backend/app/services/entity_resolver.py` | 实体识别与消歧 | 中 |
 | `backend/app/services/deepseek_client.py` | LLM 调用、流式输出、fallback | 高 |
 | `backend/app/services/rnd_workflow_orchestrator.py` | 研发协同工作流 | 高 |
+| `backend/app/services/agent_config_service.py` | 工作流 Agent 配置：步骤注册表 `AGENT_STEP_DEFS`、参数与启停、配置版本历史与回滚、单步试运行 | 高 |
 | `frontend/src/api/client.js` | REST/SSE API 封装 | 中 |
 | `frontend/src/stores/chat.js` | 知识问答状态与流式消息处理 | 高 |
 | `frontend/src/utils/qaAnswerFormat.js` | QA 回答结构化渲染 | 高 |

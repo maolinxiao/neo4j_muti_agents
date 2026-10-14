@@ -603,3 +603,40 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 - KB5/KB6/KB8 的原料关联依赖图谱中已有原料名做子串匹配：原料名对不上时不会建立关系（页面的校验提示会列出缺失项）。
 - KB7 规则类数据以整行内容为唯一键：改任一单元格会生成新规则节点、旧节点保留（既有设计，本功能会放大该现象）。
 - 单文件上限 20MB、5 万行（`MAX_IMPORT_BYTES`/`IMPORT_MAX_ROWS` 可调；nginx `client_max_body_size` 为 50m）；同一时刻只允许一个进行中的导入。
+
+## 2026-10 生产环境巡检：三方一致性 + 运行态快照（P19 记录，2026-10-14）
+
+### 一句话结论
+**本地 = GitHub > 服务器（落后 1 个提交）**；前端已完全一致，未部署的只有「工作流逻辑展示与编辑」后端批次。
+
+### 三方版本
+| 位置 | 版本 | 依据 |
+|---|---|---|
+| 本地工作树 | HEAD `4aba4e24`（分支 `codex/rnd-fix-2026-08-26`，工作树干净） | `git status` 无已跟踪改动，仅 `.tmp-*/` 等未跟踪草稿 |
+| GitHub | = 本地 HEAD（`git status -sb` 无 ahead/behind） | `maolinxiao/neo4j_muti_agents` |
+| 生产 | = `d5936f1c` + P18 上线批次 | 后端进程 pid 2398177 起于 2026-10-12 14:36:55 |
+
+### 逐文件 sha256 核对（排除 `_vendor`/`*.bak-*`/`uploads`/`__pycache__` 噪声）
+`MATCH=74 DIFF=8 SRV_ONLY=0 LOC_ONLY=3`
+
+- 内容不同（8）：`backend/.env.example`、`app/api/routes.py`、`app/core/config.py`、`app/db/init_db.py`、`app/db/models.py`、`app/repositories/postgres_repository.py`、`app/services/deepseek_client.py`、`app/services/rnd_workflow_orchestrator.py`。
+- 服务器缺失（1）：`app/services/agent_config_service.py`（HEAD 新增）。
+- 本地独有：`backend/_vendor/**`、`backend/scripts/run_backend.ps1|stop_backend.ps1`（按设计不上传）。
+- 已一致：`frontend/dist/** ↔ frontend-dist/**` 全 MATCH；`app/data/import_templates/` 17 个 xlsx 两侧一致。
+- 核对脚本（未跟踪临时脚本）：`.tmp-inner-check/sync_compare_t12.py`（全树）、`.tmp-inner-check/check_head_deploy.py`（新增：专查 HEAD 提交文件的部署状态）。
+
+### 运行态快照（2026-10-14 15:55 CST）
+- 后端 pid 2398177（Oct 12 14:36:55 起），`127.0.0.1:8000`；`/api/health` → `status=ok`，postgres/neo4j/llm 全 true，`concurrency` 段正常输出（累计 421 请求，status_counts 200/202/401/404/422）。
+- **nginx 无 systemd 单元**（`systemctl is-active nginx` = inactive；dnf 版 `/usr/bin/nginx` 未在跑）。在跑的是面板 nginx：master pid 124955，`/www/server/nginx/sbin/nginx -c /www/server/nginx/conf/nginx.conf`，监听 80/443。
+- 站点 vhost `118.24.185.45.conf`（105 行，3 个 server 块）：443(mmfh.com.cn+www) / 80 同域名 301 → https / 80 IP 直连保留；`/api` 反代 127.0.0.1:8000 带 SSE 参数；`client_max_body_size 50m`；另有敏感文件屏蔽正则（`.env*`、`.git*`、`requirements.txt`、`Dockerfile`、`pyproject.toml` 等一律拒绝）——排查 404 先看这段。
+- 磁盘 9.5G/80G（12%）；日志 `/www/wwwlogs/python/neo4j-agents-backend/error.log`（可见外部扫描器探测 `/api/.env`，返回 404）。
+- Neo4j：**86,484 节点 / 207,356 关系**，`import_batch` 标记残留 0；标签 TOP：ConsumerReview 63522、Symptom 11125、Formula 3155、ConsumerSegment 3033、Herb 865、Compound 0。
+- PostgreSQL：18 张表；行数 app_user=4、auth_session=53（过期 51）、chat_session=16、workflow_run=10、import_batch=0、constitution_assessment=0。
+
+### 备份保留策略（重要）
+`scripts/backup.sh` 第 48-49 行：`find $BACKUP_ROOT -type f -mtime +7 -delete` 后删空目录 → **回滚点只活 7 天**。实测当前只剩 `pre-import-p18-20261012-143634`，P16 的 `pre-deepseek-key-20261012-014747` 已被清理，需长期保留的回滚点要另存。
+
+### 待办
+1. **部署 HEAD（工作流配置后端）**：整树同步 7 改 1 增 → 面板脚本重启后端；前端无变化，不必发前端。
+2. 部署后补文档：`README.md` / `AGENTS.md` / 本节同批次的功能说明（目前文档只覆盖到 P18）。
+3. 零散清理（非阻塞）：`auth_session` 过期行 51 条无清理任务；`backend/uploads/avatars/` 留有 1 个运行时头像；本地 `backend/.env` 仍是轮换前旧 DeepSeek key（P16 只改了服务器）。

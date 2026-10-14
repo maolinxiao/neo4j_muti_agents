@@ -112,7 +112,13 @@ class RnDWorkflowOrchestrator:
         self.neo4j_repository = neo4j_repository
         self.llm_client = llm_client
 
-    def start_run(self, session_id: str, question: str, reuse_last_brief: bool = False) -> dict[str, Any]:
+    def start_run(
+        self,
+        session_id: str,
+        question: str,
+        reuse_last_brief: bool = False,
+        engine_pin: str | None = None,
+    ) -> dict[str, Any]:
         workflow_session = self.postgres_repository.get_workflow_session(session_id)
         if workflow_session is None:
             raise ValueError("Workflow session not found")
@@ -128,6 +134,15 @@ class RnDWorkflowOrchestrator:
             brief=brief,
             status="queued",
         )
+        if engine_pin:
+            # 引擎固定与 Run 创建**同一事务**（v2.1 §C.2）：写 pin 失败 → 回滚 + 上抛（接口 503，不入队、不降级）
+            try:
+                from app.services import rnd_engine
+
+                rnd_engine.write_run_engine(self.postgres_repository.session, run.id, engine_pin)
+            except Exception as exc:
+                self.postgres_repository.session.rollback()
+                raise rnd_engine.EnginePinError(f"引擎 pin 写入失败（engine={engine_pin}）：{exc}") from exc
         self.postgres_repository.session.commit()
         return {
             "session_id": session_id,
@@ -158,25 +173,7 @@ class RnDWorkflowOrchestrator:
 
         related_graph_snapshots: list[str] = []
         try:
-            master_initial_fallback = self._master_fallback(brief, question, final_mode=False)
-            master_initial = self._run_step(
-                run.id,
-                1,
-                "master_control",
-                {
-                    "brief": brief,
-                    "question": question,
-                    "instruction": (
-                        "按企业端研发逻辑拆解需求并输出可执行任务计划。"
-                        "若命中经典名方或方剂药食同源化任务，必须先读 KB5 原方，再按 KB1 逐味合法性判断、"
-                        "KB4 动态单味替代、KB2/KB3 功效风味复核、KB7 合规边界推进。"
-                        "产品开发任务按 KB1、KB2、KB3、KB6、KB7 推进，风味/剂型要先判断好喝、可做、合规。"
-                        "必须明确：目标人群、关键功效路径、药食同源合规检查点、每阶段交付物。"
-                        "所有输出需标注数据来源（如《中国药典》、GB标准、FlavorDB等）。"
-                    ),
-                },
-                master_initial_fallback,
-            )
+            master_initial = self._run_master_control(run.id, 1, brief, question)
 
             formula_result = self._run_formula_generation(workflow_session.id, run.id, 2, brief)
             if formula_result.get("graph_snapshot_id"):
@@ -194,105 +191,198 @@ class RnDWorkflowOrchestrator:
             if replacement_result.get("graph_snapshot_id"):
                 related_graph_snapshots.append(replacement_result["graph_snapshot_id"])
 
-            final_master_fallback = self._master_fallback(
-                brief,
-                question,
-                final_mode=True,
-                formula_payload=formula_result["output_payload"],
-                efficacy_payload=efficacy_result["output_payload"],
-                flavor_payload=flavor_result["output_payload"],
-                replacement_payload=replacement_result["output_payload"],
-            )
-            final_master = self._run_step(
+            final_master = self._run_master_control_final(
                 run.id,
                 6,
-                "master_control_final",
-                {
-                    "brief": brief,
-                    "question": question,
-                    "initial_plan": master_initial["output_payload"],
-                    "formula_generation": formula_result["output_payload"],
-                    "efficacy_prediction": efficacy_result["output_payload"],
-                    "flavor_prediction": flavor_result["output_payload"],
-                    "replacement_mapping": replacement_result["output_payload"],
-                    "instruction": (
-                        "整合前序模块（方剂生成、功效预测、风味预测、替代映射）并输出「交付研发负责人的总结报告」。"
-                        "报告必须包含：最终配方（组成、君臣佐使角色、建议剂量区间、作用与剂量依据、方解一句）、"
-                        "君臣佐使一览、KB5 原方依据（含保留/替换/新增/删除逐味标注，替换引用 KB4 CAN_REPLACE 评分与系统综合可信度）、"
-                        "功效与机制摘要、风味与适配、替代对比要点、合规与风险、证据不足与下一步。"
-                        "禁止只复述前序模块内容；所有输出需标注数据来源。若证据不足，需具体说明缺口和补充数据建议。"
-                    ),
-                },
-                final_master_fallback,
-                max_completion_tokens=1800,
+                brief,
+                question,
+                master_initial=master_initial,
+                formula_result=formula_result,
+                efficacy_result=efficacy_result,
+                flavor_result=flavor_result,
+                replacement_result=replacement_result,
             )
 
-            steps = self.postgres_repository.list_workflow_step_runs(run.id)
-            final_report = self._assemble_final_report(
-                final_master["output_payload"],
-                formula_result["output_payload"],
-                efficacy_result["output_payload"],
-                flavor_result["output_payload"],
-                replacement_result["output_payload"],
+            outcome = self._apply_run_success(
+                run,
+                workflow_session,
+                final_master_payload=final_master["output_payload"],
+                formula_result=formula_result,
+                efficacy_result=efficacy_result,
+                flavor_result=flavor_result,
+                replacement_result=replacement_result,
+                related_graph_snapshots=related_graph_snapshots,
             )
-            run.final_report = final_report
-            run.summary_metrics = {
-                "stepCount": len(steps),
-                "graphSnapshotCount": len(related_graph_snapshots),
-                "formulaCount": len(
-                    self._safe_list(formula_result["output_payload"].get("formulas"))
-                ),
-                "replacementCount": len(
-                    self._safe_list(replacement_result["output_payload"].get("recommended_replacements"))
-                ),
-            }
-            run.related_graph_snapshots = related_graph_snapshots
-            run.status = "completed"
-            workflow_session.status = "active"
-            self.postgres_repository.session.commit()
 
             return {
                 "session_id": session_id,
                 "run_id": run.id,
                 "brief": brief,
-                "final_report": final_report,
-                "steps": steps,
-                "summary_metrics": run.summary_metrics,
+                "final_report": outcome["final_report"],
+                "steps": outcome["steps"],
+                "summary_metrics": outcome["summary_metrics"],
                 "related_graph_snapshots": related_graph_snapshots,
                 "status": run.status,
             }
         except Exception as exc:
-            run.status = "failed"
-            run.final_report = {
-                "brief_summary": brief.get("goal", ""),
-                "final_recommendation": "",
-                "consistency_checks": [f"工作流执行失败：{exc}"],
-                "next_actions": ["请检查当前 Agent 提示词、图谱证据和模型连通性后重试。"],
-                "task_plan": [],
-                "data_sources": [],
-                "final_formula": {"name": "", "composition": []},
-                "monarch_minister_summary": [],
-                "original_formula": {
-                    "name": "",
-                    "source": "",
-                    "changes": {"retained": [], "replaced": [], "added": [], "removed": []},
-                },
-                "efficacy_summary": {"effects": [], "mechanisms": []},
-                "flavor_summary": {"notes": [], "acceptance": ""},
-                "compliance_risks": [],
-                "evidence_gaps": [],
-                "modules": {},
-            }
-            run.summary_metrics = {
-                "stepCount": len(self.postgres_repository.list_workflow_step_runs(run.id)),
-                "graphSnapshotCount": len(related_graph_snapshots),
-                "formulaCount": 0,
-                "replacementCount": 0,
-            }
-            run.related_graph_snapshots = related_graph_snapshots
-            workflow_session.status = "active"
-            self.postgres_repository.session.commit()
+            self._apply_run_failure(run, workflow_session, exc, related_graph_snapshots)
             raise
+
+    # ------------------------------------------------------------------
+    # 机械抽取（LangGraph 迁移 P1，2026-10-15）：两个 master 步包装 + 成功/失败收尾
+    # 说明：以下 4 个方法的内容原样取自本次迁移前的 resume_run（字面量与调用顺序完全一致），
+    #      legacy 路径与 langgraph 路径共用它们，行为零变化。
+    # ------------------------------------------------------------------
+    def _run_master_control(self, run_id: str, sequence: int, brief: dict[str, Any], question: str) -> dict[str, Any]:
+        """第 1 步（master_control）：原 resume_run 首步字面量整体外移（行为不变）。"""
+        fallback = self._master_fallback(brief, question, final_mode=False)
+        return self._run_step(
+            run_id,
+            sequence,
+            "master_control",
+            {
+                "brief": brief,
+                "question": question,
+                "instruction": (
+                    "按企业端研发逻辑拆解需求并输出可执行任务计划。"
+                    "若命中经典名方或方剂药食同源化任务，必须先读 KB5 原方，再按 KB1 逐味合法性判断、"
+                    "KB4 动态单味替代、KB2/KB3 功效风味复核、KB7 合规边界推进。"
+                    "产品开发任务按 KB1、KB2、KB3、KB6、KB7 推进，风味/剂型要先判断好喝、可做、合规。"
+                    "必须明确：目标人群、关键功效路径、药食同源合规检查点、每阶段交付物。"
+                    "所有输出需标注数据来源（如《中国药典》、GB标准、FlavorDB等）。"
+                ),
+            },
+            fallback,
+        )
+
+    def _run_master_control_final(
+        self,
+        run_id: str,
+        sequence: int,
+        brief: dict[str, Any],
+        question: str,
+        *,
+        master_initial: dict[str, Any],
+        formula_result: dict[str, Any],
+        efficacy_result: dict[str, Any],
+        flavor_result: dict[str, Any],
+        replacement_result: dict[str, Any],
+    ) -> dict[str, Any]:
+        """第 6 步（master_control_final）：原 resume_run 末步字面量整体外移（行为不变）。"""
+        fallback = self._master_fallback(
+            brief,
+            question,
+            final_mode=True,
+            formula_payload=formula_result["output_payload"],
+            efficacy_payload=efficacy_result["output_payload"],
+            flavor_payload=flavor_result["output_payload"],
+            replacement_payload=replacement_result["output_payload"],
+        )
+        return self._run_step(
+            run_id,
+            sequence,
+            "master_control_final",
+            {
+                "brief": brief,
+                "question": question,
+                "initial_plan": master_initial["output_payload"],
+                "formula_generation": formula_result["output_payload"],
+                "efficacy_prediction": efficacy_result["output_payload"],
+                "flavor_prediction": flavor_result["output_payload"],
+                "replacement_mapping": replacement_result["output_payload"],
+                "instruction": (
+                    "整合前序模块（方剂生成、功效预测、风味预测、替代映射）并输出「交付研发负责人的总结报告」。"
+                    "报告必须包含：最终配方（组成、君臣佐使角色、建议剂量区间、作用与剂量依据、方解一句）、"
+                    "君臣佐使一览、KB5 原方依据（含保留/替换/新增/删除逐味标注，替换引用 KB4 CAN_REPLACE 评分与系统综合可信度）、"
+                    "功效与机制摘要、风味与适配、替代对比要点、合规与风险、证据不足与下一步。"
+                    "禁止只复述前序模块内容；所有输出需标注数据来源。若证据不足，需具体说明缺口和补充数据建议。"
+                ),
+            },
+            fallback,
+            max_completion_tokens=1800,
+        )
+
+    def _apply_run_success(
+        self,
+        run: Any,
+        workflow_session: Any,
+        *,
+        final_master_payload: dict[str, Any],
+        formula_result: dict[str, Any],
+        efficacy_result: dict[str, Any],
+        flavor_result: dict[str, Any],
+        replacement_result: dict[str, Any],
+        related_graph_snapshots: list[str],
+    ) -> dict[str, Any]:
+        """成功收尾（机械抽取自原 resume_run:230-252，含返回值透传）：装配报告 + 指标 + 状态 + commit。"""
+        steps = self.postgres_repository.list_workflow_step_runs(run.id)
+        final_report = self._assemble_final_report(
+            final_master_payload,
+            formula_result["output_payload"],
+            efficacy_result["output_payload"],
+            flavor_result["output_payload"],
+            replacement_result["output_payload"],
+        )
+        run.final_report = final_report
+        run.summary_metrics = {
+            "stepCount": len(steps),
+            "graphSnapshotCount": len(related_graph_snapshots),
+            "formulaCount": len(
+                self._safe_list(formula_result["output_payload"].get("formulas"))
+            ),
+            "replacementCount": len(
+                self._safe_list(replacement_result["output_payload"].get("recommended_replacements"))
+            ),
+        }
+        run.related_graph_snapshots = related_graph_snapshots
+        run.status = "completed"
+        workflow_session.status = "active"
+        self.postgres_repository.session.commit()
+        return {
+            "steps": steps,
+            "final_report": final_report,
+            "summary_metrics": run.summary_metrics,
+        }
+
+    def _apply_run_failure(
+        self,
+        run: Any,
+        workflow_session: Any,
+        exc: BaseException,
+        related_graph_snapshots: list[str],
+    ) -> None:
+        """失败收尾（机械抽取自原 resume_run:264-295）：run=failed + 固定失败骨架 + session 回 active。"""
+        brief = run.brief or {}
+        run.status = "failed"
+        run.final_report = {
+            "brief_summary": brief.get("goal", ""),
+            "final_recommendation": "",
+            "consistency_checks": [f"工作流执行失败：{exc}"],
+            "next_actions": ["请检查当前 Agent 提示词、图谱证据和模型连通性后重试。"],
+            "task_plan": [],
+            "data_sources": [],
+            "final_formula": {"name": "", "composition": []},
+            "monarch_minister_summary": [],
+            "original_formula": {
+                "name": "",
+                "source": "",
+                "changes": {"retained": [], "replaced": [], "added": [], "removed": []},
+            },
+            "efficacy_summary": {"effects": [], "mechanisms": []},
+            "flavor_summary": {"notes": [], "acceptance": ""},
+            "compliance_risks": [],
+            "evidence_gaps": [],
+            "modules": {},
+        }
+        run.summary_metrics = {
+            "stepCount": len(self.postgres_repository.list_workflow_step_runs(run.id)),
+            "graphSnapshotCount": len(related_graph_snapshots),
+            "formulaCount": 0,
+            "replacementCount": 0,
+        }
+        run.related_graph_snapshots = related_graph_snapshots
+        workflow_session.status = "active"
+        self.postgres_repository.session.commit()
 
     def _run_formula_generation(self, workflow_session_id: str, run_id: str, sequence: int, brief: dict[str, Any]) -> dict[str, Any]:
         search_terms = self._brief_search_terms(brief)

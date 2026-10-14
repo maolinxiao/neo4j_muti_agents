@@ -637,6 +637,231 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 `scripts/backup.sh` 第 48-49 行：`find $BACKUP_ROOT -type f -mtime +7 -delete` 后删空目录 → **回滚点只活 7 天**。实测当前只剩 `pre-import-p18-20261012-143634`，P16 的 `pre-deepseek-key-20261012-014747` 已被清理，需长期保留的回滚点要另存。
 
 ### 待办
-1. **部署 HEAD（工作流配置后端）**：整树同步 7 改 1 增 → 面板脚本重启后端；前端无变化，不必发前端。
-2. 部署后补文档：`README.md` / `AGENTS.md` / 本节同批次的功能说明（目前文档只覆盖到 P18）。
+1. **部署 HEAD（工作流配置后端）**：~~整树同步 7 改 1 增~~ → 面板脚本重启后端；前端无变化，不必发前端。
+   > **已被 P20.2 取代（2026-10-14）**：实际口径不是"整树同步"，而是**最小文件集**——线上与 HEAD 逐字节一致的 74 个文件不同步，只上传内容不同的 8 个 + 本次新增 14 个（共 25 路径；上传时按 9 个基线路径核对）。发布顺序与审批点见 P20，**A3 引导 schema 必须先于 A4 上传并重启**。
+2. 部署后补文档：`README.md` / `AGENTS.md` / P19 同批次的功能说明（P20 与本次迁移文档已补齐，见 P20）。
 3. 零散清理（非阻塞）：`auth_session` 过期行 51 条无清理任务；`backend/uploads/avatars/` 留有 1 个运行时头像；本地 `backend/.env` 仍是轮换前旧 DeepSeek key（P16 只改了服务器）。
+
+## LangGraph 研发协同迁移（P20，**待批准**：发布 / 监控 / 回滚）
+
+> **本节所有生产动作均为“待批准”**：须按 P20.8 的 A0–A8 逐项确认后执行；本节是操作说明，**不是上线记录**。
+> 生效口径：`deploy/LANGGRAPH_MIGRATION_PLAN.md`（v2.1）+ `deploy/LANGGRAPH_MIGRATION_PLAN_v2.2_ADDENDUM.md`（§1–§13）；两者冲突处以附录为准。
+> 现状（2026-10-14 只读复核）：引擎实现与验收在**服务器侧隔离暂存树** `/www/wwwroot/neo4j-migrate/` 完成；**生产树/生产库零改动**——生产无 `langgraph` schema、生产 `workflow_step_run` 仍**缺 `used_fallback` / `skipped` 两列**（P0b 未批准）、`workflow_run/workflow_step_run/graph_snapshot = 10/56/45` 与 P19 基线一致、后端 pid 2398177 未重启、生产树文件 mtime 停在 2026-10-12。暂存树验收与审查记录见附录 §11–§13（G5 修复后的复核见 t7/t8 记录）。
+
+### P20.1 三段式流程（仓库 → 暂存树 → 生产）
+
+| 段 | 位置 | 职责 | 边界 |
+|---|---|---|---|
+| ① 仓库 | 本仓库（分支 `codex/rnd-fix-2026-08-26`） | **唯一版本来源**：写代码、审 diff、captain 统一提交 | 服务器无 git 源，禁止“只改服务器” |
+| ② 暂存树 | `/www/wwwroot/neo4j-migrate/`（独立 venv Python 3.11.6、独立库 `neo4j_agents_migrate`、`127.0.0.1:8010`） | 执行与验收：Mock 等价、故障注入 FI-1..4、真实链路 | 不碰生产树/生产库/nginx；进程按需启停 |
+| ③ 生产 | `/www/wwwroot/neo4j-agents/` | 按 A0–A8 逐项批准后发布；**默认引擎保持 legacy** | 未批准不得上传 / 重启 / 改库 |
+
+### P20.2 发布文件集与骑带内容
+
+文件集 = **25 个路径**：既有差异 9 个 ∪ 迁移新增 14 个 ∪ 仅由本次修改的 2 个（`backend/app/main.py`、`backend/requirements.txt`）。
+
+**A. 生产与 HEAD 的既有差异（P0a 基线：8 个内容不同 + 1 个生产缺失）**
+
+| 文件 | 骑带内容（须审核确认） |
+|---|---|
+| `backend/app/services/agent_config_service.py` | 生产**缺失**，整文件新增：管理端「工作流配置」服务 |
+| `backend/.env.example` | 示例文件，无行为影响 |
+| `backend/app/api/routes.py` | 骑带管理端 `/admin/workflow/agents*` 与导入端点（均为新增端点，不改既有行为） |
+| `backend/app/core/config.py` | 骑带 agent-config 相关上限设置（无行为影响）；**生产不需新增 env 键** |
+| `backend/app/db/init_db.py` | `create_all()` 加法创建新表 |
+| `backend/app/db/models.py` | 映射 `workflow_step_run.used_fallback/skipped` + 骑带 `AgentConfigRevision` 1 张新表 |
+| `backend/app/repositories/postgres_repository.py` | 骑带 agent-config 往返/版本方法（新增方法，不改既有） |
+| `backend/app/services/deepseek_client.py` | 既有差异 |
+| `backend/app/services/rnd_workflow_orchestrator.py` | 本次迁移仅 4 处机械抽取（`_run_master_control` / `_run_master_control_final` / `_apply_run_success` / `_apply_run_failure`），组方/检索/兜底逻辑未动 |
+
+> 计数口径：v2.1 §A1 记作“8 个差异文件”，其清单为 8 个**内容不同**文件；`agent_config_service.py`（生产缺失）单独计 1 个，故上传时按 **9 个路径**逐项核对，避免漏传。
+
+**B. 本次迁移新增（14 个路径）**
+
+```text
+backend/app/services/rnd_graph/__init__.py
+backend/app/services/rnd_graph/state.py
+backend/app/services/rnd_graph/context.py
+backend/app/services/rnd_graph/nodes.py
+backend/app/services/rnd_graph/graph.py
+backend/app/services/rnd_graph/checkpointer.py
+backend/app/services/rnd_graph/run_lock.py
+backend/app/services/rnd_graph/runner.py
+backend/app/services/rnd_engine.py
+backend/app/db/langgraph_schema.py
+backend/scripts/init_langgraph_checkpoint.py
+backend/scripts/rnd_engine_switch.py
+scripts/accept_rnd_engine_parity.py
+scripts/accept_rnd_api_regression.py
+```
+
+**C. 本次迁移修改（6 个）**：`backend/app/api/routes.py`、`backend/app/core/config.py`、`backend/app/main.py`、`backend/app/repositories/postgres_repository.py`、`backend/app/services/rnd_workflow_orchestrator.py`、`backend/requirements.txt`（前 4 个与 A 重合，故并集为 25 个路径）。
+
+**冻结不改**：`frontend/**`（含 `frontend/dist`）、`/api/rnd/*` 契约、`backend/app/schemas/rnd.py`、业务库既有字段与全部历史数据、Prompt 配置、Fallback 与图谱逻辑、nginx 配置。
+
+### P20.3 依赖（A2，待批准）
+
+- 新增 3 个 `==` 固定项（`backend/requirements.txt`）：`langgraph==1.2.15`、`langgraph-checkpoint-postgres==3.1.3`、`psycopg-pool==3.3.3`。
+- 实测兼容约束：`langgraph-checkpoint>=4.3.0,<5.0.0`（v2.1 §E.2 所述“major0/minor<5 兼容告警”在锁定版本源码中不存在，按实测口径描述）；`psycopg>=3.2.0` 由既有 `psycopg[binary]==3.2.9` 满足。
+- **F6 检查项**：安装前后各存 `pip freeze`（**含传递依赖**）归档为 `pip-freeze-before.txt` / `pip-freeze-after.txt`，并把关键传递依赖（如 `langgraph-checkpoint==4.3.0`）以 `==` 固化，或以 freeze 归档作为等同证据。
+- 升级规则：`langgraph` 与 `langgraph-checkpoint-postgres` 必须**成对升级**，并重跑 `scripts/accept_rnd_engine_parity.py` 与暂存树自检。
+- 安装目标：生产 venv `/www/server/pyporject_evn/neo4j-agents-backend`（**待批准 A2**）；暂存树 venv 已安装。
+
+### P20.4 schema 引导（A3，**必须先于 A4**）
+
+- 唯一建表入口：`backend/scripts/init_langgraph_checkpoint.py`（autocommit CLI）。FastAPI 启动路径**零 DDL**，`main.py` 只做只读校验，不通过时仅告警（此时建 Run 会返回 503，属预期）。
+- **`PostgresSaver.setup()` 内含 `CREATE INDEX CONCURRENTLY`，该语句不能落在事务里** —— 因此段①必须使用 autocommit 连接。CLI 分两段：段①（autocommit）建 `langgraph` schema + `run_engine` / `run_lock` + 4 张 checkpoint 表；段②（**独立事务**）写 marker `system_config.rnd_engine_migrated_at`。
+- 共 **6 张表**：`checkpoints`、`checkpoint_blobs`、`checkpoint_writes`、`checkpoint_migrations`、`run_engine`、`run_lock`。新表必须全部位于 `langgraph`；`public` 内不得出现 `checkpoint%`。
+- 执行位置：**从暂存树执行**（暂存树已具备 venv 依赖与脚本），目标库为生产库；A4 才把最小文件集上传到生产树。
+
+```bash
+# 只读预检（不建表）
+/www/wwwroot/neo4j-migrate/venv/bin/python /www/wwwroot/neo4j-migrate/backend/scripts/init_langgraph_checkpoint.py \
+  --db-url "$POSTGRES_DSN" --print-only --json
+# 引导（段① + 段②）；DSN 用环境变量注入，口令见 backups/creds.txt，禁止写入仓库或命令行历史
+/www/wwwroot/neo4j-migrate/venv/bin/python /www/wwwroot/neo4j-migrate/backend/scripts/init_langgraph_checkpoint.py \
+  --db-url "$POSTGRES_DSN" --json
+# 切换前只读确认（同时打印旧值与回滚命令）
+/www/wwwroot/neo4j-migrate/venv/bin/python /www/wwwroot/neo4j-migrate/backend/scripts/rnd_engine_switch.py \
+  --db-url "$POSTGRES_DSN" --show
+```
+
+- CLI 退出码：`0` 通过 / `1` `--print-only` 校验未通过 / `2` 段①失败 / `3` 段②失败 / `4` 引导后校验未通过。段①或段②失败时**开关必须保持 legacy**；`rnd_engine_switch.py` 在 schema 校验未通过或 marker 缺失时会以 exit `3` / `4` 拒绝切换。
+
+### P20.5 发布与重启（A4，待批准）
+
+前置：`workflow_run` 无在跑运行；备份与回滚点已就绪；A2、A3 已完成。
+
+```bash
+# 0) 发布前置：无在跑 Run（必须为空输出）
+sudo -u postgres psql -d neo4j_agents -tAc "SELECT id||' '||status FROM workflow_run WHERE status NOT IN ('completed','failed')"
+# 1) 备份与回滚点（pre-langgraph-<ts>；backups/pre-* 仅保留 7 天，需长期保留请另存）
+bash /www/wwwroot/neo4j-agents/scripts/backup.sh
+mkdir -p /www/wwwroot/neo4j-agents/backups/pre-langgraph-$(date +%Y%m%d-%H%M%S)
+# 2) 临时 venv 试解依赖（diff 仅新增，归档 pip-freeze-diff.txt）——A2 前置
+# 3) 上传最小文件集：逐文件 sha256 MATCH（上传前先把旧文件备份进 pre-langgraph-<ts>/）
+# 4) A3 引导 schema（见 P20.4）——顺序不可颠倒
+# 5) 重启：宝塔面板「Python项目」重启 neo4j-agents-backend
+#    面板脚本：/www/server/python_project/vhost/scripts/neo4j-agents-backend_cmd.sh
+# 6) 验收：/api/health 200；GET-only 只读回归；开关生效延迟 ≤15s（TTL）
+```
+
+- 上传通道：SSH 密钥或**会话级环境变量**注入凭据；**不得在仓库落地含明文口令的新脚本**；既有 `deploy_*.py` / `push_*.py` 的明文口令问题列入 A8 卫生项（建议轮换）。
+- 验收边界：生产只读**仅 GET**；`POST /api/chat/.../messages/stream` 等写库端点一律不在生产只读验收内。
+- **E2E-3 / HIST-1（生产只读历史回放）尚未执行**，须归入 A4 窗口或另行批准的只读审计；不得表述为已通过。
+
+### P20.6 监控 SQL（生产只读；统一用 `sudo -u postgres psql -d neo4j_agents -tAc "…"`）
+
+```sql
+-- ① 按引擎统计 Run（pin 表是引擎的唯一事实来源）
+SELECT p.engine, count(*) AS runs FROM workflow_run r
+JOIN langgraph.run_engine p ON p.run_id = r.id GROUP BY p.engine ORDER BY p.engine;
+
+-- ② 兜底 / 跳过计数（必须带 marker 过滤：marker 之前的行属“未测量”，不得当作 FALSE）
+SELECT count(*) FILTER (WHERE s.used_fallback) AS fallback_steps,
+       count(*) FILTER (WHERE s.skipped)       AS skipped_steps
+FROM workflow_step_run s
+WHERE s.created_at >= ((SELECT config_value::timestamptz FROM system_config
+                        WHERE config_key = 'rnd_engine_metrics_started_at') AT TIME ZONE 'UTC');
+
+-- ③ 卡住的 Run（阶段一不自动续跑，仅供人工判断）
+SELECT id, status, created_at FROM workflow_run
+WHERE status NOT IN ('completed','failed')
+  AND created_at < (now() AT TIME ZONE 'UTC') - interval '30 minutes' ORDER BY created_at;
+
+-- ④ langgraph schema 体积（6 张表）
+SELECT c.relname AS table_name, pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size
+FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'langgraph' AND c.relkind = 'r'
+ORDER BY pg_total_relation_size(c.oid) DESC;
+
+-- ⑤ pin 完备性（v2.2 §12 F1 修正版；时区：created_at 为 naive-UTC，marker 为 timestamptz）
+SELECT count(*) AS runs_without_pin FROM workflow_run r
+WHERE NOT EXISTS (SELECT 1 FROM langgraph.run_engine p WHERE p.run_id = r.id);   -- 强断言：必须为 0
+
+SELECT count(*) AS migrated_runs, count(*) FILTER (WHERE p.run_id IS NULL) AS runs_without_pin
+FROM workflow_run r LEFT JOIN langgraph.run_engine p ON p.run_id = r.id
+WHERE r.created_at >= ((SELECT config_value::timestamptz FROM system_config
+                        WHERE config_key = 'rnd_engine_migrated_at') AT TIME ZONE 'UTC');
+
+-- ⑥ 租约锁：残留 / 已过期行（禁止自动接管；确认无存活进程后按 owner 人工删除）
+SELECT run_id, owner, acquired_at, expires_at FROM langgraph.run_lock ORDER BY acquired_at;
+
+-- ⑦ 表落位断言（期望：6 张全在 langgraph；public 无 checkpoint%）
+SELECT table_schema, table_name FROM information_schema.tables
+WHERE table_name LIKE 'checkpoint%' OR table_name IN ('run_engine','run_lock') ORDER BY 1, 2;
+```
+
+> 注：**不得沿用 v2.1 §C.5 的原始 pin SQL** —— 它把 naive-UTC 的 `workflow_run.created_at` 与 `timestamptz` marker 直接比较，会恒返回 0 而漏报（v2.2 §12 F1）。
+
+### P20.7 回滚 R1–R3（**不含 `DROP SCHEMA`**）
+
+| 编号 | 触发 | 操作 | 影响 / 耗时 |
+|---|---|---|---|
+| **R1** | 新引擎行为异常 | 配置回滚：`rnd_engine_switch.py --delete`（旧值非空时用 `--set '<旧值>'`；脚本本身会打印回滚命令） | ≤15s 生效、无需重启；在跑 Run 按 pin 跑完 |
+| **R2** | 代码级问题 | 覆盖 `backups/pre-langgraph-<ts>/{app,scripts,requirements.txt}` + 按需回退依赖 + 面板脚本重启 | 数秒停机 |
+| **R3** | 配置项异常 | 恢复 `system_config` 对应行；复核 `.env` 未变（本阶段生产**不新增 env 键**，故 `.env` 无需回滚） | 即时 |
+
+> **`DROP SCHEMA langgraph` 不是回滚手段**：清理新引擎状态须单独审批、先导出备份，并确认无 Run 需要恢复。回滚只需切开关（R1），新表与新数据保留待后续单独处置。
+
+### P20.8 审批点（A0–A8，逐项确认）
+
+| 编号 | 动作 | 写生产库 | 用户影响 |
+|---|---|---|---|
+| **A0** | P0a 只读审计 | 否 | 无（只读，无需批准） |
+| **A1** | P0b 最小补丁（`workflow_step_run` 两列 DDL + `rnd_engine_metrics_started_at`） | 是（加法） | 无（不重启） |
+| **A2** | 生产 venv 安装 3 个 `==` 依赖（含 freeze 归档，F6） | 否 | 无 |
+| **A3** | 引导 `langgraph` schema/表（6 张）+ 写 `rnd_engine_migrated_at` | 是（新增 schema + 1 行） | 无；**必须先于 A4** |
+| **A4** | 上传最小文件集 + 重启（须无在跑 Run） | 否 | 数秒中断 |
+| **A5** | legacy 基线运行 1 次（真实 LLM 计费） | 是（新增行） | 无 |
+| **A6** | canary 开关 → 全局切换 | 是（配置行） | 白名单 → 全体 |
+| **A7** | 拉取生产 Neo4j dump 副本到本地（**可选**：v2.2 §5 已降级） | 否 | 无 |
+| **A8** | 部署脚本凭据清理与口令轮换 | 否 | 无 |
+
+### P20.9 服务器侧暂存树（执行环境，非生产）
+
+- 位置与构成（2026-10-14 只读实测）：`/www/wwwroot/neo4j-migrate/`（`backend/`、`venv/`（Python 3.11.6）、`logs/`、`scripts/`、`run_staging.sh`(0700)、`.env`(0600)）；独立库 `neo4j_agents_migrate`；应用监听 `127.0.0.1:8010`（**不开放公网、不改 nginx**）；进程按需启停（当前 8010 未监听）。
+- **重建暂存树必做两步**（否则会误用生产密钥或丢授权）：① 用暂存专用 `.env` 覆盖 root 与 `backend/` 两处（均 0600；基线复制会带入生产 `backend/.env`，DeepSeek key 须置空或使用 staging 专用值）；② 重建库后**重新授权 `public`**（`neo4j_migrate` 用户需可用；直接用 `--recreate-db` 重建库会丢该授权）。
+- 隔离性核验：暂存树内**不得存在**生产 `.env` 的副本（按 sha256 比对）；数据导入功能不在本阶段范围。
+- 复跑验收命令（暂存树 venv；口令在**服务器**暂存树 `.env`，不在本地）：
+
+```bash
+cd /www/wwwroot/neo4j-migrate && ./venv/bin/python scripts/accept_rnd_engine_parity.py \
+  --mock --offline --db-url "postgresql+psycopg://neo4j_migrate:<staging口令>@127.0.0.1:5432/neo4j_agents_migrate"
+```
+
+> `scripts/accept_rnd_api_regression.py` **没有** `--dry-run` / `--no-network` 参数；等价证据是**带 token 实跑**（`only_get=true` / 9 个 GET / 0 失败）。
+
+### P20.10 运维提示与已知边界
+
+- 宝塔 nginx **无 systemd 单元**：只允许 `/www/server/nginx/sbin/nginx -t && -s reload`，严禁 `systemctl restart nginx`（沿用 P19 结论）。
+- 后端重启走面板项目 `neo4j-agents-backend`（或面板脚本 `/www/server/python_project/vhost/scripts/neo4j-agents-backend_cmd.sh`）。
+- `backups/pre-*` 回滚点**只保留 7 天**（`find -mtime +7 -delete`）；需长期保留的回滚点请另存。
+- PG `max_connections = 100`（2026-10-14 实测）；checkpointer 连接池上限 `rnd_langgraph_pool_max=2`，各节点使用短会话，发布前复核连接余额。
+- **503 口径**：引擎固定失败时 HTTP 503 **只返回通用文案**（可含 `run_id`，形如「研发任务引擎固定失败，请联系管理员（可能原因：LangGraph 存储未初始化）（run_id=…）」），**不回显**异常类名 / relation / SQL / 连接串；执行期（读 pin 失败 / pin 非法 / 迁移后缺 pin）的**失败骨架同样只写通用文案**（`final_report` 可经 `GET /api/rnd/runs/{id}` 读出），内部原因只进服务端日志。
+- 日志脱敏：新日志只记录 `run_id` / `session_id` / `engine` / `agent_key` / `sequence` / `latency_ms` / `used_fallback` / `skipped` / `reused` / `status` 等白名单字段；禁止记录问题原文、brief、用户名/邮箱/IP、密钥与完整 payload。
+- 实现期已定案口径（详见附录 §10–§12）：CFG-1 的 `latency_ms=0` 在冻结的 `_run_step` 下不可达，改用**量级断言**（<100ms）；**FI-1..4 为门禁**，FI-5（重复投递）/ FI-6（连接中断）未执行（可选，不判失败），FI-7 相邻的 503 注入已实测；fixture 产物属可选增强，等价证据为「E2E-1 规范化 0 差异 + 审查方独立复算 0 差异」。
+- 引擎开关取值：`system_config.rnd_engine` = 裸串 `legacy` / `langgraph`，或 JSON `{"mode":"canary","users":["<user_id>",…]}`；不可识别一律按 `legacy`（cache TTL 15s，无需重启）。
+- **A3 必须先于 A4**：若先部署代码而 schema 未就绪，每次建 Run 都会返回 503（设计即不降级），研发工作台将不可用。
+- **注入类验证脚本规范**（附录 §14）：任何"注入后需还原"的脚本必须带 `trap` 还原 + 幂等守卫，并在注入前后各留一次表清单与计数快照（t7 曾因还原语句方向写反使表短暂停留在 bak，1 分钟内闭环）。
+- **残留风险（阶段一接受，A4 窗口处理）**：`_apply_run_failure`（`backend/app/services/rnd_workflow_orchestrator.py:360`）仍把异常原文写入 `final_report.consistency_checks[0]`，而该字段可经 `GET /api/rnd/runs/{id}` 读出。该通道是**迁移前既有 legacy 语义**（v2.1 §C.6 要求复用），**非本次迁移引入**；实测库内无 psycopg / relation / SQL / 连接串泄漏（全库扫描 0 行）。计划在 **A4 窗口与生产发布同批脱敏并重新验收**（届时改的是内容文案，不动字段与接口结构）。
+
+### P20.11 文档事实核对清单（写作时逐项对照代码/服务器）
+
+| 文档中的写法 | 事实来源（已逐项核对） |
+|---|---|
+| 开关键 `system_config.rnd_engine`；marker `rnd_engine_migrated_at` | `backend/app/services/rnd_engine.py`（`ENGINE_CONFIG_KEY`、`MIGRATED_AT_KEY`） |
+| marker `rnd_engine_metrics_started_at` | P0b 最小补丁 DDL（v2.1 §A-P0b，**待批准 A1**） |
+| 配置项 `rnd_engine` / `rnd_engine_cache_ttl_seconds` / `rnd_langgraph_schema` / `rnd_langgraph_pool_max` / `rnd_langgraph_validate_on_start` / `rnd_langgraph_resume_enabled` / `rnd_orphan_sweep_enabled` / `rnd_orphan_stale_minutes` | `backend/app/core/config.py`（均有默认值：`rnd_engine=legacy`，其余保守关闭；**生产不需新增 env 键**） |
+| pin 表 `langgraph.run_engine(run_id, engine, pinned_at)`；租约表 `langgraph.run_lock(run_id, owner, acquired_at, heartbeat_at, expires_at)`；共 6 张表 | `backend/app/db/langgraph_schema.py`（`RUN_ENGINE_DDL`、`RUN_LOCK_DDL`、`REQUIRED_TABLES`） |
+| 租约 180s / 心跳 30s；`ON CONFLICT (run_id) DO NOTHING`；禁自动接管 | `backend/app/services/rnd_graph/run_lock.py`（`DEFAULT_LEASE_SECONDS`、`HEARTBEAT_INTERVAL_SECONDS`） |
+| CLI 参数 `--db-url` / `--schema` / `--app-user` / `--print-only` / `--dry-run` / `--skip-marker` / `--json`；退出码 0/1/2/3/4 | `backend/scripts/init_langgraph_checkpoint.py`（argparse 与 `return` 分支） |
+| 开关/回滚参数 `--show` / `--set` / `--set-mode {legacy,canary,langgraph}` / `--users` / `--delete` / `--force` / `--json`；exit 3（schema 校验未通过）/ 4（缺 marker） | `backend/scripts/rnd_engine_switch.py` |
+| parity 参数 `--mock` / `--offline` / `--db-url` / `--db-admin-url` / `--recreate-db` / `--keep-db` / `--cases` / `--list-cases` / `--report` / `--write-fixture` / `--baseline-fixture` / `--show-logs` | `scripts/accept_rnd_engine_parity.py` |
+| API 回归参数 `--base-url` / `--token` / `--run-ids` / `--run-ids-file` / `--baseline` / `--write-baseline` / `--report` / `--timeout` / `--allow-remote` / `--require-token`（**无** `--dry-run` / `--no-network`）；报告字段 `only_get_requests` | `scripts/accept_rnd_api_regression.py` |
+| 依赖 3 项 `langgraph==1.2.15`、`langgraph-checkpoint-postgres==3.1.3`、`psycopg-pool==3.3.3`；兼容约束 `langgraph-checkpoint>=4.3.0,<5.0.0` | `backend/requirements.txt`（注释段亦记录 search_path 与 autocommit 约束） |
+| 503 通用文案 | `backend/app/services/rnd_engine.py`（`ENGINE_PIN_FAILURE_DETAIL` / `public_detail_for()`）+ `backend/app/api/routes.py` 503 分支（t6 修复后） |
+| 监控 SQL 用到的列 `workflow_run.status/created_at`、`workflow_step_run.used_fallback/skipped/created_at` | `backend/app/db/models.py`（`WorkflowRun`/`WorkflowStepRun`；`TimestampMixin` 为 naive-UTC） |
+| 生产只读查询用 `sudo -u postgres psql -d neo4j_agents -tAc "…"` | root 直连 `psql` 会 `exit 2`（`role "root" does not exist`），属已知环境事实 |
+| 暂存树事实：`/www/wwwroot/neo4j-migrate/`、venv Python 3.11.6、`.env` 两处 0600、`run_staging.sh` 0700、库 `neo4j_agents_migrate`、8010 未监听 | 2026-10-14 服务器只读实测（`ls`/`stat`/`psql`） |
+| 生产未写事实：生产 `langgraph` schema 计数 0、`workflow_run/workflow_step_run/graph_snapshot = 10/56/45`、`max_connections = 100` | 2026-10-14 服务器只读实测（`sudo -u postgres psql -d neo4j_agents -tAc …`） |

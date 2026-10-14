@@ -74,6 +74,17 @@ neo4j_muti_agents/
 - 每步图谱快照与右侧证据面板联动
 - 管理后台查看工作流日志、Prompt、数据概览
 
+### 3. 研发引擎：默认 legacy，可切换 LangGraph（迁移中，生产发布待批准）
+
+研发协同工作流支持**双引擎**，**默认仍是 legacy**（既有 `RnDWorkflowOrchestrator` 编排路径），可切到 LangGraph 固定串行六步图（`backend/app/services/rnd_graph/`）。
+
+- **开关**：`system_config` 表的 `rnd_engine` 配置项，取值 `legacy` / `langgraph`，或 JSON `{"mode":"canary","users":["<user_id>", …]}`（白名单用户走 langgraph，其余仍 legacy）；取值不可识别一律按 legacy。
+- **生效方式**：改配置即生效（cache TTL 15s），**无需重启**；切换与回滚用 `backend/scripts/rnd_engine_switch.py`（读旧值 → 写新值 → 打印回滚命令）。
+- **Run 与引擎绑定**：创建 Run 时在同一事务写入引擎 pin（`langgraph.run_engine`）；写 pin 失败返回 **503** 且不入队、不降级。
+- **执行环境分离**：迁移期的隔离执行与验收在服务器侧暂存树 `/www/wwwroot/neo4j-migrate/`（独立 venv、独立库 `neo4j_agents_migrate`、`127.0.0.1:8010`），与生产树 / 生产库完全分离。
+- **文档入口**：升级、发布、监控与回滚见 `DEPLOY.md` 的「LangGraph 研发协同迁移（P20，待批准）」小节；完整计划与生效口径见 `deploy/LANGGRAPH_MIGRATION_PLAN.md`（v2.1）与 `deploy/LANGGRAPH_MIGRATION_PLAN_v2.2_ADDENDUM.md`（§1–§13）。
+- **当前状态**：生产尚未部署 LangGraph（生产树 / 生产库零改动，默认 legacy）；暂存树验收与审查记录见 v2.2 附录 §11–§13。
+
 ## 图谱建模说明
 
 当前正式图谱按 2026-06-04 最新数据全量重建，数据源为：
@@ -488,6 +499,8 @@ python .\scripts\import_agent_kg_0604.py --clear
 - `steps`
 - `summary_metrics`
 - `related_graph_snapshots`
+
+> 引擎说明：以上接口的引擎（legacy / langgraph）与开关方式见「当前能力 → 3. 研发引擎」；升级与回滚见 `DEPLOY.md` 的「LangGraph 研发协同迁移（P20，待批准）」小节。
 
 
 ### 管理端数据导入（2026-10-12 上线 P18）

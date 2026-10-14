@@ -69,6 +69,21 @@ def create_app() -> FastAPI:
             Neo4jRepository().health_check()
         except Exception:
             logger.exception("Neo4j warmup failed")
+        # LangGraph 运行期校验（**只读**）：schema 与必需表存在性 + public 无 checkpoint%。
+        # 启动路径零 DDL：建表只由 backend/scripts/init_langgraph_checkpoint.py 执行（v2.1 §C.8）。
+        if settings.rnd_langgraph_validate_on_start:
+            try:
+                from app.services.rnd_graph.checkpointer import validate_langgraph_runtime
+
+                status = validate_langgraph_runtime()
+                if status.ok:
+                    logger.info("langgraph 运行期校验通过：%s", status.describe())
+                elif status.error:
+                    logger.warning("langgraph 运行期校验未通过（开关为 langgraph 时建 Run 将返回 503）：%s", status.describe())
+                else:
+                    logger.warning("langgraph schema 不完整（开关为 langgraph 时建 Run 将返回 503）：%s", status.describe())
+            except Exception:
+                logger.exception("langgraph 运行期校验异常（仅告警，不影响启动）")
 
     @app.on_event("shutdown")
     def on_shutdown() -> None:

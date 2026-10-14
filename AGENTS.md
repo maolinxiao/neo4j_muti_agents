@@ -458,6 +458,34 @@ frontend/src/
 - `process_adaptation`：工艺适配，尚未作为独立 Agent 实现。
 - `market_prediction`：市场预测，尚未作为独立 Agent 实现。
 
+### 8.6 引擎与编排（LangGraph 迁移约定）
+
+研发协同支持**双引擎**，**默认 legacy**，通过 `system_config.rnd_engine` 切换（cache TTL 15s，无需重启）：
+
+| 取值 | 含义 |
+|---|---|
+| `legacy`（默认） | 既有 `RnDWorkflowOrchestrator` 路径原样执行 |
+| `langgraph` | 固定串行六步 LangGraph 图（`backend/app/services/rnd_graph/`） |
+| `{"mode":"canary","users":["<user_id>", …]}` | 白名单用户走 langgraph，其余仍 legacy |
+
+取值不可识别 / 读取失败 / 为空一律按 `legacy` 处理。切换与回滚用 `backend/scripts/rnd_engine_switch.py`（读旧值 → 写新值 → 打印回滚命令，不含凭据）。
+
+硬约定（迁移期新增，勿破坏）：
+
+- **Node 只包装既有 `_run_*` / `_run_step`**：组方、检索、兜底、`_assemble_final_report`、KB5 回注等业务逻辑一律留在 orchestrator，`rnd_graph/nodes.py` 不复制实现。
+- **图的顺序从 `AGENT_STEP_DEFS.sequence` 派生**；编译期双断言（注册表必须是前向依赖单链 + 编译产物恰为 `START→6 节点→END` 一条链）；不写死 1..6，不引入分支 / 并行 / 重试策略 / 条件边。
+- **State（`RndGraphState`）**：六个 Agent **各自独立字段** + 4 个只读输入（`run_id` / `session_id` / `question` / `brief`）+ `error`；**禁止** `steps` / `snapshots` 之类聚合键，**禁止** reducer（`Annotated[..., reducer]`）；只放 JSON 兼容值（会写入 checkpoint）。
+- **运行依赖走 `runtime.context`（`RunContext`）**，不进 State；每个 Node 自开短会话并在 `finally` 关闭，不跨节点共享 `Session`。
+- **Run 创建与引擎 pin 同事务**：`POST /api/rnd/sessions/{sid}/runs` 先决策，再在同一事务写 `langgraph.run_engine`；写 pin 失败 → 回滚 + **503**（不入队、**不降级**）。pin 用普通 `INSERT`（无 upsert，重复写须响亮失败）。
+- **缺 pin 判定**：无 pin 且 `created_at < rnd_engine_migrated_at`（或 marker 缺失）→ 按历史 Run 走 legacy；否则 Run 置 `failed` + 明确错误，**禁止静默降级**。
+- **租约锁（`langgraph.run_lock`）**：领取用 `INSERT … ON CONFLICT (run_id) DO NOTHING`；**第一阶段禁止租约过期自动接管**（如需自动接管，必须先有 fencing token，属阶段二）；心跳 30s、租约 180s；放弃投递发生在置 `running` 之前，不改 Run 状态。
+- **节点重放幂等**：`(run_id, agent_key)` 已有 `completed` step 行则复用其 `output_payload` / `graph_snapshot_id`，不再调用 LLM、不新增行（日志 `reused=true`）。
+- **invoke 语义**：首次 `graph.invoke(initial_state, config, context=…, durability="sync")`；`invoke(None, …)` 仅用于满足 5 项前置的恢复，恢复开关默认关闭（生产恒关）。
+- **失败语义**：节点异常 → `run=failed` + 失败骨架；进程崩溃停在 `running` 时**不自动续跑**（`rnd_orphan_sweep_enabled` 默认 off，仅可显式标记 `failed`）；**不承诺生产自动续跑**。
+- **Checkpointer**：独立 `langgraph` schema；连接固定 `autocommit=True` + `row_factory=dict_row` + `options="-c search_path=langgraph,public"`；**建表只由 `backend/scripts/init_langgraph_checkpoint.py` 执行**（autocommit，`PostgresSaver.setup()` 含 `CREATE INDEX CONCURRENTLY` 不能落事务），FastAPI 启动**只做只读校验、零 DDL**。
+- **服务器侧暂存树边界**：执行与验收在 `/www/wwwroot/neo4j-migrate/`（独立 venv、独立库 `neo4j_agents_migrate`、`127.0.0.1:8010`，不开公网、不改 nginx）；**禁止**修改 `/www/wwwroot/neo4j-agents/**`、生产库 / 生产 `langgraph` schema、生产 venv 与面板项目重启；重建暂存树必须重新覆盖 root 与 `backend/` 两处 staging `.env`(0600) 并重新授权 `public`；**部署顺序硬约束：A3（引导 schema + 写 marker）先于 A4（上传代码并重启）**；`git add/commit/push` 由 captain 统一处理。
+- 相关验收脚本：`scripts/accept_rnd_engine_parity.py`（Mock 等价 + 故障注入 FI-1..4，`--mock --offline`）、`scripts/accept_rnd_api_regression.py`（GET-only 只读契约回归）。口径与结论见 `deploy/LANGGRAPH_MIGRATION_PLAN.md` 与 `deploy/LANGGRAPH_MIGRATION_PLAN_v2.2_ADDENDUM.md` §10–§13。
+
 ---
 
 ## 9. 前端开发规则
@@ -687,6 +715,14 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 | `backend/app/services/deepseek_client.py` | LLM 调用、流式输出、fallback | 高 |
 | `backend/app/services/rnd_workflow_orchestrator.py` | 研发协同工作流 | 高 |
 | `backend/app/services/agent_config_service.py` | 工作流 Agent 配置：步骤注册表 `AGENT_STEP_DEFS`、参数与启停、配置版本历史与回滚、单步试运行 | 高 |
+| `backend/app/services/rnd_graph/` | LangGraph 串行六步图（8 个模块）：`state`（独立字段/无 reducer）、`context`（RunContext）、`nodes`（只包装 `_run_*` + 幂等守卫）、`graph`（由 `AGENT_STEP_DEFS` 派生 + 线性断言）、`checkpointer`（Saver 连接与只读校验）、`run_lock`（租约锁，禁自动接管）、`runner`（取锁 → invoke → 成功/失败收尾） | 高 |
+| `backend/app/services/rnd_engine.py` | 双引擎决策/固定/查询：`system_config.rnd_engine` → env → 默认 legacy（TTL 15s）；同事务写 pin；缺 pin 判定；503 对外通用文案 | 高 |
+| `backend/app/db/langgraph_schema.py` | `langgraph` schema 与 6 张表的**只读校验**与 DDL 常量（启动零 DDL，建表只在 CLI） | 中 |
+| `backend/scripts/init_langgraph_checkpoint.py` | schema 引导 CLI（唯一建表入口；段① autocommit 建对象 + 段② 独立事务写 marker） | 中 |
+| `backend/scripts/rnd_engine_switch.py` | 引擎开关切换/回滚 CLI（读旧值 → 写新值 → 打印回滚命令；不含凭据） | 中 |
+| `scripts/accept_rnd_engine_parity.py` | 隔离环境 Mock 等价 + 故障注入验收（E2E-1、CFG-1..4、FB-1..3、FI-1..4） | 中 |
+| `scripts/accept_rnd_api_regression.py` | GET-only 只读契约与历史回放回归（token 由外部注入，不建账号、不写库） | 中 |
+| `stg_server.py`（**未跟踪**，勿提交） | 本地同步助手：仓库 → 服务器暂存树逐文件 sha256 校验；带生产路径写守卫、无明文凭据 | 中 |
 | `frontend/src/api/client.js` | REST/SSE API 封装 | 中 |
 | `frontend/src/stores/chat.js` | 知识问答状态与流式消息处理 | 高 |
 | `frontend/src/utils/qaAnswerFormat.js` | QA 回答结构化渲染 | 高 |

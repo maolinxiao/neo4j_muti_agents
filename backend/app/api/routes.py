@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import secrets
 import threading
 import time
@@ -33,6 +34,7 @@ from app.db.models import (
 from app.db.sqlalchemy import SessionLocal, get_db_session
 from app.repositories.neo4j_repository import Neo4jRepository
 from app.repositories.postgres_repository import PostgresRepository
+from app.services import rnd_engine
 from app.schemas.admin import (
     ChatLogRead,
     ImportBatchPage,
@@ -110,6 +112,9 @@ from app.services.rnd_workflow_orchestrator import RnDWorkflowOrchestrator
 from app.services import agent_config_service
 from app.services import kg_import_service as import_service
 from app.services.auth_service import AuthService, hash_password
+
+
+logger = logging.getLogger(__name__)
 
 
 health_router = APIRouter(tags=["health"])
@@ -225,6 +230,18 @@ def _workflow_run_read(repository: PostgresRepository, run: WorkflowRun) -> Work
 
 
 def _run_workflow_in_background(run_id: str) -> None:
+    """后台执行入口：先读引擎 pin 再分派（v2.1 §C.2）。
+
+    - pin=legacy → 原路径**原样**执行（本函数其余部分与迁移前逐字一致）；
+    - pin=langgraph → ``rnd_graph.runner``；
+    - 无 pin：``created_at < rnd_engine_migrated_at`` → legacy；否则 Run 置 failed 并抛错（禁止静默降级）。
+    """
+    engine = rnd_engine.resolve_engine_for_run(run_id)
+    if engine == rnd_engine.ENGINE_LANGGRAPH:
+        from app.services.rnd_graph.runner import run_langgraph
+
+        run_langgraph(run_id)
+        return
     db = SessionLocal()
     neo4j = Neo4jRepository()
     try:
@@ -951,11 +968,30 @@ def create_workflow_run(
     session = PostgresRepository(db).get_workflow_session(session_id, current_user.id)
     if session is None:
         raise HTTPException(status_code=404, detail="Workflow session not found")
+    # 引擎固定（v2.1 §C.2）：先决策（system_config → env → legacy），再由 start_run 在同一事务写 pin
+    engine = rnd_engine.decide(current_user.id, session=db)
     orchestrator = get_rnd_workflow_orchestrator(db, neo4j)
     try:
-        result = orchestrator.start_run(session_id, payload.question, reuse_last_brief=payload.reuse_last_brief)
+        result = orchestrator.start_run(
+            session_id,
+            payload.question,
+            reuse_last_brief=payload.reuse_last_brief,
+            engine_pin=engine,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except rnd_engine.EnginePinError as exc:
+        # 写 pin 失败：事务已回滚 → 不入队、不降级，返回 503。
+        # 对外只给通用文案（必要时附 run_id）；异常原文/堆栈只写服务端日志（v2.1 §E.9；v2.2 §11 G5）。
+        db.rollback()
+        logger.error(
+            "研发任务引擎固定失败（HTTP 503）run_id=%s stage=%s engine=%s",
+            rnd_engine.run_id_of(exc),
+            getattr(exc, "stage", None),
+            rnd_engine.engine_of(exc),
+            exc_info=True,
+        )
+        raise HTTPException(status_code=503, detail=rnd_engine.public_detail_for(exc)) from exc
     background_tasks.add_task(_run_workflow_in_background, result["run_id"])
     return WorkflowRunResponse(
         session_id=result["session_id"],

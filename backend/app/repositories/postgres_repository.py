@@ -17,6 +17,7 @@ from app.db.models import (
     ImportBatch,
     PromptTemplate,
     QATrace,
+    SystemConfig,
     UserFeedback,
     WorkflowRun,
     WorkflowSession,
@@ -179,6 +180,10 @@ class PostgresRepository:
 
     def get_cypher_template(self, template_id: str) -> CypherTemplate | None:
         return self.session.get(CypherTemplate, template_id)
+
+    def get_system_config_value(self, key: str) -> str | None:
+        """只读：取 system_config.config_value（不存在返回 None）。2026-10-15 新增（LangGraph 双引擎开关）。"""
+        return self.session.scalar(select(SystemConfig.config_value).where(SystemConfig.config_key == key))
 
     def get_entity_profile(self, neo4j_key: str) -> EntityProfile | None:
         return self.session.scalar(select(EntityProfile).where(EntityProfile.neo4j_key == neo4j_key))

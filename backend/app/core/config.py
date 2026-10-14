@@ -89,6 +89,19 @@ class Settings:
     rate_limit_auth_requests: int = int(os.getenv("RATE_LIMIT_AUTH_REQUESTS", "10"))
     rate_limit_auth_window_seconds: int = int(os.getenv("RATE_LIMIT_AUTH_WINDOW_SECONDS", "60"))
     slow_request_ms: int = int(os.getenv("SLOW_REQUEST_MS", "1000"))
+    # --- LangGraph 研发协同双引擎开关（2026-10-15，阶段一）---
+    # 默认与关闭语义：rnd_engine 默认 legacy；其余新开关一律"关闭/保守"。
+    # 生产**不新增任何 env 键**：以下键均可缺省，缺省即取这里的默认值。
+    rnd_engine: str = os.getenv("RND_ENGINE", "legacy")
+    rnd_engine_cache_ttl_seconds: int = int(os.getenv("RND_ENGINE_CACHE_TTL_SECONDS", "15"))
+    rnd_langgraph_schema: str = os.getenv("RND_LANGGRAPH_SCHEMA", "langgraph")
+    rnd_langgraph_pool_max: int = int(os.getenv("RND_LANGGRAPH_POOL_MAX", "2"))
+    rnd_langgraph_validate_on_start: bool = _as_bool(os.getenv("RND_LANGGRAPH_VALIDATE_ON_START"), True)
+    # 恢复开关仅用于隔离环境手动 invoke(None)；生产恒为关（v2.1 §C.4 前置 3）
+    rnd_langgraph_resume_enabled: bool = _as_bool(os.getenv("RND_LANGGRAPH_RESUME_ENABLED"), False)
+    # 孤儿清扫（W3）：默认关闭，且只作用于 pin=langgraph 的 Run
+    rnd_orphan_sweep_enabled: bool = _as_bool(os.getenv("RND_ORPHAN_SWEEP_ENABLED"), False)
+    rnd_orphan_stale_minutes: int = int(os.getenv("RND_ORPHAN_STALE_MINUTES", "30"))
 
     @property
     def minimax_api_base(self) -> str:

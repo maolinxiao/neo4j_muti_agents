@@ -184,7 +184,7 @@ frontend/src/
 - 新图谱不导入 `Compound` / 成分网络，不主动检索旧成分-功效网络。
 - 旧 `neo4j_graph_v3`、旧 dump 和旧 Compound 数据仅作备份参考，不回灌。
 - `ConsumerProfile`、`ConsumerSegment`、`ConsumerReview` 是 CDB1 消费者画像与评论偏好正式节点；新增检索和回答逻辑可以依赖它们。代码不得依赖旧 `Compound`。
-- 最新 dry-run 验收基线为 `86,482 nodes / 207,354 relationships`，`Compound=0`；CDB1 同时服务企业端（人群定位、风味/剂型、市场差异化）和个人端（产品适配、口味偏好、风险边界辅助判断）。
+- 最新 dry-run 验收基线（2026-10-14 本地实测复核）为 `86,484 nodes / 207,356 relationships`，`Compound=0`；线上 Neo4j 实测同为 86,484/207,356。CDB1 同时服务企业端（人群定位、风味/剂型、市场差异化）和个人端（产品适配、口味偏好、风险边界辅助判断）。
 
 ### 5.2 8 类知识库
 

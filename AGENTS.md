@@ -639,7 +639,7 @@ MATCH (rv:ConsumerReview) RETURN count(rv) AS consumer_review_count;
 版本一致性事实（未来 agent 必读）：
 
 - 服务器**没有前端源码**：`frontend/src` 只存在于本仓库，本地 `frontend/dist` 即线上静态站；误删本地源码无法从服务器找回。
-- 截至 2026-10-14（实测核对）：本地工作树 = GitHub `origin/codex/rnd-fix-2026-08-26`，HEAD `4aba4e24`；**服务器落后 1 个提交**（线上内容相当于 `d5936f1c` + P18 上线批次）。
+- 截至 2026-10-14（实测核对）：本地工作树 = GitHub `origin/codex/rnd-fix-2026-08-26`；**服务器落后**——代码 HEAD 为 `4aba4e24`（其后 `c4ce3dd8` 仅为本次巡检文档提交），线上内容相当于 `d5936f1c` + P18 上线批次。
   - 未部署差异：`backend/app/services/agent_config_service.py` 服务器缺失；内容不同的有 `backend/.env.example`、`api/routes.py`、`core/config.py`、`db/init_db.py`、`db/models.py`、`repositories/postgres_repository.py`、`services/deepseek_client.py`、`services/rnd_workflow_orchestrator.py`。
   - 前端无差异：本地 `frontend/dist/**` ↔ 线上 `frontend-dist/**` 逐文件 sha256 全 MATCH；`frontend/src` 线上不存在（设计如此）。
   - `backend/requirements.txt`、`gunicorn_conf.py`、`uwsgi.ini` 已从服务器同步入库。

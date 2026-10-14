@@ -612,8 +612,8 @@ nginx：只允许 `nginx -t && nginx -s reload`，禁止重启/停用面板核�
 ### 三方版本
 | 位置 | 版本 | 依据 |
 |---|---|---|
-| 本地工作树 | HEAD `4aba4e24`（分支 `codex/rnd-fix-2026-08-26`，工作树干净） | `git status` 无已跟踪改动，仅 `.tmp-*/` 等未跟踪草稿 |
-| GitHub | = 本地 HEAD（`git status -sb` 无 ahead/behind） | `maolinxiao/neo4j_muti_agents` |
+| 本地工作树 | 代码 HEAD `4aba4e24` + 巡检文档提交 `c4ce3dd8`（分支 `codex/rnd-fix-2026-08-26`，工作树干净） | `git status` 无已跟踪改动，仅 `.tmp-*/` 等未跟踪草稿 |
+| GitHub | = 本地（`git push` 后 `git status -sb` 无 ahead/behind） | `maolinxiao/neo4j_muti_agents` |
 | 生产 | = `d5936f1c` + P18 上线批次 | 后端进程 pid 2398177 起于 2026-10-12 14:36:55 |
 
 ### 逐文件 sha256 核对（排除 `_vendor`/`*.bak-*`/`uploads`/`__pycache__` 噪声）

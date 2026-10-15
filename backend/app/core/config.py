@@ -16,7 +16,7 @@ def _as_bool(value: str, default: bool) -> bool:
 
 @dataclass
 class Settings:
-    app_name: str = os.getenv("APP_NAME", "药食同源知识问答平台")
+    app_name: str = os.getenv("APP_NAME", "食源智汇药食同源多Agent智能体系统")
     app_env: str = os.getenv("APP_ENV", "dev")
     app_host: str = os.getenv("APP_HOST", "0.0.0.0")
     app_port: int = int(os.getenv("APP_PORT", "8000"))

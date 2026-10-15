@@ -29,7 +29,7 @@
           :initial="{ opacity: 0, y: 28 }"
           :enter="{ opacity: 1, y: 0, transition: { duration: 600, delay: 160 } }"
         >
-          <span class="hero-title-grad">多智能体</span>研发协同平台
+          <span class="hero-title-grad">食源智汇</span>药食同源多Agent智能体系统
         </h1>
         <p
           class="hero-lead"

@@ -18,7 +18,7 @@
           <div class="mark-dot"></div>
           {{ t("common.appName") }}
         </div>
-        <h1>{{ t("register.title") }}</h1>
+        <h1>{{ t("login.title") }}</h1>
         <p class="subtitle">
           {{ t("login.subtitle") }}
         </p>

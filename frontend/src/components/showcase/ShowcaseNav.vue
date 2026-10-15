@@ -3,7 +3,7 @@
     <div class="showcase-container nav-inner">
       <router-link to="/" class="nav-brand sc-nav-brand">
         <span class="brand-dot" />
-        <span>药食同源平台</span>
+        <span>食源智汇药食同源多Agent智能体系统</span>
       </router-link>
       <nav class="nav-links" aria-label="展示站导航">
         <a

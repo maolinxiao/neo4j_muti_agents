@@ -3,7 +3,7 @@
     <div class="showcase-container footer-inner">
       <div class="footer-brand">
         <span class="brand-dot" />
-        <span>药食同源多智能体研发协同平台</span>
+        <span>食源智汇药食同源多Agent智能体系统</span>
       </div>
       <p class="footer-copy">基于 Neo4j 知识图谱 · 结构化智能生成 · 多智能体工作台</p>
       <div class="footer-actions">

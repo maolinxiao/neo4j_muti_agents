@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Medicinal Food Platform",
+    "appName": "Shiyuan Zhihui · Food-Medicine Homology Multi-Agent System",
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -37,7 +37,7 @@
     "changePassword": "Change password"
   },
   "login": {
-    "title": "Multi-Agent R&D Collaboration Platform",
+    "title": "Shiyuan Zhihui · Food-Medicine Homology Multi-Agent System",
     "subtitle": "Built on the Neo4j evidence graph, linking knowledge Q&A with R&D collaboration agents so formulas, efficacy, flavor and replacement mapping stay traceable and verifiable in one workspace.",
     "loginCardTitle": "Sign in",
     "loginCardSub": "Enter your account",
@@ -115,7 +115,7 @@
     "enter": "Open"
   },
   "home": {
-    "welcomeTitle": "Welcome to the Medicinal Food R&D Collaboration Platform",
+    "welcomeTitle": "Welcome to Shiyuan Zhihui · Food-Medicine Homology Multi-Agent System",
     "welcomeDesc": "Built on a knowledge graph and multi-agent technology, this system provides intelligent decision support for medicinal-food product R&D. Core features include graph retrieval, formula suggestions, efficacy prediction, flavor analysis and replacement mapping.",
     "greeting": "Hello, {name}",
     "recentChats": "Recent Sessions",

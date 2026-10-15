@@ -2,8 +2,8 @@
   <el-container class="app-shell">
     <el-aside width="200px" class="sidebar">
       <div class="brand-block">
-        <img src="/brand-logo.png" class="brand-logo" alt="药食同源平台" />
-        <span class="brand-title">药食同源平台</span>
+        <img src="/brand-logo.png" class="brand-logo" alt="食源智汇药食同源多Agent智能体系统" />
+        <span class="brand-title">食源智汇药食同源多Agent智能体系统</span>
       </div>
       <el-scrollbar>
         <el-menu
@@ -182,9 +182,10 @@ const handleLogout = async () => {
 }
 
 .brand-title {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  white-space: nowrap;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .nav-menu {

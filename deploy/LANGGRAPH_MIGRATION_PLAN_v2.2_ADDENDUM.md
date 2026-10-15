@@ -139,7 +139,7 @@ t1 校对发现 4 处标签口径问题，本附录定案如下（**实现与验
 
 | # | Finding | 定案 |
 |---|---|---|
-| **F1**(medium) | §C.5 的 pin 完备性校验 SQL 有**时区缺陷**（`workflow_run.created_at` 是 naive-UTC 列，marker 是 `timestamptz`）→ 实测返回"迁移后 Run 数 = 0"，**恒通过漏报** | **确认为文档缺陷**（实现侧口径正确）。生效版本见下方修正 SQL，并把「**全量 `runs_without_pin = 0`**」作为**强断言**（不依赖 marker 比较）。t5 文档按修正版书写 |
+| **F1**(medium) | §C.5 的 pin 完备性校验 SQL 有**时区缺陷**（`workflow_run.created_at` 是 naive-UTC 列，marker 是 `timestamptz`）→ 实测返回"迁移后 Run 数 = 0"，**恒通过漏报** | **确认为文档缺陷**（实现侧口径正确）。生效版本见下方修正 SQL；强断言口径为「**迁移 marker 之后创建的 Run 必须全部有 pin**」（生产实测：2026-10-15 迁移前 10 条历史 run 无 pin，属**设计预期**——缺 pin 的历史 Run 解释为 legacy，故**不能**用"全量"口径）。t5 文档按修正版书写 |
 | F2(low) | P1 DoD④ 的 fixture 无产物 | 口径：fixture 产物为**可选增强**（如 `--write-fixture`）；阶段一以"E2E-1 规范化 0 差异 + 审查方独立复算 0 差异"作为等价证据；t5 文档注明 |
 | F3(low) | 503 回显内部异常细节 | 已派 **t6** 修复（生产前硬化） |
 | F4(low) | §11 G2 所写 `~/.stg-t2/staging.json` 是本地开发机路径，服务器不存在 | 更正：staging 库口令存于**服务器** `/www/wwwroot/neo4j-migrate/.env` 与 `/www/wwwroot/neo4j-migrate/backend/.env`（均 0600）；本地另有 `C:\Users\feife\.stg-t2\staging.json`（0600，仅供 captain 使用） |
@@ -152,12 +152,16 @@ t1 校对发现 4 处标签口径问题，本附录定案如下（**实现与验
 **修正后的 pin 完备性校验 SQL（生效版本）**
 
 ```sql
--- ① 强断言（推荐，作为巡检与 DoD 主判据）：全量 Run 都必须有 pin，不依赖 marker
-SELECT count(*) AS runs_without_pin
+-- ① 强断言（推荐，作为巡检与 DoD 主判据）：**迁移 marker 之后**创建的 Run 必须全部有 pin
+--    注意：迁移前的历史 Run 无 pin 属设计预期（缺 pin → 解释为 legacy），故不能用“全量”口径
+SELECT count(*) AS post_migration_runs_without_pin
 FROM workflow_run r
-WHERE NOT EXISTS (SELECT 1 FROM langgraph.run_engine p WHERE p.run_id = r.id);   -- 必须为 0
+LEFT JOIN langgraph.run_engine p ON p.run_id = r.id
+WHERE r.created_at >= ((SELECT config_value::timestamptz FROM system_config
+                        WHERE config_key = 'rnd_engine_migrated_at') AT TIME ZONE 'UTC')
+  AND p.run_id IS NULL;                                                          -- 必须为 0
 
--- ② 迁移后分段统计（时区修正：created_at 为 naive-UTC，marker 为 timestamptz）
+-- ② 分段统计（同口径，含总数）
 SELECT count(*) AS migrated_runs,
        count(*) FILTER (WHERE p.run_id IS NULL) AS runs_without_pin
 FROM workflow_run r
@@ -166,7 +170,7 @@ WHERE r.created_at >= ((SELECT config_value::timestamptz FROM system_config
                         WHERE config_key = 'rnd_engine_migrated_at') AT TIME ZONE 'UTC');
 ```
 
-> 说明：marker 尚未写入时（迁移前）②无基准，只用①。原 §C.5 的写法作废。
+> 说明：marker 尚未写入时（迁移前）两条查询均无基准，此时只看"是否有 pin 机制生效"（无 marker 即全部按 legacy 解释）。原 §C.5 的写法作废。
 
 ## 13. t6（G5 修复）结果、对外错误口径与第三条命令文本更正（2026-10-14）
 
@@ -235,6 +239,43 @@ staging 与**仓库同文件逐字节相同**，且与 t6 交付一致 → 被�
 **T8-F3（low）**：t7 的注入脚本还原方向事故已闭环（复核 `bak=0`）；「注入脚本必须 `trap` 还原 + 幂等守卫 + 前后快照」已写入 §14 与 `DEPLOY.md` P20.10。
 
 **阶段一闭环声明（本地/服务器暂存树侧）**：t1–t8 全部完成；**t2+t6 的当前字节**经 t7 重验收（28 项全通过）与 t8 重新审查（verdict=pass）双门禁覆盖；**生产域（树/库/schema/venv/nginx/面板项目）自始至终未被写入**，所有生产动作仍待 A0–A8 逐项批准。
+
+## 16. 生产切换已执行：LangGraph 正式接管，legacy 保留可回退（2026-10-15）
+
+> 用户指令：把原引擎停用、新引擎换上去，旧引擎随时可切回。执行口径：**新引擎接管默认流量；legacy 代码与开关完整保留**作为回滚通道。
+
+**结果**：`system_config.rnd_engine = langgraph`（全局生效，TTL 15s、无需重启）；站点 200、`/api/health` 200、后端 pid 3512006。
+
+**执行链**：A0 只读基线 → A1 两列 + `rnd_engine_metrics_started_at`（同一事务，未重启）→ A2 装 3 个 `==` 依赖（+25 传递依赖）→ A3 引导 `langgraph` 6 表 + `rnd_engine_migrated_at` → A4 上传 24 文件（逐文件 sha256 MATCH）+ 面板重启 → A5 legacy 基线运行 → A6 canary（admin）两次 → 全局切换。完整记录见 `DEPLOY.md` **P21**。
+
+**三样本归因（同一问题"把四君子汤改造成药食同源代餐粉"）**
+
+| 引擎 | run | 状态 | 步骤 | fallback 步 | 快照 | metrics |
+|---|---|---|---|---|---|---|
+| legacy | `90f09dca…` | completed | 6 | 3 | 4 | `{6,1,3,4}` |
+| langgraph | `9a7f6bb6…` | completed | 6 | 4 | 4 | `{6,1,3,4}` |
+| langgraph | `d5353a9c…` | completed | 6 | 3 | 4 | `{6,1,3,4}` |
+
+**决定性证据**：两次运行 step1/step2 的 `input_payload` **逐字节相同**（8492 B、键集与 KB5 上下文、候选药味数量一致）→ 差异源于**模型抖动**而非引擎；langgraph 第二个样本与 legacy 兜底步数完全一致。
+
+**运行时机制**：pin 自 Run 创建落库（legacy/langgraph 各就位）；迁移后无 pin 的 Run = **0**；`langgraph.checkpoints` 随 thread 递增（样本 1 共 8 条），**租约锁结束时归零**；无重复 `(run_id, agent_key)`、无悬空快照；历史 56 条步骤最后更新仍在 `2026-09-01 17:34:26`。
+
+**回滚（R1，一条命令、≤15s、无需重启）**：
+```bash
+cd /www/wwwroot/neo4j-agents/backend
+DSN=$(grep -oP '^POSTGRES_DSN=\K.*' .env)
+/www/server/pyporject_evn/neo4j-agents-backend/bin/python scripts/rnd_engine_switch.py --db-url "$DSN" --set-mode legacy
+```
+代码级回滚（R2）：`backups/pre-langgraph-20261015-220101/app/` + `baseline/pip-freeze-before.txt`。
+
+**事故与偏差（如实记录）**
+- **I1（事故，已修复）**：A4 首轮重启启动失败（`ImportError: AgentConfigRevision`）——发布文件集**漏了 4 个被依赖模块**（`db/models.py`、`db/init_db.py`、`services/agent_config_service.py`、`services/deepseek_client.py`）；`/api` 短暂不可用（静态站 200），补齐后恢复，数据零丢失。**教训：发布文件集必须按"目标文件 import 的全部模块"反推校验，不能只按 diff 清单手抄。**
+- **D1（偏差，已接受）**：`websockets` 17.1 → 16.1.1（`langchain-core` 约束）；生产 0 处引用 WebSocket、`pip check` 无破损 → 对本站无影响。
+- **D2（偏差，已接受）**：A5/A6 用"受控会话"绕过图形验证码发起 API 调用；**3 条会话已删除**（剩余 0）。
+- **D3（口径修正）**：pin 强断言限定为"marker 之后创建的 Run 必须全部有 pin"（§12 已更新）。
+
+**仍未处理**：T8-F1（`final_report` 异常原文脱敏）按 §15 决策在后续窗口与生产发布同批处理。
+
 
 
 

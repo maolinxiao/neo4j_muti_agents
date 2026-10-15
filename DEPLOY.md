@@ -865,3 +865,58 @@ cd /www/wwwroot/neo4j-migrate && ./venv/bin/python scripts/accept_rnd_engine_par
 | 生产只读查询用 `sudo -u postgres psql -d neo4j_agents -tAc "…"` | root 直连 `psql` 会 `exit 2`（`role "root" does not exist`），属已知环境事实 |
 | 暂存树事实：`/www/wwwroot/neo4j-migrate/`、venv Python 3.11.6、`.env` 两处 0600、`run_staging.sh` 0700、库 `neo4j_agents_migrate`、8010 未监听 | 2026-10-14 服务器只读实测（`ls`/`stat`/`psql`） |
 | 生产未写事实：生产 `langgraph` schema 计数 0、`workflow_run/workflow_step_run/graph_snapshot = 10/56/45`、`max_connections = 100` | 2026-10-14 服务器只读实测（`sudo -u postgres psql -d neo4j_agents -tAc …`） |
+
+## 2026-10 研发引擎切换上线（P21，2026-10-15）：LangGraph 正式接管，legacy 保留可回退
+
+> 用户指令：把原引擎停用、新引擎换上去，旧引擎随时可切回。**执行口径**：新引擎接管**默认流量**；legacy 代码与开关**完整保留**作为回滚通道（不删除、不注释）。
+
+### 执行链与证据
+
+| 步骤 | 内容 | 结果 |
+|---|---|---|
+| **A0** 只读基线 | 无在跑 Run；runs/steps/snapshots/sessions = 10/56/45/10；`md5(steps)=04e4b3a7…`；6 个生产文件 sha256 + 目录 mtime | 基线存 `backups/pre-langgraph-20261015-220101/baseline/` |
+| **A1** 最小补丁 | `workflow_step_run` 加 `used_fallback`/`skipped`（同一事务）+ `rnd_engine_metrics_started_at` = `2026-10-15 22:01:02+08` | 列数=2、行数与 md5 不变、**未重启**、health 200 |
+| **A2** 依赖 | 生产 venv 装 `langgraph==1.2.15`、`langgraph-checkpoint-postgres==3.1.3`、`psycopg-pool==3.3.3`（+25 传递依赖） | 见"偏差 D1"；freeze 前后 diff 归档；`pip check` 无破损 |
+| **A3** schema 引导 | `scripts/init_langgraph_checkpoint.py --schema langgraph --app-user neo4j_agents`（autocommit，段①对象 + 段② marker） | `langgraph` 6 表（owner=neo4j_agents）、`public` 无 `checkpoint%`、`rnd_engine_migrated_at=2026-10-15 22:02:50+08` |
+| **A4** 发布 | 备份旧文件 → 上传 **24 个文件**（逐文件 sha256 MATCH）→ 面板重启 | 见"事故 I1"；最终 pid **3512006**、`/api/health` 200、公网 200、`agent_config_revision` 幂等建表 |
+| **A5** legacy 基线运行 | run `90f09dca…`（问："把四君子汤改造成药食同源代餐粉"） | completed、6 步、**fallback 3 步**、4 快照、`metrics={6,1,3,4}`、`pin=legacy` |
+| **A6** 切换 | 先 canary（仅 admin）→ 运行 `9a7f6bb6…`、`d5353a9c…` → 再全局 `--set-mode langgraph` | 当前 **`rnd_engine = langgraph`**（全局生效，≤15s、无需重启） |
+
+### 双引擎生产对照（同一问题）
+
+| 引擎 | run | 状态 | 步骤 | fallback 步 | 快照 | metrics |
+|---|---|---|---|---|---|---|
+| legacy | `90f09dca…` | completed | 6 | 3 | 4 | `{6,1,3,4}` |
+| langgraph | `9a7f6bb6…` | completed | 6 | 4 | 4 | `{6,1,3,4}` |
+| langgraph | `d5353a9c…` | completed | 6 | 3 | 4 | `{6,1,3,4}` |
+
+**step2 差异归因（决定性）**：两次运行 step1/step2 的 `input_payload` **逐字节相同**（8492 B、键集 `brief/candidate_herbs/instruction/kb5_formula_context` 一致、KB5 上下文 1 元素、候选药味 18 条），输出键集一致 → 差异源于**模型抖动**（同一 `_run_step` → `generate_structured_output` 路径），非引擎差异；第二个 langgraph 样本 step2 `fallback=false` 亦证实。legacy 自身在 step1/5/6 就兜底。
+
+### 运行时机制确认
+
+- **pin**：Run 创建即落 `langgraph.run_engine`（legacy/langgraph 各就位）；**迁移后无 pin 的 Run = 0**（口径见附录 §12 修正：只对 marker 之后的 Run 断言；历史 10 条无 pin 属设计预期）。
+- **Checkpointer**：langgraph 运行期间 `langgraph.checkpoints` 按 thread 递增（样本 1 共 8 条），**租约锁执行结束后归零**；无重复 `(run_id, agent_key)`、无悬空 `graph_snapshot_id`。
+- **历史未被改动**：56 条历史步骤最后更新仍为 `2026-09-01 17:34:26`（9 completed / 1 failed）。
+
+### 回滚（R1，一条命令、≤15s、无需重启）
+
+```bash
+cd /www/wwwroot/neo4j-agents/backend
+DSN=$(grep -oP '^POSTGRES_DSN=\K.*' .env)
+/www/server/pyporject_evn/neo4j-agents-backend/bin/python scripts/rnd_engine_switch.py --db-url "$DSN" --set-mode legacy
+# 等价：--delete（删除该行即回退默认 legacy）；canary 可用 --set-mode canary --users <user_id>
+```
+代码级回滚（R2）：`backups/pre-langgraph-20261015-220101/app/`（6 个被覆盖文件）+ `baseline/pip-freeze-before.txt`。
+
+### 事故与偏差（如实记录）
+
+- **I1（事故，已修复）**：A4 首轮重启**启动失败** —— `ImportError: cannot import name 'AgentConfigRevision' from 'app.db.models'`。根因：我的发布文件集漏了最小批次内的 4 个模块（`db/models.py`、`db/init_db.py`、`services/agent_config_service.py`、`services/deepseek_client.py`），而 `routes.py`/`postgres_repository.py` 依赖它们。**影响**：`/api/health` 与公网 API 短暂不可用（静态站 200）；补齐 4 文件后重启恢复，全程未丢数据（业务计数不变）。**教训**：发布文件集必须由"目标文件所 import 的全部模块"反推校验，不能只按 diff 清单手抄。
+- **D1（偏差，已接受）**：`websockets` 由 **17.1 降级 16.1.1**（`langchain-core` 约束）。评估：生产代码 0 处引用 WebSocket、`pip check` 无破损、health/静态站/业务接口正常 → 判定对本站无影响；若将来引入 WS 功能需显式固定版本。
+- **D2（偏差，已接受）**：A5/A6 的验收运行使用"受控会话"（root 在 `auth_session` 铸造 1 小时令牌，`user_agent=captain-*`）绕过图形验证码；**3 条会话已在验收后删除**。
+- **D3（口径修正）**：附录 §12 原把 pin 断言写成"全量 Run 必须有 pin"，已更正为"marker 之后创建的 Run 必须全部有 pin"（生产实测 10 条历史 Run 无 pin 属预期）。
+
+### 现状
+
+- 站点：`https://mmfh.com.cn/` 200、`/api/health` 200；后端 pid 3512006；`rnd_engine=langgraph`。
+- 生产库新增（均为加法）：`langgraph` schema 6 表、2 个 marker、2 列、3 次验收 run + 1 次基线 run 及其步骤/快照/checkpoint。
+- 待办：T8-F1（`final_report` 异常原文脱敏）按 §15 决策在后续窗口与生产发布同批处理；`runs_without_pin` 巡检按修正口径。

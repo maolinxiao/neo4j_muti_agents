@@ -13,6 +13,12 @@ from app.services.deepseek_client import DeepSeekClient
 logger = logging.getLogger(__name__)
 
 
+#: 失败骨架的对外固定文案（遗留项 T8-F1，2026-10-15）。
+#: `workflow_run.final_report` 可经 `GET /api/rnd/runs/{id}` 读出，因此这里**不得**含异常原文：
+#: 异常类名 / 模块路径 / PostgreSQL relation 名 / SQL 片段 / 连接串 / 堆栈一律只写服务端日志（v2.1 §E.9）。
+RUN_FAILURE_DETAIL = "工作流执行失败，请联系管理员（可能原因：模型/图谱/存储暂时不可用）"
+
+
 @dataclass(frozen=True)
 class AgentStepDef:
     """工作流单步的静态定义（编排与「工作流逻辑」展示的唯一来源，2026-10-12 新增）。
@@ -351,13 +357,26 @@ class RnDWorkflowOrchestrator:
         exc: BaseException,
         related_graph_snapshots: list[str],
     ) -> None:
-        """失败收尾（机械抽取自原 resume_run:264-295）：run=failed + 固定失败骨架 + session 回 active。"""
+        """失败收尾（机械抽取自原 resume_run:264-295）：run=failed + 固定失败骨架 + session 回 active。
+
+        脱敏（T8-F1）：对外可读的 ``final_report.consistency_checks`` 只写固定通用文案 + run_id；
+        异常原文与堆栈经 ``logger.error`` 写服务端日志（含 run_id/session_id/stage 白名单字段），
+        **不**进入 HTTP 响应或 ``final_report``。legacy（``resume_run`` 的 except）与
+        langgraph（``rnd_graph.runner`` 的失败收尾）两条路径共用本方法，故文案一致。
+        """
         brief = run.brief or {}
+        logger.error(
+            "研发工作流失败 run_id=%s session_id=%s stage=apply_run_failure error_type=%s",
+            run.id,
+            getattr(workflow_session, "id", None),
+            type(exc).__name__,
+            exc_info=exc,
+        )
         run.status = "failed"
         run.final_report = {
             "brief_summary": brief.get("goal", ""),
             "final_recommendation": "",
-            "consistency_checks": [f"工作流执行失败：{exc}"],
+            "consistency_checks": [f"{RUN_FAILURE_DETAIL}（run_id={run.id}）"],
             "next_actions": ["请检查当前 Agent 提示词、图谱证据和模型连通性后重试。"],
             "task_plan": [],
             "data_sources": [],
